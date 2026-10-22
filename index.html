@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grand Prix Galopp</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ============ SETUP ============ -->
+  <section id="setup" class="screen">
+    <div class="setup-card">
+      <h1>🏇 Grand Prix Galopp</h1>
+      <p class="subtitle">Das Pferderennen-Wettspiel für euren Monopoly-Abend</p>
+
+      <form id="setup-form">
+        <div class="field-row">
+          <label>
+            Startbetrag pro Spieler
+            <input type="number" id="start-amount" min="1" step="1" value="500" required />
+          </label>
+          <label>
+            Währung
+            <input type="text" id="currency" maxlength="3" value="M" required />
+          </label>
+        </div>
+
+        <fieldset>
+          <legend>Spieler</legend>
+          <div id="player-inputs"></div>
+          <button type="button" id="add-player" class="btn ghost">+ Spieler hinzufügen</button>
+        </fieldset>
+
+        <p class="hint">Jeder Spieler startet mit demselben Betrag. Was ihr bei Monopoly verdient, könnt ihr
+          später in eure Geldbörse einzahlen und auf die Pferde setzen.</p>
+
+        <button type="submit" class="btn primary big">Spiel starten</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ GAME ============ -->
+  <section id="game" class="screen hidden">
+    <header class="topbar">
+      <h1>🏇 Grand Prix Galopp</h1>
+      <div class="topbar-info">
+        <span id="race-label">Rennen #1</span>
+        <button id="btn-history" class="btn ghost small">Verlauf</button>
+        <button id="btn-reset" class="btn ghost small">Neues Spiel</button>
+      </div>
+    </header>
+
+    <!-- Wallets -->
+    <div id="wallets" class="wallets"></div>
+
+    <!-- Race track -->
+    <div class="track-wrap">
+      <div id="commentary" class="commentary">Die Pferde stehen in den Startboxen…</div>
+      <div id="track" class="track"></div>
+      <div id="countdown" class="countdown hidden"></div>
+    </div>
+
+    <div class="lower">
+      <!-- Horse list / odds -->
+      <div class="panel">
+        <h2>Starterfeld &amp; Quoten</h2>
+        <table class="odds-table">
+          <thead><tr><th>#</th><th>Pferd</th><th>Form</th><th>Sieg</th><th>Platz (Top 3)</th></tr></thead>
+          <tbody id="odds-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Bet slip -->
+      <div class="panel">
+        <h2>Wettschein</h2>
+        <form id="bet-form" class="bet-form">
+          <label>Spieler<select id="bet-player"></select></label>
+          <label>Pferd<select id="bet-horse"></select></label>
+          <label>Wettart
+            <select id="bet-type">
+              <option value="win">Sieg</option>
+              <option value="place">Platz (Top 3)</option>
+            </select>
+          </label>
+          <label>Einsatz<input type="number" id="bet-amount" min="1" step="1" placeholder="0" required /></label>
+          <div class="chips">
+            <button type="button" data-chip="10">+10</button>
+            <button type="button" data-chip="50">+50</button>
+            <button type="button" data-chip="100">+100</button>
+            <button type="button" data-chip="all">Alles</button>
+            <button type="button" data-chip="clear">✕</button>
+          </div>
+          <div id="bet-preview" class="bet-preview"></div>
+          <button type="submit" class="btn primary">Wette platzieren</button>
+        </form>
+
+        <h3>Wetten für dieses Rennen</h3>
+        <ul id="bet-list" class="bet-list"></ul>
+        <button id="btn-start-race" class="btn race big">🏁 Rennen starten</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DIALOGS ============ -->
+  <dialog id="money-dialog">
+    <form method="dialog" id="money-form">
+      <h2 id="money-title">Geld einzahlen</h2>
+      <p id="money-text" class="hint"></p>
+      <label>Betrag<input type="number" id="money-amount" min="1" step="1" required /></label>
+      <div class="dialog-actions">
+        <button value="cancel" formnovalidate class="btn ghost">Abbrechen</button>
+        <button value="ok" class="btn primary" id="money-ok">Bestätigen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="result-dialog">
+    <div class="result">
+      <h2 id="result-title">Zieleinlauf</h2>
+      <div id="podium" class="podium"></div>
+      <ul id="payouts" class="payouts"></ul>
+      <div class="dialog-actions">
+        <button id="btn-next-race" class="btn primary big">Nächstes Rennen</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="history-dialog">
+    <h2>Verlauf</h2>
+    <ul id="history-list" class="history-list"></ul>
+    <div class="dialog-actions">
+      <button class="btn primary" onclick="this.closest('dialog').close()">Schließen</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="game.js"></script>
+</body>
+</html>

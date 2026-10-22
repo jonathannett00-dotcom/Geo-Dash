@@ -238,6 +238,7 @@ function renderTrack() {
     <rect x="${cx - 2}" y="${cy + outer}" width="4" height="22" class="t-post"/>
     <circle cx="${cx}" cy="${cy + outer + 24}" r="7" class="t-postcap"/>
     ${laneNos}
+    <g id="trails"></g>
     <g id="dust"></g>
     <g id="horses">
       ${state.horses.map((h, i) => `
@@ -246,7 +247,6 @@ function renderTrack() {
           <g class="sprite"><g transform="translate(-33,-42) scale(0.66)">${horseSVG(h, i + 1)}</g></g>
         </g>`).join('')}
     </g>
-    <g id="trails"></g>
   </svg>`;
   lastZOrder = '';
   positionHorses(new Array(n).fill(0));
@@ -266,10 +266,10 @@ function updateBetMarkers() {
     const trail = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     trail.setAttribute('class', 'trail');
     trail.id = `trail-${i}`;
-    const top = -22 - ((backers.length - 1) * 15) / 2;
-    trail.innerHTML = backers.map((p, k) =>
-      `<text y="${top + k * 15}" style="fill:${p.color};animation-delay:${-(i * 0.17 + k * 0.3)}s">${escapeHtml(p.name)}</text>`).join('');
+    // Wie auf die Bahn gemalt: Großbuchstaben, in Laufrichtung, flach im eigenen Streifen
+    trail.innerHTML = `<text>${backers.map((p) => escapeHtml(p.name.toUpperCase())).join(' · ')}</text>`;
     layer.appendChild(trail);
+    trail.dataset.len = trail.querySelector('text').getComputedTextLength() || 60;
   });
   if (state.horses.length) positionHorses(lastPositions);
 }
@@ -280,7 +280,7 @@ let lastZOrder = '';
 let lastPositions = [];
 
 /** Abstand (in SVG-Einheiten), mit dem die Namen hinter dem Pferd herziehen. */
-const TRAIL_GAP = 58;
+const TRAIL_GAP = 26;
 const lanePerimeter = (k) => 4 * OVAL.a + 2 * Math.PI * (OVAL.r0 + OVAL.lane * (k + 0.5));
 
 /** Setzt jedes Pferd auf seine Bahn; positions in Streckeneinheiten (0 … TRACK_LENGTH). */
@@ -304,9 +304,14 @@ function positionHorses(positions) {
     // Namen folgen der Bahn ein Stück hinter dem Pferd
     const trail = document.getElementById(`trail-${i}`);
     if (trail) {
-      const t = Math.min(positions[i] / TRACK_LENGTH, 1.06) - TRAIL_GAP / lanePerimeter(i);
+      const gap = TRAIL_GAP + Number(trail.dataset.len) / 2;
+      const t = Math.min(positions[i] / TRACK_LENGTH, 1.06) - gap / lanePerimeter(i);
       const tp = trackPoint(i, t);
-      trail.setAttribute('transform', `translate(${tp.x.toFixed(1)} ${tp.y.toFixed(1)})`);
+      // entlang der Bahn ausrichten, aber nie auf dem Kopf stehend
+      let angle = (Math.atan2(tp.dy, tp.dx) * 180) / Math.PI;
+      if (angle > 90) angle -= 180;
+      if (angle < -90) angle += 180;
+      trail.setAttribute('transform', `translate(${tp.x.toFixed(1)} ${tp.y.toFixed(1)}) rotate(${angle.toFixed(1)})`);
     }
   });
   // Pferde weiter unten im Bild werden vorne gezeichnet

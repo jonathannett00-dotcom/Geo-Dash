@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Grand Prix Galopp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;600;700;800&display=swap" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -56,7 +58,14 @@
     <!-- Race track -->
     <div class="track-wrap">
       <div id="commentary" class="commentary">Die Pferde stehen in den Startboxen…</div>
+      <div class="track-stage">
       <div id="track" class="track"></div>
+      <div class="infield">
+        <div class="infield-label">Grand Prix Galopp</div>
+        <div id="infield-race" class="infield-race">Rennen #1</div>
+        <ol id="live" class="live"></ol>
+      </div>
+      </div>
       <div id="countdown" class="countdown hidden"></div>
     </div>
 
@@ -129,8 +138,18 @@
     <h2>Verlauf</h2>
     <ul id="history-list" class="history-list"></ul>
     <div class="dialog-actions">
-      <button class="btn primary" onclick="this.closest('dialog').close()">Schließen</button>
+      <button class="btn primary" id="btn-history-close">Schließen</button>
     </div>
+  </dialog>
+
+  <dialog id="confirm-dialog">
+    <form method="dialog">
+      <p id="confirm-text"></p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn ghost">Abbrechen</button>
+        <button value="ok" class="btn primary" id="confirm-ok">OK</button>
+      </div>
+    </form>
   </dialog>
 
   <div id="toast" class="toast"></div>

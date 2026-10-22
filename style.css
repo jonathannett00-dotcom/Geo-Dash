@@ -10,6 +10,9 @@
   --grass-1: #3f9b45;
   --grass-2: #368a3c;
   --dirt: #b8834f;
+  --turf: #2f7a37;
+  --font-display: "Alfa Slab One", Rockwell, "Roboto Slab", Georgia, serif;
+  --font-body: Barlow, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --radius: 14px;
   --shadow: 0 8px 24px rgba(0, 0, 0, .25);
 }
@@ -20,7 +23,7 @@ html { background: var(--bg); }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--bg) radial-gradient(ellipse at top, var(--bg-2), transparent 70%) no-repeat top / 100% 900px;
   color: var(--ink);
   min-height: 100vh;
@@ -29,7 +32,7 @@ body {
 .hidden { display: none !important; }
 
 h1, h2, h3 { margin: 0 0 .6rem; }
-h1 { font-family: Georgia, "Times New Roman", serif; letter-spacing: .02em; }
+h1 { font-family: var(--font-display); font-weight: 400; letter-spacing: .02em; text-wrap: balance; }
 
 /* ---------- Buttons ---------- */
 .btn {
@@ -42,6 +45,7 @@ h1 { font-family: Georgia, "Times New Roman", serif; letter-spacing: .02em; }
   transition: transform .1s, filter .15s, opacity .15s;
 }
 .btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:focus-visible, .chips button:focus-visible, .wallet button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .btn:active:not(:disabled) { transform: scale(.97); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.primary { background: var(--gold); color: #2a2200; }
@@ -62,7 +66,7 @@ input:focus, select:focus { outline: none; border-color: var(--gold); }
 label { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; font-weight: 600; color: var(--muted); }
 
 /* ---------- Setup ---------- */
-#setup { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
+#setup { display: grid; place-items: center; min-height: 100vh; padding-block: 16px; }
 .setup-card {
   background: var(--panel);
   border-radius: var(--radius);
@@ -82,14 +86,15 @@ legend { font-weight: 700; padding: 0 .4rem; }
 #add-player { color: var(--muted); }
 
 /* ---------- Topbar ---------- */
-#game { padding: 16px; max-width: 1200px; margin: 0 auto; }
+#game { padding-block: 16px; max-width: 1200px; margin: 0 auto; }
+.screen { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .topbar { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; color: #fff; margin-bottom: 1rem; }
 .topbar h1 { margin: 0; font-size: 1.6rem; }
 .topbar-info { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 #race-label { font-weight: 700; color: var(--gold); margin-right: .5rem; }
 
 /* ---------- Wallets ---------- */
-.wallets { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .8rem; margin-bottom: 1rem; }
+.wallets { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: .8rem; margin-bottom: 1rem; }
 .wallet {
   background: var(--panel);
   border-radius: var(--radius);
@@ -116,71 +121,57 @@ legend { font-weight: 700; padding: 0 .4rem; }
 .wallet .delta.down { color: var(--red); }
 @keyframes floatUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-30px); } }
 
-/* ---------- Track ---------- */
-.track-wrap { position: relative; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); margin-bottom: 1rem; }
+/* ---------- Track (ovale Bahn) ---------- */
+.track-wrap { position: relative; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); margin-bottom: 1rem; background: var(--turf); }
 .commentary {
   background: #111; color: var(--gold); font-weight: 700; padding: .5rem 1rem;
   font-family: "Courier New", monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.track {
-  position: relative;
-  background:
-    linear-gradient(to bottom, #2b6b30 0 10px, transparent 10px),
-    repeating-linear-gradient(90deg, var(--grass-1) 0 60px, var(--grass-2) 60px 120px);
-  padding: 14px 0 10px;
-}
-.track.running .lane { animation: scrollDirt .4s linear infinite; }
-@keyframes scrollDirt { from { background-position: 0 0; } to { background-position: -80px 0; } }
+.track-stage { position: relative; }
+.track svg { display: block; width: 100%; height: auto; }
+.t-turf { fill: var(--turf); }
+.t-mow { fill: rgba(255, 255, 255, .05); }
+.t-infield { fill: var(--grass-1); }
+.t-dirt { fill: none; stroke: var(--dirt); }
+.t-divider { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: 1.2; stroke-dasharray: 10 8; }
+.t-rail { fill: none; stroke: #fff; stroke-width: 3.5; }
+.t-post { fill: #fff; }
+.t-postcap { fill: var(--red); stroke: #fff; stroke-width: 2; }
+.t-laneno { fill: rgba(255, 255, 255, .6); font: 700 12px var(--font-body); text-anchor: middle; }
 
-.lane {
-  position: relative;
-  height: 58px;
-  margin: 0 0 4px;
-  background:
-    repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 2px, transparent 2px 40px),
-    var(--dirt);
-  border-top: 2px solid rgba(255,255,255,.55);
-}
-.lane:last-child { border-bottom: 2px solid rgba(255,255,255,.55); }
-.lane-no {
-  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
-  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
-  font-size: .75rem; font-weight: 800; color: #fff; background: rgba(0,0,0,.45); z-index: 1;
-}
-.finish-line {
-  position: absolute; top: 0; bottom: 0; right: 6%; width: 12px; z-index: 0;
-  background: repeating-conic-gradient(#fff 0 25%, #111 0 50%) 0 0 / 12px 12px;
-  opacity: .9;
-}
-.horse {
-  position: absolute; top: 2px; left: 0; width: 76px; height: 54px; z-index: 2;
-  will-change: transform;
-  filter: drop-shadow(0 4px 2px rgba(0,0,0,.3));
-}
-.horse svg { width: 100%; height: 100%; overflow: visible; }
 .horse .leg { transform-box: fill-box; transform-origin: 50% 0; }
-.track.running .horse .bob { animation: bob .3s ease-in-out infinite; }
+.track.running .horse .bob { animation: bob .3s ease-in-out infinite; transform-box: fill-box; }
 .track.running .horse .leg.a { animation: gallopA .3s ease-in-out infinite; }
 .track.running .horse .leg.b { animation: gallopB .3s ease-in-out infinite; }
 .track.running .horse .tail { animation: tail .3s ease-in-out infinite; transform-box: fill-box; transform-origin: 100% 0; }
 .horse.finished .leg, .horse.finished .bob, .horse.finished .tail { animation-duration: .6s !important; }
+.horse .sprite { filter: drop-shadow(0 3px 1.5px rgba(0,0,0,.35)); }
 @keyframes gallopA { 0%,100% { transform: rotate(35deg); } 50% { transform: rotate(-35deg); } }
 @keyframes gallopB { 0%,100% { transform: rotate(-35deg); } 50% { transform: rotate(35deg); } }
 @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes tail { 0%,100% { transform: rotate(-10deg); } 50% { transform: rotate(12deg); } }
-.horse .place-badge {
-  position: absolute; right: -8px; top: -6px; background: var(--gold); color: #2a2200;
-  font-weight: 800; font-size: .75rem; border-radius: 999px; padding: 1px 6px;
-  animation: pop .3s ease-out;
-}
+.place-badge rect { fill: var(--gold); stroke: #2a2200; stroke-width: 1.5; }
+.place-badge text { fill: #2a2200; font: 800 12px var(--font-body); text-anchor: middle; }
+.place-badge { animation: pop .3s ease-out; transform-box: fill-box; transform-origin: center; }
 @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
 
-.dust {
-  position: absolute; width: 10px; height: 10px; border-radius: 50%;
-  background: rgba(230, 200, 160, .8); z-index: 1; pointer-events: none;
-  animation: dust .6s ease-out forwards;
+.dust { fill: rgba(235, 205, 165, .85); animation: dust .6s ease-out forwards; transform-box: fill-box; transform-origin: center; pointer-events: none; }
+@keyframes dust { to { opacity: 0; transform: translateY(-8px) scale(2.6); } }
+
+/* Infield: Anzeigetafel in der Mitte des Ovals */
+.infield {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 40%; max-height: 38%; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; gap: .15rem;
+  background: rgba(10, 30, 18, .72); color: #fff; border: 2px solid rgba(255,255,255,.35);
+  border-radius: 12px; padding: .5rem .8rem; text-align: center; pointer-events: none;
 }
-@keyframes dust { to { opacity: 0; transform: translate(-30px, -12px) scale(2.5); } }
+.infield-label { font: .65rem var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+.infield-race { font-family: var(--font-display); font-size: clamp(.9rem, 2.4vw, 1.5rem); line-height: 1.1; }
+.live { list-style: none; margin: .2rem 0 0; padding: 0; font-size: clamp(.65rem, 1.4vw, .9rem); text-align: left; }
+.live li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live .muted { color: rgba(255,255,255,.65); font-style: italic; text-align: center; }
+.live .silk { width: 10px; height: 10px; margin-right: .25rem; }
 
 .countdown {
   position: absolute; inset: 0; display: grid; place-items: center; z-index: 5;
@@ -254,13 +245,17 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 /* ---------- Responsive ---------- */
 @media (max-width: 800px) {
   .lower { grid-template-columns: 1fr; }
-  .horse { width: 58px; height: 42px; top: 2px; }
-  .lane { height: 46px; }
   .topbar h1 { font-size: 1.2rem; }
   .countdown { font-size: 4rem; }
 }
 @media (max-width: 480px) {
+  .live { display: none; }
+  .infield-label { font-size: .5rem; }
   .bet-form { grid-template-columns: 1fr; }
   .odds-table th:nth-child(3), .odds-table td:nth-child(3) { display: none; }
   .setup-card { padding: 1.2rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track.running .horse .bob, .track.running .horse .leg, .track.running .horse .tail, .dust { animation: none !important; }
 }

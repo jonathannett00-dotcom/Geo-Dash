@@ -148,9 +148,43 @@ function generateHorses() {
 
 /* ---------------- Rendering ---------------- */
 
+/* ---------- Ovale Bahn ---------- */
+
+// Geometrie der Bahn im SVG-Koordinatensystem: zwei Geraden + zwei Halbkreise
+const OVAL = { W: 1000, H: 560, cx: 500, cy: 280, a: 230, r0: 118, lane: 22 };
+
+/** Pfad eines Ovals mit Kurvenradius r (Start unten Mitte, gegen den Uhrzeigersinn). */
+function ovalPath(r) {
+  const { cx, cy, a } = OVAL;
+  return `M${cx - a},${cy + r} L${cx + a},${cy + r} A${r},${r} 0 0 0 ${cx + a},${cy - r}`
+    + ` L${cx - a},${cy - r} A${r},${r} 0 0 0 ${cx - a},${cy + r} Z`;
+}
+
+/** Punkt + Laufrichtung auf Bahn k bei Rundenanteil t (0 = Ziellinie). */
+function trackPoint(k, t) {
+  const { cx, cy, a } = OVAL;
+  const r = OVAL.r0 + OVAL.lane * (k + 0.5);
+  const arc = Math.PI * r;
+  let s = (((t % 1) + 1) % 1) * (4 * a + 2 * arc);
+  if (s < a) return { x: cx + s, y: cy + r, dx: 1, dy: 0 };
+  s -= a;
+  if (s < arc) {
+    const f = s / r;
+    return { x: cx + a + r * Math.sin(f), y: cy + r * Math.cos(f), dx: Math.cos(f), dy: -Math.sin(f) };
+  }
+  s -= arc;
+  if (s < 2 * a) return { x: cx + a - s, y: cy - r, dx: -1, dy: 0 };
+  s -= 2 * a;
+  if (s < arc) {
+    const f = s / r;
+    return { x: cx - a - r * Math.sin(f), y: cy - r * Math.cos(f), dx: -Math.cos(f), dy: Math.sin(f) };
+  }
+  s -= arc;
+  return { x: cx - a + s, y: cy + r, dx: 1, dy: 0 };
+}
+
 function horseSVG(h, number) {
   return `
-  <svg viewBox="0 0 100 70" aria-hidden="true">
     <g class="bob">
       <path class="tail" d="M20 30 Q8 34 6 50 Q14 42 22 36 Z" fill="${h.coat}" style="filter:brightness(.7)"/>
       <rect class="leg b" x="26" y="38" width="5" height="26" rx="2" fill="${h.coat}" style="filter:brightness(.75)"/>
@@ -164,41 +198,86 @@ function horseSVG(h, number) {
       <path d="M62 27 L71 10 L67 9 L58 24 Z" fill="#1a1410"/>
       <circle cx="84" cy="15" r="1.4" fill="#000"/>
       <rect x="36" y="25" width="20" height="12" rx="2" fill="${h.silk}"/>
-      <text x="46" y="34.5" font-size="8" font-weight="900" text-anchor="middle" fill="#fff">${number}</text>
+      <text class="num" x="46" y="34.5" font-size="8" font-weight="900" text-anchor="middle" fill="#fff">${number}</text>
       <path d="M44 25 L50 8 L58 10 L54 26 Z" fill="${h.silk}"/>
       <path d="M54 14 L66 20" stroke="${h.silk}" stroke-width="4" stroke-linecap="round"/>
       <circle cx="54" cy="5" r="5" fill="#f2c9a0"/>
       <path d="M49 4 A5 5 0 0 1 59 4 L61 5 L49 5 Z" fill="${h.silk}"/>
       <path d="M48 26 L44 36" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
-    </g>
-  </svg>`;
+    </g>`;
 }
 
 function renderTrack() {
-  const track = $('#track');
-  track.innerHTML = state.horses.map((h, i) => `
-    <div class="lane" data-lane="${i}">
-      <span class="lane-no">${i + 1}</span>
-      <div class="finish-line"></div>
-      <div class="horse" id="horse-${i}">${horseSVG(h, i + 1)}</div>
-    </div>`).join('');
-  positionHorses(new Array(state.horses.length).fill(0));
+  const { W, H, cx, cy, r0, lane } = OVAL;
+  const n = state.horses.length;
+  const outer = r0 + lane * n;
+  const dividers = [...Array(n - 1)].map((_, k) =>
+    `<path d="${ovalPath(r0 + lane * (k + 1))}" class="t-divider"/>`).join('');
+  const laneNos = state.horses.map((_, k) =>
+    `<text x="${cx - 18}" y="${cy + r0 + lane * (k + 0.5) + 4}" class="t-laneno">${k + 1}</text>`).join('');
+
+  $('#track').innerHTML = `
+  <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ovale Rennbahn mit ${n} Pferden">
+    <defs>
+      <pattern id="checker" width="8" height="8" patternUnits="userSpaceOnUse">
+        <rect width="8" height="8" fill="#fff"/><rect width="4" height="4" fill="#111"/><rect x="4" y="4" width="4" height="4" fill="#111"/>
+      </pattern>
+      <pattern id="mow" width="80" height="80" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+        <rect width="40" height="80" class="t-mow"/>
+      </pattern>
+    </defs>
+    <rect width="${W}" height="${H}" class="t-turf"/>
+    <rect width="${W}" height="${H}" fill="url(#mow)"/>
+    <path d="${ovalPath((r0 + outer) / 2)}" class="t-dirt" stroke-width="${outer - r0}"/>
+    <path d="${ovalPath(r0)}" class="t-infield"/>
+    <path d="${ovalPath(r0)}" fill="url(#mow)"/>
+    ${dividers}
+    <path d="${ovalPath(r0)}" class="t-rail"/>
+    <path d="${ovalPath(outer)}" class="t-rail"/>
+    <rect x="${cx - 5}" y="${cy + r0}" width="10" height="${outer - r0}" fill="url(#checker)"/>
+    <rect x="${cx - 2}" y="${cy + outer}" width="4" height="22" class="t-post"/>
+    <circle cx="${cx}" cy="${cy + outer + 24}" r="7" class="t-postcap"/>
+    ${laneNos}
+    <g id="dust"></g>
+    <g id="horses">
+      ${state.horses.map((h, i) => `
+        <g class="horse" id="horse-${i}">
+          <g class="sprite"><g transform="translate(-33,-42) scale(0.66)">${horseSVG(h, i + 1)}</g></g>
+        </g>`).join('')}
+    </g>
+  </svg>`;
+  lastZOrder = '';
+  positionHorses(new Array(n).fill(0));
 }
 
-function horseX(lane, horseEl, p) {
-  const w = lane.clientWidth;
-  const startX = 28;
-  const finishX = w * 0.94;                      // Position der Ziellinie
-  const travel = finishX - horseEl.offsetWidth - startX;
-  return startX + (p / TRACK_LENGTH) * travel;
-}
+let lastZOrder = '';
 
+/** Setzt jedes Pferd auf seine Bahn; positions in Streckeneinheiten (0 … TRACK_LENGTH). */
 function positionHorses(positions) {
-  $$('.lane').forEach((lane, i) => {
-    const el = lane.querySelector('.horse');
-    const x = Math.min(horseX(lane, el, positions[i]), lane.clientWidth - el.offsetWidth);
-    el.style.transform = `translateX(${x}px)`;
+  const pts = positions.map((p, i) => {
+    const t = Math.min(p / TRACK_LENGTH, 1.06);   // nach dem Ziel noch ein Stück auslaufen
+    return trackPoint(i, t);
   });
+  pts.forEach((pt, i) => {
+    const el = document.getElementById(`horse-${i}`);
+    if (!el) return;
+    const face = pt.dx < -1e-6 ? -1 : 1;
+    const tilt = Math.max(-22, Math.min(22, (Math.atan2(pt.dy, Math.abs(pt.dx)) * 180) / Math.PI));
+    el.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)})`);
+    el.querySelector('.sprite').setAttribute('transform', `scale(${face} 1) rotate(${tilt.toFixed(1)})`);
+    // Startnummer bleibt lesbar, auch wenn das Pferd nach links läuft
+    el.querySelector('.num').setAttribute('transform', face < 0 ? 'translate(92 0) scale(-1 1)' : '');
+    el.dataset.face = face;
+  });
+  // Pferde weiter unten im Bild werden vorne gezeichnet
+  const order = pts.map((pt, i) => [pt.y, i]).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
+  const key = order.join(',');
+  if (key !== lastZOrder) {
+    const layer = document.getElementById('horses');
+    order.forEach((i) => layer.appendChild(document.getElementById(`horse-${i}`)));
+    lastZOrder = key;
+  }
+  return pts;
 }
 
 function renderOdds() {
@@ -375,6 +454,7 @@ function showGame() {
   $('#game').classList.remove('hidden');
   renderAll();
   renderTrack();
+  resetInfield();
   $('#commentary').textContent = 'Die Pferde stehen in den Startboxen… Jetzt Wetten platzieren!';
 }
 
@@ -455,13 +535,35 @@ function removeBet(idx) {
 
 /* ---------------- Race ---------------- */
 
-function spawnDust(lane, x) {
-  const d = document.createElement('div');
-  d.className = 'dust';
-  d.style.left = `${x + 6}px`;
-  d.style.top = `${lane.clientHeight - 14}px`;
-  lane.appendChild(d);
+function spawnDust(pt) {
+  const d = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  d.setAttribute('class', 'dust');
+  d.setAttribute('cx', (pt.x - Math.sign(pt.dx || 1) * 16).toFixed(1));
+  d.setAttribute('cy', (pt.y - 2).toFixed(1));
+  d.setAttribute('r', '4');
+  $('#dust').appendChild(d);
   setTimeout(() => d.remove(), 650);
+}
+
+function resetInfield() {
+  $('#infield-race').textContent = `Rennen #${state.raceNo}`;
+  $('#live').innerHTML = '<li class="muted">Wetten offen</li>';
+}
+
+function renderLiveStandings(positions) {
+  const order = positions.map((p, i) => [p, i]).sort((a, b) => b[0] - a[0]).map(([, i]) => i);
+  $('#live').innerHTML = order.slice(0, 3).map((i, k) =>
+    `<li><b>${k + 1}.</b> <span class="silk" style="background:${state.horses[i].silk}"></span>#${i + 1} ${escapeHtml(state.horses[i].name)}</li>`).join('');
+}
+
+/** Eigene Bestätigung im Spiel (Browser-confirm() steht nicht überall zur Verfügung). */
+function askConfirm(text, okLabel) {
+  const dlg = $('#confirm-dialog');
+  $('#confirm-text').textContent = text;
+  $('#confirm-ok').textContent = okLabel;
+  dlg.returnValue = '';
+  dlg.showModal();
+  return new Promise((resolve) => { dlg.onclose = () => resolve(dlg.returnValue === 'ok'); });
 }
 
 function countdown() {
@@ -480,7 +582,9 @@ function countdown() {
 
 async function startRace() {
   if (racing) return;
-  if (!state.bets.length && !confirm('Es wurden noch keine Wetten platziert. Trotzdem starten?')) return;
+  if (!state.bets.length
+    && !(await askConfirm('Es wurden noch keine Wetten platziert. Trotzdem starten?', 'Rennen starten'))) return;
+  if (racing) return;
   racing = true;
   renderBets();
   $$('#bet-form button, #bet-form select, #bet-form input').forEach((el) => { el.disabled = true; });
@@ -492,12 +596,12 @@ async function startRace() {
 
   const track = $('#track');
   track.classList.add('running');
-  const lanes = $$('.lane');
-  const horsesEl = lanes.map((l) => l.querySelector('.horse'));
+  const horsesEl = state.horses.map((_, i) => document.getElementById(`horse-${i}`));
   const n = state.horses.length;
   const placed = new Set();
   let lastComment = 0;
   let lastLeader = -1;
+  let lastStandings = 0;
   const start = performance.now();
   const totalTicks = frames.length;
 
@@ -508,12 +612,17 @@ async function startRace() {
       const i1 = Math.min(i0 + 1, totalTicks - 1);
       const f = tickF - i0;
       const positions = frames[i0].map((p, k) => p + (frames[i1][k] - p) * f);
-      positionHorses(positions);
+      const pts = positionHorses(positions);
 
       // Staubwolken
       if (Math.random() < 0.5) {
         const k = Math.floor(Math.random() * n);
-        if (positions[k] < TRACK_LENGTH) spawnDust(lanes[k], horseX(lanes[k], horsesEl[k], positions[k]));
+        if (positions[k] < TRACK_LENGTH) spawnDust(pts[k]);
+      }
+
+      if (!placed.size && now - lastStandings > 300) {
+        renderLiveStandings(positions);
+        lastStandings = now;
       }
 
       // Zieleinlauf-Badges
@@ -521,10 +630,14 @@ async function startRace() {
         if (!placed.has(h) && tickF >= finishTime[h]) {
           placed.add(h);
           horsesEl[h].classList.add('finished');
-          const badge = document.createElement('span');
-          badge.className = 'place-badge';
-          badge.textContent = `${place + 1}.`;
+          const badge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          badge.setAttribute('class', 'place-badge');
+          badge.innerHTML = `<rect x="-13" y="-68" width="26" height="17" rx="8.5"/><text x="0" y="-55.5">${place + 1}.</text>`;
           horsesEl[h].appendChild(badge);
+          if (place < 3) {
+            $('#live').innerHTML = order.slice(0, place + 1).map((i, k) =>
+              `<li><b>${k + 1}.</b> <span class="silk" style="background:${state.horses[i].silk}"></span>#${i + 1} ${escapeHtml(state.horses[i].name)}</li>`).join('');
+          }
           if (place === 0) $('#commentary').textContent = `🏆 ${state.horses[h].name} gewinnt das Rennen!`;
         }
       });
@@ -619,6 +732,7 @@ function nextRace() {
   $$('#bet-form button, #bet-form select, #bet-form input').forEach((el) => { el.disabled = false; });
   renderAll();
   renderTrack();
+  resetInfield();
   $('#commentary').textContent = `Rennen #${state.raceNo}: Neues Starterfeld! Jetzt Wetten platzieren.`;
   const broke = state.players.filter((p) => p.balance <= 0);
   if (broke.length) toast(`${broke.map((p) => p.name).join(', ')}: Geldbörse leer – zahl Monopoly-Geld ein!`);
@@ -641,10 +755,11 @@ function bindEvents() {
   $('#btn-next-race').onclick = nextRace;
   $('#result-dialog').addEventListener('cancel', (e) => { e.preventDefault(); nextRace(); });
   $('#btn-history').onclick = showHistory;
-  $('#btn-reset').onclick = () => {
+  $('#btn-history-close').onclick = () => $('#history-dialog').close();
+  $('#btn-reset').onclick = async () => {
     if (racing) return;
-    if (!confirm('Wirklich ein neues Spiel starten? Alle Geldbörsen werden zurückgesetzt.')) return;
-    localStorage.removeItem(STORAGE_KEY);
+    if (!(await askConfirm('Wirklich ein neues Spiel starten? Alle Geldbörsen werden zurückgesetzt.', 'Neues Spiel'))) return;
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) { /* privat-Modus */ }
     state = null;
     showSetup();
   };
@@ -679,10 +794,6 @@ function bindEvents() {
   $('#bet-list').addEventListener('click', (e) => {
     const idx = e.target.dataset.removeBet;
     if (idx !== undefined) removeBet(Number(idx));
-  });
-
-  window.addEventListener('resize', () => {
-    if (!racing && state) positionHorses(new Array(state.horses.length).fill(0));
   });
 }
 

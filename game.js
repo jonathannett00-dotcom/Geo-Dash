@@ -246,37 +246,46 @@ function renderTrack() {
           <g class="sprite"><g transform="translate(-33,-42) scale(0.66)">${horseSVG(h, i + 1)}</g></g>
         </g>`).join('')}
     </g>
+    <g id="trails"></g>
   </svg>`;
   lastZOrder = '';
   positionHorses(new Array(n).fill(0));
   updateBetMarkers();
 }
 
-/** Hebt Pferde hervor, auf die gewettet wurde: Leuchten + Farbpunkte der Spieler. */
+/** Hebt Pferde hervor, auf die gewettet wurde: dezentes Leuchten + Namen, die hinterherziehen. */
 function updateBetMarkers() {
+  const layer = document.getElementById('trails');
+  if (!layer) return;
+  layer.innerHTML = '';
   state.horses.forEach((_, i) => {
     const el = document.getElementById(`horse-${i}`);
-    if (!el) return;
-    el.querySelector('.bet-mark')?.remove();
     const backers = [...new Set(state.bets.filter((b) => b.horse === i).map((b) => b.playerId))].map(playerById);
     el.classList.toggle('backed', backers.length > 0);
     if (!backers.length) return;
-    const mark = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    mark.setAttribute('class', 'bet-mark');
-    const start = -((backers.length - 1) * 12) / 2;
-    mark.innerHTML = backers.map((p, k) =>
-      `<circle cx="${start + k * 12}" cy="-52" r="5.5" fill="${p.color}"/>`).join('')
-      + `<path d="M-4,-44 L4,-44 L0,-39 Z" class="bet-arrow"/>`;
-    el.appendChild(mark);
+    const trail = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    trail.setAttribute('class', 'trail');
+    trail.id = `trail-${i}`;
+    const top = -22 - ((backers.length - 1) * 15) / 2;
+    trail.innerHTML = backers.map((p, k) =>
+      `<text y="${top + k * 15}" style="fill:${p.color};animation-delay:${-(i * 0.17 + k * 0.3)}s">${escapeHtml(p.name)}</text>`).join('');
+    layer.appendChild(trail);
   });
+  if (state.horses.length) positionHorses(lastPositions);
 }
 
 const isBacked = (i) => state.bets.some((b) => b.horse === i);
 
 let lastZOrder = '';
+let lastPositions = [];
+
+/** Abstand (in SVG-Einheiten), mit dem die Namen hinter dem Pferd herziehen. */
+const TRAIL_GAP = 58;
+const lanePerimeter = (k) => 4 * OVAL.a + 2 * Math.PI * (OVAL.r0 + OVAL.lane * (k + 0.5));
 
 /** Setzt jedes Pferd auf seine Bahn; positions in Streckeneinheiten (0 … TRACK_LENGTH). */
 function positionHorses(positions) {
+  lastPositions = positions;
   const pts = positions.map((p, i) => {
     const t = Math.min(p / TRACK_LENGTH, 1.06);   // nach dem Ziel noch ein Stück auslaufen
     return trackPoint(i, t);
@@ -291,6 +300,14 @@ function positionHorses(positions) {
     // Startnummer bleibt lesbar, auch wenn das Pferd nach links läuft
     el.querySelector('.num').setAttribute('transform', face < 0 ? 'translate(92 0) scale(-1 1)' : '');
     el.dataset.face = face;
+
+    // Namen folgen der Bahn ein Stück hinter dem Pferd
+    const trail = document.getElementById(`trail-${i}`);
+    if (trail) {
+      const t = Math.min(positions[i] / TRACK_LENGTH, 1.06) - TRAIL_GAP / lanePerimeter(i);
+      const tp = trackPoint(i, t);
+      trail.setAttribute('transform', `translate(${tp.x.toFixed(1)} ${tp.y.toFixed(1)})`);
+    }
   });
   // Pferde weiter unten im Bild werden vorne gezeichnet
   const order = pts.map((pt, i) => [pt.y, i]).sort((a, b) => a[0] - b[0]).map(([, i]) => i);

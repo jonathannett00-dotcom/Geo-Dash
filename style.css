@@ -155,6 +155,20 @@ legend { font-weight: 700; padding: 0 .4rem; }
 .place-badge { animation: pop .3s ease-out; transform-box: fill-box; transform-origin: center; }
 @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
 
+/* Pferde mit Wetten: pulsierender Lichtkranz + Spielerpunkte */
+.horse .glow { fill: none; opacity: 0; }
+.horse.backed .glow {
+  fill: rgba(255, 214, 64, .55); stroke: #ffe37a; stroke-width: 2;
+  opacity: 1; animation: glowPulse 1s ease-in-out infinite; transform-box: fill-box; transform-origin: center;
+}
+.horse.backed .sprite { filter: drop-shadow(0 0 5px #ffe37a) drop-shadow(0 0 2px #fff) drop-shadow(0 3px 1.5px rgba(0,0,0,.35)); }
+.bet-mark circle { stroke: #fff; stroke-width: 2; }
+.bet-arrow { fill: #fff; }
+@keyframes glowPulse { 0%,100% { transform: scale(.9); opacity: .65; } 50% { transform: scale(1.15); opacity: 1; } }
+.live li.backed { color: var(--gold); font-weight: 700; }
+.odds-table tr.backed td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
+.dot.backer { margin-left: .35rem; vertical-align: 0; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+
 .dust { fill: rgba(235, 205, 165, .85); animation: dust .6s ease-out forwards; transform-box: fill-box; transform-origin: center; pointer-events: none; }
 @keyframes dust { to { opacity: 0; transform: translateY(-8px) scale(2.6); } }
 
@@ -257,5 +271,5 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .track.running .horse .bob, .track.running .horse .leg, .track.running .horse .tail, .dust { animation: none !important; }
+  .track.running .horse .bob, .track.running .horse .leg, .track.running .horse .tail, .dust, .horse.backed .glow { animation: none !important; }
 }

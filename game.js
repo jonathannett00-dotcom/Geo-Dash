@@ -84,7 +84,7 @@ function simulateRace(horses, recordFrames = false) {
         continue;
       }
       const h = horses[i];
-      if (Math.random() < 0.035) {
+      if (Math.random() < 0.02) {
         target[i] = h.speed * rand(0.8, 1.2);
       }
       // Endspurt: Ausdauer entscheidet im letzten Viertel
@@ -130,10 +130,10 @@ function generateHorses() {
     let name;
     do { name = pick(NAME_PARTS_A) + pick(NAME_PARTS_B); } while (names.has(name));
     names.add(name);
-    const base = 1000 / (TICKS_PER_SECOND * 11);   // ~11 Sekunden Renndauer
+    const base = 1000 / (TICKS_PER_SECOND * 18);   // ~18 Sekunden Renndauer
     horses.push({
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      speed: base * rand(0.98, 1.02),
+      speed: base * rand(0.985, 1.015),
       stamina: Math.random(),
       silk: silks[i],
       coat: pick(COAT_COLORS),
@@ -242,13 +242,36 @@ function renderTrack() {
     <g id="horses">
       ${state.horses.map((h, i) => `
         <g class="horse" id="horse-${i}">
+          <ellipse class="glow" cx="0" cy="-2" rx="34" ry="11"/>
           <g class="sprite"><g transform="translate(-33,-42) scale(0.66)">${horseSVG(h, i + 1)}</g></g>
         </g>`).join('')}
     </g>
   </svg>`;
   lastZOrder = '';
   positionHorses(new Array(n).fill(0));
+  updateBetMarkers();
 }
+
+/** Hebt Pferde hervor, auf die gewettet wurde: Leuchten + Farbpunkte der Spieler. */
+function updateBetMarkers() {
+  state.horses.forEach((_, i) => {
+    const el = document.getElementById(`horse-${i}`);
+    if (!el) return;
+    el.querySelector('.bet-mark')?.remove();
+    const backers = [...new Set(state.bets.filter((b) => b.horse === i).map((b) => b.playerId))].map(playerById);
+    el.classList.toggle('backed', backers.length > 0);
+    if (!backers.length) return;
+    const mark = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    mark.setAttribute('class', 'bet-mark');
+    const start = -((backers.length - 1) * 12) / 2;
+    mark.innerHTML = backers.map((p, k) =>
+      `<circle cx="${start + k * 12}" cy="-52" r="5.5" fill="${p.color}"/>`).join('')
+      + `<path d="M-4,-44 L4,-44 L0,-39 Z" class="bet-arrow"/>`;
+    el.appendChild(mark);
+  });
+}
+
+const isBacked = (i) => state.bets.some((b) => b.horse === i);
 
 let lastZOrder = '';
 
@@ -283,13 +306,18 @@ function positionHorses(positions) {
 function renderOdds() {
   const sel = Number($('#bet-horse').value);
   $('#odds-body').innerHTML = state.horses.map((h, i) => `
-    <tr class="clickable ${i === sel ? 'selected' : ''}" data-horse="${i}">
+    <tr class="clickable ${i === sel ? 'selected' : ''} ${isBacked(i) ? 'backed' : ''}" data-horse="${i}">
       <td><strong>${i + 1}</strong></td>
-      <td><span class="silk" style="background:${h.silk}"></span>${escapeHtml(h.name)}</td>
+      <td><span class="silk" style="background:${h.silk}"></span>${escapeHtml(h.name)}${backerDots(i)}</td>
       <td><span class="form-bar" style="width:${h.form * 10}px"></span></td>
       <td class="odd">${h.winOdds.toFixed(1)}</td>
       <td class="odd">${h.placeOdds.toFixed(2)}</td>
     </tr>`).join('');
+}
+
+function backerDots(i) {
+  const ids = [...new Set(state.bets.filter((b) => b.horse === i).map((b) => b.playerId))];
+  return ids.map((id) => `<span class="dot backer" title="${escapeHtml(playerById(id).name)}" style="background:${playerById(id).color}"></span>`).join('');
 }
 
 function renderWallets() {
@@ -341,6 +369,8 @@ function renderBets() {
     }).join('');
   }
   $('#btn-start-race').disabled = racing;
+  renderOdds();
+  if (document.getElementById('horses')) updateBetMarkers();
 }
 
 function renderPreview() {
@@ -553,7 +583,7 @@ function resetInfield() {
 function renderLiveStandings(positions) {
   const order = positions.map((p, i) => [p, i]).sort((a, b) => b[0] - a[0]).map(([, i]) => i);
   $('#live').innerHTML = order.slice(0, 3).map((i, k) =>
-    `<li><b>${k + 1}.</b> <span class="silk" style="background:${state.horses[i].silk}"></span>#${i + 1} ${escapeHtml(state.horses[i].name)}</li>`).join('');
+    `<li class="${isBacked(i) ? 'backed' : ''}"><b>${k + 1}.</b> <span class="silk" style="background:${state.horses[i].silk}"></span>#${i + 1} ${escapeHtml(state.horses[i].name)}${isBacked(i) ? ' ★' : ''}</li>`).join('');
 }
 
 /** Eigene Bestätigung im Spiel (Browser-confirm() steht nicht überall zur Verfügung). */
@@ -632,11 +662,11 @@ async function startRace() {
           horsesEl[h].classList.add('finished');
           const badge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           badge.setAttribute('class', 'place-badge');
-          badge.innerHTML = `<rect x="-13" y="-68" width="26" height="17" rx="8.5"/><text x="0" y="-55.5">${place + 1}.</text>`;
+          badge.innerHTML = `<rect x="-13" y="-84" width="26" height="17" rx="8.5"/><text x="0" y="-71.5">${place + 1}.</text>`;
           horsesEl[h].appendChild(badge);
           if (place < 3) {
             $('#live').innerHTML = order.slice(0, place + 1).map((i, k) =>
-              `<li><b>${k + 1}.</b> <span class="silk" style="background:${state.horses[i].silk}"></span>#${i + 1} ${escapeHtml(state.horses[i].name)}</li>`).join('');
+              `<li class="${isBacked(i) ? 'backed' : ''}"><b>${k + 1}.</b> <span class="silk" style="background:${state.horses[i].silk}"></span>#${i + 1} ${escapeHtml(state.horses[i].name)}${isBacked(i) ? ' ★' : ''}</li>`).join('');
           }
           if (place === 0) $('#commentary').textContent = `🏆 ${state.horses[h].name} gewinnt das Rennen!`;
         }

@@ -279,3 +279,9 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 .tabs button { transition: color .3s, box-shadow .3s; }
 .hl, .seg button, .rs, .cp { transition: transform .15s, box-shadow .2s, background .2s, border-color .2s; }
 .toast { transition: transform .45s cubic-bezier(.2, .9, .3, 1.2), opacity .35s; }
+
+/* ---------- Zug beenden ---------- */
+.end-box .btn-row { margin-top: .7rem; }
+.end-box .btn-row .btn { min-height: 46px; }
+.btn.end-turn { min-height: 64px; font-size: 1.25rem; animation: endPulse 2.2s ease-in-out infinite; }
+@keyframes endPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(46,154,79,.6); } 50% { box-shadow: 0 0 0 10px rgba(46,154,79,0); } }

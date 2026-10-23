@@ -330,3 +330,4 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .bj-res.lose, .bj-res.bust { background: var(--red); }
 .bj-bar { height: .45cqw; background: rgba(255,255,255,.2); border-radius: 99px; overflow: hidden; margin-top: .3cqw; }
 .bj-bar i { display: block; height: 100%; background: var(--gold); transform-origin: left; transition: transform .25s linear; }
+.st-end { border: 2px solid var(--green); }

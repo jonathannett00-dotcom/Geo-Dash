@@ -379,6 +379,7 @@ function statusHtml(g) {
   }
   switch (g.phase) {
     case 'roll': return `<div class="st-line">🎲 ${name} würfelt…</div>`;
+    case 'end': return `<div class="st-line st-end">✋ ${name} ist mit Würfeln fertig – kann noch bauen oder handeln und beendet den Zug am Handy.</div>`;
     case 'jail': return `<div class="st-line">🔒 ${name} sitzt im Gefängnis und entscheidet am Handy: ${fmtM(50)} zahlen, Freikarte oder auf einen Pasch würfeln (Versuch ${cur.jailRolls + 1} von 3).</div>`;
     case 'buy': return `<div class="st-row">${propertyCard(g.turn.buyOffer)}<div class="st-line">🤔 ${name} überlegt, ob gekauft wird…</div></div>`;
     case 'auction': {

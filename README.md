@@ -58,7 +58,7 @@ Oben stehen immer dein Kontostand und wer gerade dran ist. Unten gibt es vier Ta
 
 | Tab | Wofür |
 | --- | --- |
-| 🎲 **Zug** | Kaufen oder Ablehnen, Versteigerung (Gebote, Aussteigen), Gefängnis (50 M zahlen, Freikarte, Pasch würfeln), Schulden begleichen |
+| 🎲 **Zug** | Zug beenden, Kaufen oder Ablehnen, Versteigerung (Gebote, Aussteigen), Gefängnis (50 M zahlen, Freikarte, Pasch würfeln), Schulden begleichen |
 | 🏠 **Besitz** | Häuser/Hotels bauen und verkaufen, Hypothek aufnehmen und ablösen |
 | 🤝 **Handel** | Angebote aus Straßen, Geld und Freikarten an Mitspieler senden, annehmen oder ablehnen |
 | 🎰 **Minispiel** | Nur aktiv, wenn ein Minispiel läuft |
@@ -70,7 +70,8 @@ Geht eine Aktion nicht, zum Beispiel weil du nicht dran bist oder zu wenig Geld 
 1. Ist ein Spieler dran, **würfelt das Tablet automatisch**. Die Figur zieht Feld für Feld.
 2. Das Feld wird abgewickelt: kaufen oder versteigern, Miete zahlen, Karte ziehen, Steuer zahlen.
 3. Passt die Würfelsumme, folgt ein **Minispiel für alle** Spieler, die noch nicht pleite sind.
-4. Danach würfelt der Spieler nach einem **Pasch** nochmal, sonst ist der Nächste dran.
+4. Nach einem **Pasch** würfelt das Tablet für denselben Spieler nochmal.
+5. Ist alles erledigt, tippt der Spieler am Handy auf **„Zug beenden“**. Bis dahin kann er noch bauen, Hypotheken ändern oder handeln. Erst dann ist der Nächste dran.
 
 ### Regeln (deutsche Standardausgabe)
 

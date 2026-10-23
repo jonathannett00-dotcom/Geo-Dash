@@ -141,6 +141,7 @@ class Room {
       case 'mortgage': g.mortgage(pid, action.square); break;
       case 'unmortgage': g.unmortgage(pid, action.square); break;
       case 'bankrupt': g.declareBankruptcy(pid); break;
+      case 'endTurn': g.endTurn(pid); break;
       case 'trade:propose': g.proposeTrade(pid, action.trade || {}); break;
       case 'trade:respond': g.respondTrade(pid, action.id, Boolean(action.accept)); break;
       case 'trade:cancel': g.cancelTrade(pid, action.id); break;
@@ -158,7 +159,7 @@ class Room {
   /** Ist der Zug pausiert, weil der Spieler am Zug getrennt ist? */
   isPaused() {
     const g = this.game;
-    if (!g || !['roll', 'jail', 'buy', 'debt'].includes(g.phase)) return false;
+    if (!g || !['roll', 'jail', 'buy', 'debt', 'end'].includes(g.phase)) return false;
     const cur = this.currentRoomPlayer();
     const debtor = g.phase === 'debt' && g.debts[0] ? this.playerById(g.debts[0].debtorId) : cur;
     return Boolean(debtor && !debtor.connected);

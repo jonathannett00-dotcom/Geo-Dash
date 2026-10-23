@@ -364,6 +364,15 @@ class MonopolyGame {
       this.event(`${p.name} hatte einen Pasch und würfelt nochmal.`, 'turn');
       return;
     }
+    if (p.bankrupt) { this.nextPlayer(); return; }
+    // Alles erledigt – der Spieler beendet seinen Zug selbst (vorher noch bauen/handeln möglich)
+    this.phase = 'end';
+  }
+
+  endTurn(pid) {
+    const p = this.assertTurn(pid);
+    if (this.phase !== 'end') fail('Du kannst deinen Zug erst beenden, wenn alles erledigt ist.');
+    this.event(`${p.name} beendet den Zug.`, 'turn');
     this.nextPlayer();
   }
 

@@ -221,6 +221,14 @@ function turnHtml() {
           ? '<div class="box mine"><h2>🎲 Du bist dran!</h2><p>Das Tablet würfelt gleich für dich.</p></div>'
           : `<div class="box">🎲 <b>${escapeHtml(cur.name)}</b> ist am Zug.</div>`);
         break;
+      case 'end':
+        if (myTurn) {
+          out.push(`<div class="box mine end-box"><h2>✋ Alles erledigt?</h2>
+            <p>Bevor der Nächste dran ist, kannst du noch bauen, Hypotheken ändern oder handeln.</p>
+            <div class="btn-row"><button class="btn ghost-dark" data-tab-go="props">🏠 Besitz</button><button class="btn ghost-dark" data-tab-go="trade">🤝 Handel</button></div></div>
+            ${btn('✓ Zug beenden', { type: 'endTurn' }, 'go end-turn')}`);
+        } else out.push(`<div class="box">✋ <b>${escapeHtml(cur.name)}</b> ist mit Würfeln fertig und beendet gleich den Zug.</div>`);
+        break;
       case 'jail':
         if (myTurn) {
           out.push(`<div class="box mine"><h2>🔒 Du sitzt im Gefängnis</h2><p>Wie willst du raus? Versuch ${mine.jailRolls + 1} von 3.</p></div>
@@ -691,7 +699,7 @@ function attention() {
     return;
   }
   if (!miniActive && miniOpen !== null) { miniOpen = null; if (tab === 'mini') setTab('turn'); }
-  const needsMe = (g.phase === 'buy' || g.phase === 'jail') ? g.currentId === me
+  const needsMe = (g.phase === 'buy' || g.phase === 'jail' || g.phase === 'end') ? g.currentId === me
     : g.phase === 'auction' ? !gp(me).bankrupt
       : g.phase === 'debt' ? g.debts[0]?.debtorId === me : false;
   const key = `${g.phase}:${g.currentId}:${g.auction?.seq || ''}:${g.debts[0]?.debtorId || ''}`;
@@ -721,7 +729,7 @@ function render() {
   $('#trade-badge').classList.toggle('hidden', !incoming);
   const g = S.game;
   const turnTab = $('#tabs [data-tab="turn"]');
-  const needs = (['buy', 'jail'].includes(g.phase) && g.currentId === me) || (g.phase === 'debt' && g.debts[0]?.debtorId === me)
+  const needs = (['buy', 'jail', 'end'].includes(g.phase) && g.currentId === me) || (g.phase === 'debt' && g.debts[0]?.debtorId === me)
     || (g.phase === 'auction' && !g.auction.passed.includes(me) && g.auction.bidderId !== me && !gp(me).bankrupt);
   turnTab.classList.toggle('pulse', needs);
   patch($('#panel-turn'), turnHtml());

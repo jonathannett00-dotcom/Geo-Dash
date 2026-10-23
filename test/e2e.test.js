@@ -20,6 +20,13 @@ const phaseIs = (board, phase, currentName) => until(board, ([ph, name]) => S &&
   && (!name || S.game.players.find((p) => p.id === S.game.currentId).name === name), [phase, currentName]);
 const money = (board, name) => board.evaluate((n) => S.game.players.find((p) => p.name === n).money, name);
 
+/** Zug ist abgewickelt → der Spieler tippt auf „Zug beenden“, danach ist der Nächste dran. */
+async function endTurn(board, page, name) {
+  await phaseIs(board, 'end', name);
+  await page.click('button:has-text("Zug beenden")');
+  await until(board, (n) => S.game.players.find((p) => p.id === S.game.currentId).name !== n, name);
+}
+
 /** Letzte Toast-Meldung auf dem Handy abwarten. */
 const toastText = async (page, re) => {
   await page.waitForFunction((src) => {
@@ -62,11 +69,18 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
 
     await shot(board, '01-kaufen');
     await A.click('button:has-text("Kaufen für 60 M")');
-    await phaseIs(board, 'roll', 'Ben');
+    await phaseIs(board, 'end', 'Anna');
+    await A.waitForSelector('button:has-text("Zug beenden")');
+    await shot(A, '01b-zug-beenden');
+    // Nur wer dran ist, kann den Zug beenden
+    await B.evaluate(() => window.__act({ type: 'endTurn' }));
+    assert.match(await toastText(B, /nicht am Zug/), /Du bist nicht am Zug – gerade ist Anna dran/);
+    await endTurn(board, A, 'Anna');
     assert.equal(await money(board, 'Anna'), 1440);
     await board.waitForSelector('#cell-3.owned');
 
     /* ---------- Ben zahlt Miete ---------- */
+    await endTurn(board, B, 'Ben');
     await phaseIs(board, 'buy', 'Cem');
     assert.equal(await money(board, 'Ben'), 1496);
     assert.equal(await money(board, 'Anna'), 1444);
@@ -94,6 +108,7 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     await C.click('button:has-text("Aussteigen")');
     await until(board, () => S.game.props[5].owner && S.game.players.find((p) => p.id === S.game.props[5].owner).name === 'Anna');
     assert.equal(await money(board, 'Anna'), 1434);
+    await endTurn(board, C, 'Cem');
 
 
     /* ---------- Anna würfelt 3 + 4 = 7 → Pferderennen für alle ---------- */
@@ -131,6 +146,7 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     assert.equal(await money(board, 'Anna'), 1384 + annaWin);
     await shot(board, '08-zieleinlauf');
     await until(board, () => !S.mini, null, 60000);
+    await endTurn(board, A, 'Anna');
 
     /* ---------- Layout-Prüfungen ---------- */
     for (const p of [A, B, C]) assert.equal(await noHorizontalScroll(p), true, 'Handy (375 px) ohne horizontales Scrollen');
@@ -204,6 +220,7 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     }
     await shot(board, '12-roulette-ergebnis');
     await until(board, () => !S.mini, null, 60000);
+    await endTurn(board, B, 'Ben');
 
     /* ---------- Cem würfelt 1 + 5 = 6: Miete an Ben, dann Blackjack ---------- */
     await until(board, () => S.mini && S.mini.type === 'blackjack');
@@ -256,6 +273,7 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     }
     await shot(board, '16-blackjack-ergebnis');
     await until(board, () => !S.mini, null, 60000);
+    await endTurn(board, C, 'Cem');
 
     await shot(board, '03-brett');
     await shot(A, '04-handy');

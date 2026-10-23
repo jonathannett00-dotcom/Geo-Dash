@@ -27,6 +27,14 @@ function turnOf(g, pid, position) {
   if (position !== undefined) P(g, pid).position = position;
 }
 
+/** Zug ist abgewickelt: Spieler beendet ihn selbst, danach ist `next` dran. */
+function finishTurn(g, pid, next) {
+  assert.equal(g.phase, 'end', 'Zug wartet auf „Zug beenden“');
+  assert.equal(g.currentPlayer().id, pid);
+  g.endTurn(pid);
+  assert.equal(g.currentPlayer().id, next);
+}
+
 function rollWith(g, pid, d1, d2) {
   g.forcedDice.push([d1, d2]);
   g.roll(pid);
@@ -76,11 +84,11 @@ test('Kaufen: freies Grundstück kaufen, Miete wird automatisch abgebucht', () =
   g.buy('p1');
   assert.equal(g.props[sq('Turmstraße')].owner, 'p1');
   assert.equal(P(g, 'p1').money, 1440);
-  assert.equal(g.currentPlayer().id, 'p2');
+  finishTurn(g, 'p1', 'p2');
   rollWith(g, 'p2', 2, 1);
   assert.equal(P(g, 'p2').money, 1496, 'Grundmiete 4 M');
   assert.equal(P(g, 'p1').money, 1444);
-  assert.equal(g.currentPlayer().id, 'p3');
+  finishTurn(g, 'p2', 'p3');
 });
 
 test('Miete: doppelte Grundmiete bei kompletter Farbgruppe, dann Häuser/Hotel', () => {
@@ -240,7 +248,7 @@ test('Gefängnis: „Gehe ins Gefängnis“-Feld, kein Los-Geld, kein Nachwurf n
   assert.equal(p.position, 10);
   assert.equal(p.inJail, true);
   assert.equal(p.money, 1500);
-  assert.equal(g.currentPlayer().id, 'p2', 'trotz Pasch kein Nachwurf');
+  finishTurn(g, 'p1', 'p2'); // trotz Pasch kein Nachwurf
 });
 
 test('Gefängnis: dritter Pasch in Folge', () => {
@@ -255,7 +263,7 @@ test('Gefängnis: dritter Pasch in Folge', () => {
   const p = P(g, 'p1');
   assert.equal(p.inJail, true);
   assert.equal(p.position, 10);
-  assert.equal(g.currentPlayer().id, 'p2');
+  finishTurn(g, 'p1', 'p2');
 });
 
 test('Gefängnis: 50 M zahlen oder Freikarte, dann normal würfeln', () => {
@@ -290,7 +298,7 @@ test('Gefängnis: Pasch innerhalb von 3 Versuchen, sonst 50 M zahlen und ziehen'
   g.rollInJail('p1');
   assert.equal(p.inJail, true);
   assert.equal(p.jailRolls, 1);
-  assert.equal(g.currentPlayer().id, 'p2');
+  finishTurn(g, 'p1', 'p2');
 
   turnOf(g, 'p1');
   g.forcedDice.push([3, 3]);
@@ -301,7 +309,7 @@ test('Gefängnis: Pasch innerhalb von 3 Versuchen, sonst 50 M zahlen und ziehen'
   g.declineBuy('p1');
   g.endAuction();
   if (g.phase === 'minigame') g.finishMinigame();
-  assert.equal(g.currentPlayer().id, 'p2', 'Pasch aus dem Gefängnis gibt keinen Nachwurf');
+  finishTurn(g, 'p1', 'p2'); // Pasch aus dem Gefängnis gibt keinen Nachwurf
 
   g.sendToJail(p);
   turnOf(g, 'p1');
@@ -432,7 +440,7 @@ test('Versteigerung: Ablehnen startet Auktion, Mindestschritt 10 M, Geld wird ge
   g.passAuction('p3');
   assert.equal(g.props[sq('Südbahnhof')].owner, 'p1');
   assert.equal(P(g, 'p1').money, 1400);
-  assert.equal(g.currentPlayer().id, 'p2');
+  finishTurn(g, 'p1', 'p2');
 });
 
 test('Versteigerung: Timer beendet die Auktion, Gebote verlängern', () => {
@@ -467,7 +475,24 @@ test('Ablauf: Feld abwickeln → Minispiel → Pasch-Nachwurf → nächster Spie
   rollWith(g, 'p1', 1, 2); // → 11 Seestraße
   g.declineBuy('p1');
   g.endAuction();
+  finishTurn(g, 'p1', 'p2');
+});
+
+test('Zug beenden: erst wenn alles erledigt ist, nur durch den Spieler am Zug', () => {
+  const g = makeGame();
+  own(g, 'p1', 'Badstraße', 'Turmstraße');
+  assert.throws(() => g.endTurn('p1'), /erst beenden, wenn alles erledigt/);
+  rollWith(g, 'p1', 2, 3); // → Südbahnhof
+  assert.throws(() => g.endTurn('p1'), /erst beenden/, 'Kaufentscheidung steht noch aus');
+  g.buy('p1');
+  assert.equal(g.phase, 'end');
+  assert.throws(() => g.endTurn('p2'), /nicht am Zug/);
+  g.buildHouse('p1', sq('Badstraße')); // vor dem Beenden noch bauen
+  assert.equal(g.props[sq('Badstraße')].houses, 1);
+  assert.equal(g.phase, 'end');
+  g.endTurn('p1');
   assert.equal(g.currentPlayer().id, 'p2');
+  assert.equal(g.phase, 'roll');
 });
 
 test('Rechte: wer nicht dran ist oder zu wenig Geld hat, wird abgelehnt', () => {

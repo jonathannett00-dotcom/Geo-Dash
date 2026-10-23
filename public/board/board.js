@@ -186,7 +186,7 @@ function layoutTokens() {
   layer.style.setProperty('--tstep', `${Math.round(T('step'))}ms`);
   layer.style.setProperty('--tjump', `${Math.round(T('jump'))}ms`);
   const boardRect = $('#board').getBoundingClientRect();
-  const unit = boardRect.width / 12.1;
+  const unit = Math.min(boardRect.width, boardRect.height) / 12.1;
   const size = Math.max(16, unit * 0.46);
   const bySquare = {};
   S.game.players.filter((p) => !p.bankrupt).forEach((p) => { (bySquare[shown[p.id]] = bySquare[shown[p.id]] || []).push(p); });

@@ -12,6 +12,8 @@ const path = require('path');
 const { startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
 
 const SHOTS = process.env.E2E_SHOTS;
+// Bildschirm des Spielfelds: Standard Tablet 1024×768, per E2E_SCREEN=1920x1080 z. B. Fernseher
+const [SCREEN_W, SCREEN_H] = (process.env.E2E_SCREEN || '1024x768').split('x').map(Number);
 const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${name}.png`) }); };
 
 /** Wartet, bis das Tablet eine Bedingung über den Spielstand erfüllt sieht. */
@@ -42,7 +44,7 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
   const errors = [];
   try {
     /* ---------- Lobby ---------- */
-    const board = await openPage(browser, `${srv.url}/board`, { viewport: { width: 1024, height: 768 }, label: 'tablet', errors });
+    const board = await openPage(browser, `${srv.url}/board`, { viewport: { width: SCREEN_W, height: SCREEN_H }, label: 'tablet', errors });
     await board.waitForFunction(() => /^[A-Z]{4}$/.test(document.querySelector('#room-code').textContent));
     const code = await board.textContent('#room-code');
     const names = ['Anna', 'Ben', 'Cem'];
@@ -175,8 +177,8 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
       const r = document.querySelector('#board').getBoundingClientRect();
       return { right: r.right, bottom: r.bottom, scrollH: document.documentElement.scrollHeight, scrollW: document.documentElement.scrollWidth };
     });
-    assert.ok(fit.right <= 1024 && fit.bottom <= 768, `Brett passt auf 1024×768 (${JSON.stringify(fit)})`);
-    assert.ok(fit.scrollH <= 768 && fit.scrollW <= 1024, 'Tablet ohne Scrollen');
+    assert.ok(fit.right <= SCREEN_W && fit.bottom <= SCREEN_H, `Brett passt auf ${SCREEN_W}×${SCREEN_H} (${JSON.stringify(fit)})`);
+    assert.ok(fit.scrollH <= SCREEN_H && fit.scrollW <= SCREEN_W, 'Spielfeld ohne Scrollen');
 
     /* ---------- Neuladen eines Handys mitten im Spiel ---------- */
     await C.reload();

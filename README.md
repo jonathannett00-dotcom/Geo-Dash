@@ -24,6 +24,8 @@ Danach:
 
 Den Port ändert man mit `PORT=8080 npm start`. Mit `PUBLIC_URL=https://mein-spiel.example` legt man die Adresse im QR-Code fest.
 
+**Auf dem Fernseher spielen:** Das Spielfeld funktioniert auf einem Tablet genauso wie auf einem 16:9-Fernseher. Öffne es dafür am Laptop und übertrage den Bildschirm (HDMI oder Bildschirmübertragung). Mit F11 kommt der Browser in den Vollbildmodus. Das Brett nutzt die Breite, die Spielerleiste passt sich der Bildschirmgröße an, und Minispiele füllen automatisch den ganzen Bildschirm.
+
 ## Auf Render deployen (kostenlos)
 
 Das Repository enthält eine `render.yaml` (Blueprint):

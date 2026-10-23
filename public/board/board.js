@@ -453,6 +453,7 @@ function resetStage(id) {
   stage.innerHTML = '';
   stage._html = null;
   stage._race = null;
+  stage._spin = null;
 }
 
 const STAGES = {};
@@ -599,6 +600,115 @@ function showRaceResults(stage, m) {
     <ul class="payouts">${(m.results || []).length ? m.results.map((r) => `<li><span><i class="dot" style="background:${playerColor(m, r.playerId)}"></i> ${playerName(m, r.playerId)}: ${fmtM(r.amount)} auf #${r.horse + 1} (${r.type === 'win' ? 'Sieg' : 'Platz'})</span>
       ${r.won ? `<b class="win">+${fmtM(r.payout)}</b>` : `<b class="lose">−${fmtM(r.amount)}</b>`}</li>`).join('') : '<li>Keine Wetten in diesem Rennen.</li>'}</ul>`;
   el.classList.remove('hidden');
+}
+
+/* ---------------- Roulette ---------------- */
+
+const R_RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const rColor = (n) => (n === 0 ? 'green' : (R_RED.has(n) ? 'red' : 'black'));
+const R_LABEL = { red: 'Rot', black: 'Schwarz', even: 'Gerade', odd: 'Ungerade', low: '1–18', high: '19–36' };
+const rBetLabel = (b) => (b.kind === 'straight' ? `Plein ${b.value}` : b.kind === 'dozen' ? `${b.value}. Dutzend` : b.kind === 'column' ? `${b.value}. Kolonne` : R_LABEL[b.kind]);
+
+/** Tableau: Null links, 12 × 3 Zahlen, Kolonnen rechts, darunter Dutzende und einfache Chancen. */
+function rouletteTable(m, highlight) {
+  const chipsOn = (kind, value) => m.bets.filter((b) => b.kind === kind && (b.value ?? null) === (value ?? null))
+    .map((b) => `<span class="rchip" style="--c:${playerColor(m, b.playerId)}">${playerName(m, b.playerId)}<b>${b.amount}</b></span>`).join('');
+  const cell = (kind, value, label, cls, style) => `<div class="rc ${cls}" style="${style}">${label}<div class="rchips">${chipsOn(kind, value)}</div></div>`;
+  const cells = [cell('straight', 0, '0', `green ${highlight === 0 ? 'hit' : ''}`, 'grid-row:1/4;grid-column:1')];
+  for (let n = 1; n <= 36; n++) {
+    const row = 3 - ((n - 1) % 3);
+    const col = Math.ceil(n / 3) + 1;
+    cells.push(cell('straight', n, n, `${rColor(n)} ${highlight === n ? 'hit' : ''}`, `grid-row:${row};grid-column:${col}`));
+  }
+  [3, 2, 1].forEach((c, k) => cells.push(cell('column', c, '2:1', 'out', `grid-row:${k + 1};grid-column:14`)));
+  [1, 2, 3].forEach((d) => cells.push(cell('dozen', d, `${d}. Dutzend`, 'out', `grid-row:4;grid-column:${2 + (d - 1) * 4}/span 4`)));
+  ['low', 'even', 'red', 'black', 'odd', 'high'].forEach((k, i) => cells.push(cell(k, null, R_LABEL[k], `out ${k === 'red' ? 'redbg' : k === 'black' ? 'blackbg' : ''}`, `grid-row:5;grid-column:${2 + i * 2}/span 2`)));
+  return `<div class="rtable">${cells.join('')}</div>`;
+}
+
+function rouletteBetList(m) {
+  const by = m.players.map((p) => ({ p, bets: m.bets.filter((b) => b.playerId === p.id) })).filter((x) => x.bets.length);
+  if (!by.length) return '<p class="sg-empty">Noch keine Einsätze – setzt eure Chips auf dem Handy!</p>';
+  return `<ul class="rlist">${by.map(({ p, bets }) => `<li><b style="color:${p.color}">${escapeHtml(p.name)}</b> ${bets.map((b) => `${fmtM(b.amount)} auf ${rBetLabel(b)}`).join(' · ')}</li>`).join('')}</ul>`;
+}
+
+function wheelSvg(order) {
+  const step = 360 / order.length;
+  const pockets = order.map((n, i) => {
+    const a0 = ((i - 0.5) * step - 90) * Math.PI / 180;
+    const a1 = ((i + 0.5) * step - 90) * Math.PI / 180;
+    const pt = (r, a) => `${(r * Math.cos(a)).toFixed(2)},${(r * Math.sin(a)).toFixed(2)}`;
+    const fill = { red: '#c8242b', black: '#1b1b1b', green: '#1a8a3a' }[rColor(n)];
+    return `<g class="pocket" data-n="${n}"><path d="M${pt(150, a0)} L${pt(200, a0)} A200,200 0 0 1 ${pt(200, a1)} L${pt(150, a1)} A150,150 0 0 0 ${pt(150, a0)} Z" fill="${fill}" stroke="#d9b45a" stroke-width="1.2"/>
+      <text transform="rotate(${(i * step).toFixed(2)}) translate(0 -178)" class="wn">${n}</text></g>`;
+  }).join('');
+  const spokes = [0, 45, 90, 135].map((a) => `<rect x="-4" y="-120" width="8" height="240" rx="4" transform="rotate(${a})" class="spoke"/>`).join('');
+  return `<svg viewBox="-225 -225 450 450" class="wheel-svg">
+    <circle r="222" class="w-rim"/><circle r="206" class="w-track"/>
+    <g class="w-rot">${pockets}<circle r="150" class="w-cone"/>${spokes}<circle r="30" class="w-hub"/></g>
+    <g class="w-ball"><circle cx="0" cy="-190" r="8" class="ball"/></g>
+  </svg>`;
+}
+
+STAGES.roulette = (m, stage) => {
+  if (!stage.querySelector('.rl')) {
+    stage.innerHTML = `<div class="rl sg"><div class="rl-top"></div><div class="rl-bet"></div>
+      <div class="rl-spin hidden"><div class="wheel">${wheelSvg(m.wheel)}<div class="wheel-result hidden"></div></div><div class="rl-results"></div></div></div>`;
+  }
+  patch(stage.querySelector('.rl-top'), stageHead(m, '🎡 Roulette'));
+  if (m.phase === 'betting') {
+    patch(stage.querySelector('.rl-bet'), rouletteTable(m) + rouletteBetList(m));
+    return;
+  }
+  stage.querySelector('.rl-bet').classList.add('hidden');
+  stage.querySelector('.rl-spin').classList.remove('hidden');
+  if (!stage._spin) spinWheel(stage, m);
+  stage._spin.mini = m;
+  if (m.phase === 'results') stage._spin.whenDone(() => showRouletteResults(stage, m));
+};
+
+function spinWheel(stage, m) {
+  const step = 360 / m.wheel.length;
+  const idx = m.wheel.indexOf(m.result);
+  const wheelTurn = 360 * 4 + Math.random() * 360;
+  const ballEnd = wheelTurn + idx * step - 360 * 9;
+  const rot = stage.querySelector('.w-rot');
+  const ball = stage.querySelector('.w-ball');
+  const ballDot = stage.querySelector('.ball');
+  const elapsed = Math.max(0, clock.now() - (m.spinEndsAt - m.spinMs));
+  const dur = Math.max(1, m.spinMs);
+  const easing = 'cubic-bezier(.12,.6,.15,1)';
+  const anims = [
+    rot.animate([{ transform: 'rotate(0deg)' }, { transform: `rotate(${wheelTurn}deg)` }], { duration: dur, easing, fill: 'forwards' }),
+    ball.animate([{ transform: 'rotate(0deg)' }, { transform: `rotate(${ballEnd}deg)` }], { duration: dur, easing, fill: 'forwards' }),
+    ballDot.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(0)', offset: 0.7 }, { transform: 'translateY(28px)' }], { duration: dur, easing: 'ease-in', fill: 'forwards' }),
+  ];
+  anims.forEach((a) => { a.currentTime = Math.min(elapsed, dur); });
+  const spin = { mini: m, done: false, callbacks: [] };
+  spin.whenDone = (fn) => { if (spin.done) fn(); else spin.callbacks.push(fn); };
+  anims[0].finished.then(() => {
+    spin.done = true;
+    const res = stage.querySelector('.wheel-result');
+    const name = { red: 'Rot', black: 'Schwarz', green: 'Null' }[rColor(m.result)];
+    res.innerHTML = `<b>${m.result}</b><span>${name}</span>`;
+    res.className = `wheel-result ${rColor(m.result)}`;
+    const pocket = stage.querySelector(`.pocket[data-n="${m.result}"]`);
+    if (pocket) pocket.classList.add('hit');
+    spin.callbacks.forEach((fn) => fn());
+  }).catch(() => {});
+  stage._spin = spin;
+  stageCleanup = () => anims.forEach((a) => a.cancel());
+}
+
+function showRouletteResults(stage, m) {
+  const net = new Map();
+  (m.results || []).forEach((r) => net.set(r.playerId, (net.get(r.playerId) || 0) + r.payout - r.amount));
+  const rows = m.players.filter((p) => net.has(p.id)).map((p) => {
+    const v = net.get(p.id);
+    const wins = m.results.filter((r) => r.playerId === p.id && r.payout).map((r) => r.label);
+    return `<li><span><i class="dot" style="background:${p.color}"></i> ${escapeHtml(p.name)}${wins.length ? ` <small>(${wins.join(', ')})</small>` : ''}</span><b class="${v > 0 ? 'win' : (v < 0 ? 'lose' : '')}">${v > 0 ? '+' : v < 0 ? '−' : '±'}${fmtM(Math.abs(v))}</b></li>`;
+  });
+  patch(stage.querySelector('.rl-results'), `<ul class="payouts">${rows.join('') || '<li>Niemand hat gesetzt.</li>'}</ul>`);
 }
 
 function render() {

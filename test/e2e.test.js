@@ -29,7 +29,7 @@ const toastText = async (page, re) => {
   return page.textContent('#toast');
 };
 
-test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Ablehnungen', { timeout: 240000 }, async () => {
+test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Minispiele', { timeout: 240000 }, async () => {
   const srv = await startServer();
   const browser = await launch();
   const errors = [];
@@ -163,6 +163,47 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Ablehnungen', { timeout: 24
     assert.equal(await money(board, 'Anna'), annaBefore + 150);
     await until(board, () => [...document.querySelectorAll('#ticker li')].some((li) => /Handel/.test(li.textContent)));
     await B.click('#tabs [data-tab="turn"]');
+    await A.click('#tabs [data-tab="turn"]');
+
+    /* ---------- Ben kauft die Seestraße, 2 + 6 = 8 → Roulette ---------- */
+    await B.click('button:has-text("Kaufen für 140 M")');
+    await until(board, () => S.mini && S.mini.type === 'roulette');
+    const before = { Anna: await money(board, 'Anna'), Ben: await money(board, 'Ben'), Cem: await money(board, 'Cem') };
+    await A.waitForSelector('[data-rl-chip="25"]');
+    await A.click('[data-rl-chip="25"]');
+    await A.click('.rs:has-text("Rot")');
+    await B.waitForSelector('[data-rl-chip="10"]');
+    await B.click('.rnums .rs:text-is("17")');
+    await B.click('.rnums .rs:has-text("17")');
+    await C.waitForSelector('[data-rl-chip="5"]');
+    await C.click('[data-rl-chip="5"]');
+    await C.click('.rs.zero');
+    await C.click('button:has-text("Fertig")');
+    assert.match(await toastText(C, /Mindesteinsatz/), /Mindesteinsatz ist 10 M/);
+    await C.click('.rs.zero');
+    await board.waitForSelector('.rtable .rchip:has-text("Anna")');
+    await board.waitForSelector('.rtable .rchip:has-text("Ben")');
+    await until(board, () => S.mini.bets.filter((b) => b.kind === 'straight' && b.value === 0).reduce((t, b) => t + b.amount, 0) === 10);
+    assert.equal(await money(board, 'Anna'), before.Anna - 25);
+    await board.waitForTimeout(300);
+    await shot(board, '09-roulette-tableau');
+    await shot(B, '10-handy-roulette');
+    for (const p of [A, B, C]) await p.click('button:has-text("Fertig")');
+    await until(board, () => S.mini && S.mini.phase === 'spinning');
+    await board.waitForSelector('.rl-spin:not(.hidden) .wheel-svg');
+    await board.waitForTimeout(500);
+    await shot(board, '11-roulette-rad');
+    await until(board, () => S.mini && S.mini.phase === 'results');
+    await board.waitForSelector('.wheel-result:not(.hidden)');
+    await board.waitForSelector('.rl-results .payouts li');
+    const roulette = await board.evaluate(() => ({ n: S.mini.result, results: S.mini.results, players: S.mini.players }));
+    for (const name of names) {
+      const id = roulette.players.find((p) => p.name === name).id;
+      const net = roulette.results.filter((r) => r.playerId === id).reduce((t, r) => t + r.payout - r.amount, 0);
+      assert.equal(await money(board, name), before[name] + net, `Roulette-Abrechnung ${name} (Zahl ${roulette.n})`);
+    }
+    await shot(board, '12-roulette-ergebnis');
+    await until(board, () => !S.mini, null, 60000);
 
     await shot(board, '03-brett');
     await shot(A, '04-handy');

@@ -153,3 +153,37 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 .win { color: var(--green); }
 .lose { color: var(--red); }
 .podium-list { margin: 0; padding-left: 1.4rem; font-weight: 700; display: grid; gap: .25rem; }
+
+/* ---------- Roulette ---------- */
+.chip-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin: .35rem 0; }
+.cp {
+  aspect-ratio: 1; max-height: 64px; justify-self: center; width: 100%; max-width: 64px; border-radius: 50%; border: 4px dashed rgba(255,255,255,.75);
+  font: 800 1rem var(--font-body); color: #fff; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.35);
+}
+.cp:nth-child(1) { background: #8a8a8a; }
+.cp:nth-child(2) { background: #1d72d8; }
+.cp:nth-child(3) { background: #2e9a4f; }
+.cp:nth-child(4) { background: #1b1b1b; }
+.cp.sel { outline: 4px solid var(--gold); outline-offset: 2px; transform: scale(1.06); }
+.rl-total { text-align: center; }
+.rboard { background: #c9a24a; border-radius: 12px; padding: 4px; display: grid; gap: 4px; }
+.rnums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.rrow3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.rs {
+  position: relative; min-height: 42px; border: 0; border-radius: 6px; background: var(--felt); color: #fff; font: 800 1rem var(--font-body);
+  cursor: pointer; padding: 0 .3rem;
+}
+.rs.red { background: #b81f25; }
+.rs.black { background: #1b1b1b; }
+.rs.green { background: #1a8a3a; }
+.rs.out { font-size: .85rem; }
+.rs:active { filter: brightness(1.3); }
+.mychip {
+  position: absolute; right: 3px; top: 50%; transform: translateY(-50%); min-width: 26px; height: 26px; border-radius: 50%; background: var(--me, var(--gold));
+  border: 2px dashed #fff; font: 800 .7rem/22px var(--font-body); font-style: normal; color: #fff; text-shadow: 0 1px 1px #000; padding: 0 2px;
+}
+.rl-odds { color: #cfe3cf; text-align: center; margin: 0; }
+.rl-result { display: inline-grid; place-items: center; width: 90px; height: 90px; border-radius: 50%; font-size: 2.6rem; font-weight: 800; color: #fff; border: 4px solid var(--gold); }
+.rl-result.red { background: #b81f25; }
+.rl-result.black { background: #1b1b1b; }
+.rl-result.green { background: #1a8a3a; }

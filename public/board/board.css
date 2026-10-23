@@ -170,7 +170,7 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .sg-ready { display: flex; flex-wrap: wrap; gap: .6cqw; }
 .sg-ready span { font-size: 1.35cqw; font-weight: 700; border-radius: 99px; padding: .25cqw .9cqw; background: rgba(255,255,255,.12); border: 2px solid var(--c); opacity: .7; }
 .sg-ready span.ok { background: var(--c); opacity: 1; }
-.bchip { display: inline-block; font-size: 1.2cqw; font-weight: 700; border-radius: 99px; padding: .15cqw .7cqw; background: var(--c); color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.5); margin: .1cqw; white-space: nowrap; animation: pop .3s ease-out; }
+.bchip { display: inline-block; font-size: 1.2cqw; font-weight: 700; border-radius: 99px; padding: .15cqw .7cqw; background: var(--c); color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.5); margin: .1cqw; white-space: nowrap; }
 
 /* ---------- Pferderennen ---------- */
 .hr-table { width: 100%; border-collapse: collapse; font-size: 1.55cqw; background: rgba(255,255,255,.06); border-radius: 1cqw; overflow: hidden; }
@@ -212,3 +212,54 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .payouts .win { color: var(--green); }
 .payouts .lose { color: var(--red); }
 .payouts .dot { width: 1.1cqw; height: 1.1cqw; vertical-align: -1px; }
+
+/* ---------- Roulette ---------- */
+.rtable {
+  display: grid; grid-template-columns: 1.2fr repeat(12, 1fr) 1.2fr; grid-template-rows: repeat(3, 5.2cqw) 3.6cqw 3.6cqw;
+  gap: 2px; background: #c9a24a; padding: 3px; border-radius: 1cqw; box-shadow: var(--shadow);
+}
+.rc { position: relative; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.5cqw; color: #fff; background: var(--felt); border-radius: 3px; overflow: visible; }
+.rc.red { background: #b81f25; }
+.rc.black { background: #1b1b1b; }
+.rc.green { background: #1a8a3a; }
+.rc.out { font-size: 1.15cqw; background: #12603a; }
+.rc.redbg { background: #b81f25; }
+.rc.blackbg { background: #1b1b1b; }
+.rc.hit { box-shadow: 0 0 0 3px var(--gold), 0 0 14px var(--gold); z-index: 3; }
+.rchips { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 1px; pointer-events: none; z-index: 2; }
+.rchip {
+  display: flex; align-items: center; gap: .3cqw; background: var(--c); color: #fff; border: 2px dashed rgba(255,255,255,.9); border-radius: 99px;
+  font-size: 1.12cqw; font-weight: 700; padding: .1cqw .5cqw; line-height: 1.3; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,.6);
+  text-shadow: 0 1px 1px rgba(0,0,0,.6);
+}
+.rchip b { font-size: 1.2cqw; }
+.rlist { list-style: none; margin: .6cqw 0 0; padding: 0; font-size: 1.35cqw; display: grid; gap: .3cqw; }
+.rlist li { background: rgba(255,255,255,.08); border-radius: .6cqw; padding: .3cqw .8cqw; }
+.sg-empty { text-align: center; color: rgba(255,255,255,.75); font-size: 1.6cqw; }
+.rl-spin { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 1cqw; }
+.wheel { position: relative; width: 44cqw; height: 44cqw; flex: none; }
+.wheel-svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
+.w-rim { fill: #6b3d1c; stroke: #d9b45a; stroke-width: 4; }
+.w-track { fill: #3a2210; }
+.w-rot, .w-ball { transform-box: view-box; transform-origin: 0 0; }
+.ball { fill: #fff; stroke: #999; stroke-width: 1; transform-box: fill-box; }
+.w-cone { fill: #8a5a2b; stroke: #d9b45a; stroke-width: 2; }
+.spoke { fill: #d9b45a; }
+.w-hub { fill: #d9b45a; stroke: #6b3d1c; stroke-width: 3; }
+.wn { fill: #fff; font: 800 15px var(--font-body); text-anchor: middle; dominant-baseline: central; }
+.pocket.hit path { fill: var(--gold); }
+.pocket.hit .wn { fill: #1b1b1b; }
+.wheel-result {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 14cqw; height: 14cqw; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px solid var(--gold); box-shadow: 0 0 30px rgba(0,0,0,.6);
+  animation: pop .5s ease-out; color: #fff;
+}
+.wheel-result b { font-size: 6cqw; line-height: 1; }
+.wheel-result span { font-size: 1.5cqw; font-weight: 700; }
+.wheel-result.red { background: #b81f25; }
+.wheel-result.black { background: #1b1b1b; }
+.wheel-result.green { background: #1a8a3a; }
+.rl-results { width: 100%; }
+.rl-results .payouts { background: rgba(255, 250, 240, .96); color: var(--ink); border-radius: 1.2cqw; padding: .6cqw 1.4cqw; animation: slideUp .4s ease-out; }
+.rl-results .payouts li:first-child { border-top: 0; }
+.rl-results small { color: var(--muted); }

@@ -453,6 +453,53 @@ MINI.horserace = (m) => {
       <ul class="bet-list">${res.map((r) => `<li>#${r.horse + 1} ${r.type === 'win' ? 'Sieg' : 'Platz'} · ${fmtM(r.amount)}<b class="${r.won ? 'win' : 'lose'}">${r.won ? `+${fmtM(r.payout)}` : 'verloren'}</b></li>`).join('')}</ul></div>`;
 };
 
+/* ---------- Roulette ---------- */
+
+const RL_RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const rlColor = (n) => (n === 0 ? 'green' : (RL_RED.has(n) ? 'red' : 'black'));
+const RL_LABEL = { red: 'Rot', black: 'Schwarz', even: 'Gerade', odd: 'Ungerade', low: '1–18', high: '19–36' };
+const rlLabel = (b) => (b.kind === 'straight' ? `Plein ${b.value}` : b.kind === 'dozen' ? `${b.value}. Dutzend` : b.kind === 'column' ? `${b.value}. Kolonne` : RL_LABEL[b.kind]);
+let rlChip = 10;
+
+MINI.roulette = (m) => {
+  const mine = myBets(m);
+  const total = mine.reduce((s, b) => s + b.amount, 0);
+  if (m.phase === 'betting' && !m.ready.includes(me)) {
+    const on = (kind, value) => {
+      const b = mine.find((x) => x.kind === kind && (x.value ?? null) === (value ?? null));
+      return b ? `<i class="mychip">${b.amount}</i>` : '';
+    };
+    const spot = (kind, value, label, cls = '') =>
+      `<button class="rs ${cls}" data-act='${JSON.stringify(miniAct({ type: 'chip', kind, value, amount: rlChip }))}'>${label}${on(kind, value)}</button>`;
+    const nums = [];
+    for (let n = 1; n <= 36; n++) nums.push(spot('straight', n, n, rlColor(n)));
+    return `${betHead(m, '🎡 Roulette')}
+      <div class="box rl-chips"><div class="muted small">Chip wählen, dann aufs Feld tippen</div>
+        <div class="chip-pick">${m.chips.map((c) => `<button class="cp ${rlChip === c ? 'sel' : ''}" data-rl-chip="${c}">${c}</button>`).join('')}</div>
+        <div class="rl-total">Dein Einsatz: <b>${fmtM(total)}</b></div></div>
+      <div class="rboard">
+        ${spot('straight', 0, '0', 'green zero')}
+        <div class="rnums">${nums.join('')}</div>
+        <div class="rrow3">${[1, 2, 3].map((c) => spot('column', c, '2:1', 'out')).join('')}</div>
+        <div class="rrow3">${[1, 2, 3].map((d) => spot('dozen', d, `${d}. Dutzend`, 'out')).join('')}</div>
+        <div class="rrow3">${spot('low', null, '1–18', 'out')}${spot('even', null, 'Gerade', 'out')}${spot('red', null, 'Rot', 'red')}</div>
+        <div class="rrow3">${spot('black', null, 'Schwarz', 'black')}${spot('odd', null, 'Ungerade', 'out')}${spot('high', null, '19–36', 'out')}</div>
+      </div>
+      <p class="muted small rl-odds">Plein 35:1 · Rot/Schwarz, Gerade/Ungerade, 1–18/19–36 1:1 · Dutzend/Kolonne 2:1</p>
+      ${mine.length ? `<button class="btn huge ghost-dark" data-act='${JSON.stringify(miniAct({ type: 'clear' }))}'>Chips zurücknehmen</button>` : ''}
+      ${readyBtn(m)}`;
+  }
+  const list = mine.length ? `<ul class="bet-list">${mine.map((b) => `<li>${rlLabel(b)}<b>${fmtM(b.amount)}</b></li>`).join('')}</ul>` : '<p class="muted">Keine Einsätze.</p>';
+  if (m.phase === 'betting') return `${betHead(m, '🎡 Roulette')}<div class="box"><h3>Deine Einsätze</h3>${list}</div>`;
+  if (m.phase === 'spinning') return `${betHead(m, '🎡 Roulette')}<div class="box mine"><h2>🎡 Nichts geht mehr!</h2><p>Das Rad dreht sich – schau aufs Tablet.</p></div><div class="box"><h3>Deine Einsätze</h3>${list}</div>`;
+  const res = (m.results || []).filter((r) => r.playerId === me);
+  const net = res.reduce((s2, r) => s2 + r.payout - r.amount, 0);
+  return `${betHead(m, '🎡 Roulette')}
+    <div class="box center"><div class="rl-result ${rlColor(m.result)}">${m.result}</div></div>
+    <div class="box ${net > 0 ? 'mine' : ''}"><h2>${res.length ? (net > 0 ? `🎉 +${fmtM(net)}` : (net < 0 ? `−${fmtM(-net)}` : '±0 M')) : 'Du hast nicht gesetzt'}</h2>
+      <ul class="bet-list">${res.map((r) => `<li>${escapeHtml(r.label)} · ${fmtM(r.amount)}<b class="${r.payout ? 'win' : 'lose'}">${r.payout ? `+${fmtM(r.payout)}` : 'verloren'}</b></li>`).join('')}</ul></div>`;
+};
+
 /* ---------------- Ereignisse ---------------- */
 
 $('#main').addEventListener('click', async (e) => {
@@ -483,6 +530,8 @@ $('#main').addEventListener('click', async (e) => {
     input.value = Number(v) ? (Number(input.value) || 0) + Number(v) : '';
     return;
   }
+  const chip = e.target.closest('[data-rl-chip]');
+  if (chip) { rlChip = Number(chip.dataset.rlChip); render(); return; }
   const horse = e.target.closest('[data-hr-horse]');
   if (horse) { miniSel.horse = Number(horse.dataset.hrHorse); render(); return; }
   const htype = e.target.closest('[data-hr-type]');

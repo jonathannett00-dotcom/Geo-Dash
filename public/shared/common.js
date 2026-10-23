@@ -79,6 +79,7 @@ function animateMoney(el, from, to, deltaHost) {
   void el.offsetWidth;
   el.classList.add(to > from ? 'up' : 'down');
   if (deltaHost) {
+    $$('.delta', deltaHost).forEach((old) => old.remove());
     const d = document.createElement('span');
     d.className = `delta ${to > from ? 'up' : 'down'}`;
     d.textContent = `${to > from ? '+' : '−'}${fmtM(Math.abs(to - from))}`;

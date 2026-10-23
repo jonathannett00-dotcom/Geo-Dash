@@ -5,6 +5,7 @@ const { MonopolyGame } = require('./monopoly/rules');
 const { SQUARES, GROUP_COLORS } = require('./monopoly/board');
 const { createRng } = require('./rng');
 const { HorseRace } = require('./games/horserace');
+const { Roulette } = require('./games/roulette');
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const MAX_PLAYERS = 10;
@@ -22,6 +23,7 @@ const TIMING = { dice: 1100, step: 230, jump: 700, land: 500, rollDelay: 1600, m
 /** Minispiele nach Typ. */
 const MINIGAMES = {
   horserace: HorseRace,
+  roulette: Roulette,
 };
 
 /** Statische Brettdaten für die Clients. */

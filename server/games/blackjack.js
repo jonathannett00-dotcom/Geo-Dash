@@ -10,9 +10,9 @@ const RESHUFFLE_AT = 0.75;
 const MIN_BET = 10;
 const BET_WINDOW_MS = 30000;
 const DECISION_MS = 20000;
-const DEAL_MS = 450;          // Zeit pro ausgeteilter Karte (Animation am Tablet)
-const DEALER_CARD_MS = 900;
-const RESULTS_MS = 8000;
+const DEAL_MS = 800;          // Zeit pro ausgeteilter Karte (Animation auf Tablet und Handy)
+const DEALER_CARD_MS = 1400;
+const RESULTS_MS = 12000;
 
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -357,6 +357,8 @@ class Blackjack {
       dealerValue: handValue(visible),
       turn: this.turn ? { seat: this.turn.seat, hand: this.turn.hand, endsAt: this.turn.endsAt, playerId: this.seats[this.turn.seat].playerId } : null,
       decisionMs: DECISION_MS,
+      dealMs: DEAL_MS * this.timeScale,
+      dealerCardMs: DEALER_CARD_MS * this.timeScale,
       dealtAt: this.dealtAt,
       timeScale: this.timeScale,
       shoeLeft: this.shoe.cards ? this.shoe.cards.length - this.shoe.pos : DECKS * 52,

@@ -18,8 +18,8 @@ const BANK_HOUSES = 32;
 const BANK_HOTELS = 12;
 const HOTEL = 5;
 const AUCTION_STEP = 10;
-const AUCTION_MS = 20000;
-const AUCTION_EXTEND_MS = 10000;
+const AUCTION_MS = 25000;
+const AUCTION_EXTEND_MS = 12000;
 const LOG_LIMIT = 80;
 const MOVES_LIMIT = 40;
 
@@ -927,4 +927,5 @@ module.exports = {
   BANK_HOTELS,
   AUCTION_STEP,
   AUCTION_MS,
+  AUCTION_EXTEND_MS,
 };

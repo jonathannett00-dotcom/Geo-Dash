@@ -72,16 +72,34 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .cell.mortgaged .cbody { background: repeating-linear-gradient(45deg, rgba(0,0,0,.07) 0 5px, transparent 5px 10px); opacity: .6; }
 .cell.mortgaged::after { content: 'H'; position: absolute; top: 2px; right: 3px; font: 800 1cqw var(--font-body); color: #fff; background: #555; border-radius: 3px; padding: 0 .25cqw; }
 .cell.landed { background: #fff6cf; }
+.cell.pulse { animation: cellPulse .9s ease-out; }
+.cell.flash { animation: cellFlash 1.4s ease-out; }
+@keyframes cellPulse { 0% { background: #ffe58a; } 100% { background: #f6f1e3; } }
+@keyframes cellFlash { 0%, 30% { background: var(--owner); filter: brightness(1.25); } 100% { background: #f6f1e3; } }
+.house, .hotel { animation: build .5s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes build { from { transform: translateY(-120%) scale(.4); opacity: 0; } }
 
 /* ---------- Figuren ---------- */
 .tokens { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 .token {
-  position: absolute; left: 0; top: 0; border-radius: 50%; display: grid; place-items: center;
-  background: #fff; border: 3px solid var(--c); box-shadow: 0 2px 5px rgba(0,0,0,.45); line-height: 1;
-  transition: transform .2s ease-out;
+  position: absolute; left: 0; top: 0; line-height: 1; will-change: transform;
+  transition: transform var(--tstep, 380ms) cubic-bezier(.45, .05, .35, 1);
 }
-.token.moving { z-index: 3; box-shadow: 0 6px 10px rgba(0,0,0,.45); }
-.token.current { outline: 2px solid var(--gold); outline-offset: 1px; }
+.token.jumping { transition-duration: var(--tjump, 1100ms); transition-timing-function: cubic-bezier(.6, -.3, .3, 1.3); }
+.tok-in {
+  width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
+  background: #fff; border: 3px solid var(--c); box-shadow: 0 2px 5px rgba(0,0,0,.45); transition: box-shadow .3s;
+}
+.token.moving { z-index: 3; }
+.token.moving .tok-in { box-shadow: 0 8px 14px rgba(0,0,0,.4); }
+.token.hop .tok-in { animation: hop var(--tstep, 380ms) ease-in-out; }
+.token.land .tok-in { animation: land .5s ease-out; }
+.token.current .tok-in { outline: 2px solid var(--gold); outline-offset: 1px; animation: glowTok 2.4s ease-in-out infinite; }
+.token.current.hop .tok-in { animation: hop var(--tstep, 380ms) ease-in-out; }
+.token.current.land .tok-in { animation: land .5s ease-out; }
+@keyframes hop { 0% { transform: translateY(0) scale(1); } 45% { transform: translateY(-42%) scale(1.14); } 100% { transform: translateY(0) scale(1); } }
+@keyframes land { 0% { transform: scale(1.12, .82); } 45% { transform: scale(.94, 1.08); } 100% { transform: scale(1); } }
+@keyframes glowTok { 0%, 100% { box-shadow: 0 2px 5px rgba(0,0,0,.45); } 50% { box-shadow: 0 0 0 4px rgba(232,185,35,.55), 0 2px 5px rgba(0,0,0,.45); } }
 .token.jailed::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; background: repeating-linear-gradient(90deg, rgba(30,30,30,.75) 0 2px, transparent 2px 6px); }
 
 /* ---------- Brettmitte ---------- */
@@ -94,11 +112,18 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .die { width: 7cqw; height: 7cqw; background: #fff; border-radius: 1.2cqw; box-shadow: 0 4px 8px rgba(0,0,0,.3), inset 0 -3px 0 rgba(0,0,0,.12); display: grid; grid-template-columns: repeat(3, 1fr); padding: .9cqw; gap: .2cqw; }
 .die i { border-radius: 50%; }
 .die i.on { background: #1b1b19; }
-.dice.rolling .die { animation: tumble .25s linear infinite; }
-.dice.rolling .die:nth-child(2) { animation-direction: reverse; }
+.dice.rolling .die { animation: tumble .6s cubic-bezier(.45, .05, .55, .95) infinite; }
+.dice.rolling .die:nth-child(2) { animation-duration: .7s; animation-direction: reverse; }
+.dice.landed .die { animation: diceLand .45s cubic-bezier(.3, 1.5, .6, 1); }
+.dice.landed .die:nth-child(2) { animation-delay: .06s; }
+@keyframes diceLand { 0% { transform: translateY(-18%) rotate(-8deg) scale(1.08); } 60% { transform: translateY(3%) rotate(2deg) scale(.97); } 100% { transform: none; } }
 .dice.doubles:not(.rolling) .die { box-shadow: 0 0 0 4px var(--gold), 0 4px 8px rgba(0,0,0,.3); }
-@keyframes tumble { 0% { transform: rotate(0) translateY(0); } 50% { transform: rotate(180deg) translateY(-6px); } 100% { transform: rotate(360deg) translateY(0); } }
+@keyframes tumble { 0% { transform: rotate(0) translateY(0); } 25% { transform: rotate(90deg) translateY(-22%); } 50% { transform: rotate(180deg) translateY(0); } 75% { transform: rotate(270deg) translateY(-12%); } 100% { transform: rotate(360deg) translateY(0); } }
 .cm-status { width: 100%; display: flex; justify-content: center; font-size: 1.75cqw; }
+.cm-status > *, .cm-turn > * { animation: fadeUp .5s ease-out; }
+.center-main:not(.hidden) { animation: fadeIn .6s ease-out; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } }
+@keyframes fadeIn { from { opacity: 0; } }
 .st-line { background: rgba(255,255,255,.75); border-radius: 1.2cqw; padding: .8cqw 1.4cqw; text-align: center; font-weight: 600; }
 .st-row { display: flex; gap: 1.6cqw; align-items: center; justify-content: center; }
 .st-pause { background: #fff3c4; border: 2px solid var(--gold); border-radius: 1.2cqw; padding: .8cqw 1.4cqw; font-weight: 700; text-align: center; }
@@ -124,8 +149,9 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .ticker li:nth-child(n+5) { opacity: .7; }
 @keyframes slideIn { from { transform: translateY(-8px); opacity: 0; } }
 
-.card-pop { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10, 30, 18, .35); z-index: 4; }
-.gcard { width: 46cqw; background: #fff; border-radius: 1.6cqw; padding: 2cqw 2.4cqw; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,.45); animation: flipIn .5s ease-out; border: 6px solid #f19a1d; }
+.card-pop { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10, 30, 18, .35); z-index: 4; animation: fadeIn .4s ease-out; transition: opacity .6s; }
+.card-pop.leaving { opacity: 0; }
+.gcard { width: 46cqw; background: #fff; border-radius: 1.6cqw; padding: 2cqw 2.4cqw; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,.45); animation: flipIn .8s cubic-bezier(.2, .9, .3, 1.2); border: 6px solid #f19a1d; }
 .gcard.community { border-color: #3a8fd8; }
 .gc-title { font-weight: 800; font-size: 2.2cqw; margin-bottom: 1cqw; }
 .gc-text { font-size: 2.2cqw; line-height: 1.3; }
@@ -144,7 +170,8 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
   flex: 0 1 92px; min-height: 0; overflow: hidden; background: var(--panel); border-radius: 10px; padding: 5px 8px;
   border-left: 7px solid var(--c); display: flex; flex-direction: column; justify-content: center; gap: 2px; transition: box-shadow .3s, transform .3s;
 }
-.ps.current { box-shadow: 0 0 0 3px var(--gold); transform: translateX(-3px); }
+.ps { transition: box-shadow .5s, transform .5s cubic-bezier(.3, 1.4, .5, 1), opacity .5s; }
+.ps.current { box-shadow: 0 0 0 3px var(--gold); transform: translateX(-6px); }
 .ps.bankrupt { opacity: .45; filter: grayscale(.8); }
 .ps.offline { opacity: .7; }
 .ps-top { display: flex; align-items: center; gap: 5px; min-width: 0; }
@@ -162,7 +189,9 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .pb.mort { opacity: .35; }
 
 /* ================= Minispiel-Bühne ================= */
-.sg { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 1cqw; padding: 1.6cqw 2cqw; background: radial-gradient(circle at 50% 30%, #1f5a37, #0e2f1d); color: #fff; }
+.sg { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 1cqw; padding: 1.6cqw 2cqw; background: radial-gradient(circle at 50% 30%, #1f5a37, #0e2f1d); color: #fff; animation: stageIn .8s cubic-bezier(.2, .8, .3, 1); }
+@keyframes stageIn { from { opacity: 0; transform: scale(.94); } }
+.hr-race:not(.hidden), .rl-spin:not(.hidden) { animation: fadeIn .7s ease-out; }
 .sg-head { display: flex; justify-content: space-between; align-items: center; }
 .sg-title { font-family: var(--font-display); font-size: 3.2cqw; letter-spacing: .03em; }
 .sg-timer { font-size: 3cqw; font-weight: 800; font-variant-numeric: tabular-nums; background: rgba(0,0,0,.35); border-radius: 1cqw; padding: .2cqw 1.2cqw; }

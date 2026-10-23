@@ -198,3 +198,84 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 .bj-result.lose, .bj-result.bust { background: var(--red); }
 .bj-controls .btn-row { margin-top: .5rem; }
 .bj-mine { margin: .6rem 0 .3rem; }
+
+/* ---------- Blackjack (übersichtliche Tischansicht) ---------- */
+.bjp { display: grid; gap: .7rem; }
+.bjp-rules { color: #cfe3cf; text-align: center; font-size: .78rem; margin: 0; }
+.bjp-bet { text-align: center; display: grid; gap: .7rem; }
+.bjp-cur { display: grid; gap: .1rem; }
+.bjp-cur span { font-size: .8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.bjp-cur b { font-size: 2.2rem; line-height: 1.1; }
+.bjp-cur small { color: var(--muted); }
+.bjp-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: .45rem; }
+.bjp-q {
+  aspect-ratio: 1; border-radius: 50%; border: 4px dashed rgba(255,255,255,.8); background: #1d72d8; color: #fff;
+  font: 800 .95rem var(--font-body); cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,.3); transition: transform .2s, box-shadow .2s;
+}
+.bjp-q:nth-child(2) { background: #2e9a4f; }
+.bjp-q:nth-child(3) { background: #c8332b; }
+.bjp-q:nth-child(4) { background: #1b1b1b; }
+.bjp-q.sel { outline: 4px solid var(--gold); outline-offset: 2px; transform: scale(1.06); }
+.bjp-q:active { transform: scale(.94); }
+.bjp-more summary { cursor: pointer; color: var(--muted); font-weight: 700; font-size: .9rem; }
+.bjp-more .bid-custom { margin-top: .5rem; }
+
+.bjp-status {
+  position: relative; background: var(--panel); border-radius: var(--radius); padding: .8rem 1rem; font-weight: 800; font-size: 1.05rem;
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem; box-shadow: var(--shadow); overflow: hidden;
+  animation: statusIn .45s ease-out;
+}
+.bjp-status.mine { background: var(--gold); color: #2a2200; font-size: 1.2rem; }
+.bjp-status.wait { background: #e8f2ea; }
+.bjp-status.won { background: var(--green); color: #fff; font-size: 1.2rem; }
+.bjp-status.lost { background: var(--red); color: #fff; }
+.bjp-status b { font-variant-numeric: tabular-nums; }
+.bjp-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(0,0,0,.15); }
+.bjp-bar i { display: block; height: 100%; background: #2a2200; transform-origin: left; transition: transform .25s linear; }
+@keyframes statusIn { from { opacity: 0; transform: translateY(-6px); } }
+
+.bjp-felt {
+  background: radial-gradient(ellipse at 50% 0%, #15834c, #0a4f2c); border: 5px solid #6b3d1c; border-radius: 18px;
+  padding: .7rem .8rem; color: #fff; display: grid; gap: .6rem; box-shadow: inset 0 0 24px rgba(0,0,0,.45), var(--shadow);
+}
+.bjp-row { border-radius: 12px; padding: .5rem .6rem; transition: background .4s, box-shadow .4s, opacity .4s; }
+.bjp-row.dealer { background: rgba(0,0,0,.18); }
+.bjp-row.hand { background: rgba(255,255,255,.08); }
+.bjp-row.hand.active { background: rgba(232,185,35,.22); box-shadow: 0 0 0 3px var(--gold); }
+.bjp-row.hand.done { opacity: .75; }
+.bjp-label { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; font-size: .85rem; font-weight: 700; color: rgba(255,255,255,.85); }
+.bjp-label b { font-size: 1.2rem; color: #fff; }
+.bjp-total { font-size: 1.8rem !important; }
+.bjp-total small { font-size: .75rem; opacity: .8; }
+.bjp-row .cards { flex-wrap: nowrap; gap: 0; font-size: 1.15rem; min-height: 3.2em; }
+.bjp-row .cards .pcard + .pcard { margin-left: .3em; }
+.bjp-row .cards.big { font-size: 1.6rem; }
+.bjp-row .cards.big .pcard + .pcard { margin-left: -.35em; }
+.bjp-out { margin: 0; color: rgba(255,255,255,.8); text-align: center; }
+.bj-result { animation: statusIn .5s ease-out; }
+
+.bj-controls { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; animation: statusIn .4s ease-out; }
+.bjp-act {
+  min-height: 70px; border: 0; border-radius: 16px; cursor: pointer; color: #fff; font: inherit; display: grid; place-content: center; gap: .1rem;
+  box-shadow: 0 4px 0 rgba(0,0,0,.25), var(--shadow); transition: transform .12s, filter .2s;
+}
+.bjp-act b { font-size: 1.35rem; }
+.bjp-act small { font-size: .78rem; opacity: .9; }
+.bjp-act:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.bjp-act:disabled { opacity: .4; cursor: not-allowed; filter: grayscale(.6); }
+.bjp-act.hit { background: var(--green); }
+.bjp-act.stand { background: var(--red); }
+.bjp-act.double { background: var(--gold); color: #2a2200; }
+.bjp-act.split { background: #1d72d8; }
+.bjp-hint { margin: -.2rem 0 0; color: #cfe3cf; font-size: .78rem; text-align: center; }
+.bjp-others ul { list-style: none; margin: .3rem 0 0; padding: 0; display: grid; gap: .3rem; }
+.bjp-others li { display: flex; justify-content: space-between; gap: .5rem; background: #fff; border-radius: 8px; padding: .4rem .6rem; border-left: 6px solid var(--c); font-size: .9rem; transition: box-shadow .3s; }
+.bjp-others li.turn { box-shadow: 0 0 0 2px var(--gold); }
+
+/* ---------- Weichere Übergänge ---------- */
+.panel:not(.hidden) { animation: panelIn .35s ease-out; }
+@keyframes panelIn { from { opacity: 0; transform: translateY(8px); } }
+.btn { transition: transform .12s, filter .2s, opacity .2s, background .3s; }
+.tabs button { transition: color .3s, box-shadow .3s; }
+.hl, .seg button, .rs, .cp { transition: transform .15s, box-shadow .2s, background .2s, border-color .2s; }
+.toast { transition: transform .45s cubic-bezier(.2, .9, .3, 1.2), opacity .35s; }

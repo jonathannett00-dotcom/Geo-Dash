@@ -209,10 +209,12 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     await until(board, () => S.mini && S.mini.type === 'blackjack');
     assert.equal(await money(board, 'Cem'), before.Cem + roulette.results.filter((r) => r.playerId === roulette.players[2].id).reduce((t, r) => t + r.payout - r.amount, 0) - 10, 'Cem zahlt 10 M Miete für die Seestraße');
     const bjBefore = { Anna: await money(board, 'Anna'), Ben: await money(board, 'Ben'), Cem: await money(board, 'Cem') };
-    await A.waitForSelector('#bj-amount');
-    await A.fill('#bj-amount', '20');
-    await A.click('#btn-bj-bet');
-    await B.waitForSelector('#bj-amount');
+    await A.waitForSelector('.bjp-q');
+    await A.click('.bjp-q:has-text("20 M")');
+    await A.waitForSelector('.bjp-cur b:has-text("20 M")');
+    await shot(A, '13b-handy-bj-einsatz');
+    await B.waitForSelector('.bjp-more summary');
+    await B.click('.bjp-more summary');
     await B.fill('#bj-amount', '5');
     await B.click('#btn-bj-bet');
     assert.match(await toastText(B, /Mindesteinsatz/), /Mindesteinsatz ist 10 M/);

@@ -19,7 +19,7 @@ const COLORS = ['#e63946', '#1d72d8', '#2a9d8f', '#f4a261', '#8e44ad', '#e9c46a'
 const FIGURES = ['🎩', '🚗', '🐕', '🚢', '👢', '🐈', '🦆', '🦖', '✈️', '🎸'];
 
 /* Animationszeiten (ms) – Tablet und Server rechnen mit denselben Werten. */
-const TIMING = { dice: 1100, step: 230, jump: 700, land: 500, rollDelay: 1600, miniDelay: 1200 };
+const TIMING = { dice: 1800, step: 380, jump: 1100, land: 900, rollDelay: 3000, miniDelay: 2500 };
 
 /** Minispiele nach Typ. */
 const MINIGAMES = {

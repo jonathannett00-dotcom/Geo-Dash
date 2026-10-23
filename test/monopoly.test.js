@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { MonopolyGame, minigameForSum, BANK_HOUSES, AUCTION_MS } = require('../server/monopoly/rules');
+const { MonopolyGame, minigameForSum, BANK_HOUSES, AUCTION_MS, AUCTION_EXTEND_MS } = require('../server/monopoly/rules');
 const { SQUARES } = require('../server/monopoly/board');
 const { CHANCE_CARDS, COMMUNITY_CARDS } = require('../server/monopoly/cards');
 const { createRng } = require('../server/rng');
@@ -444,7 +444,7 @@ test('Versteigerung: Timer beendet die Auktion, Gebote verlängern', () => {
   g.advanceClock(1500);
   g.auctionTimeout();
   assert.equal(g.phase, 'auction', 'Gebot hat die Zeit verlängert');
-  g.advanceClock(10000);
+  g.advanceClock(AUCTION_EXTEND_MS);
   g.auctionTimeout();
   assert.equal(g.props[sq('Südbahnhof')].owner, 'p3');
   assert.equal(P(g, 'p3').money, 1450);

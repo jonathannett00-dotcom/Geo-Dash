@@ -60,7 +60,7 @@ input:focus, select:focus { outline: none; border-color: var(--gold); }
 
 .money.up { color: var(--green); }
 .money.down { color: var(--red); }
-.delta { position: absolute; right: .5rem; top: -.2rem; font-weight: 800; font-size: .85rem; animation: floatUp 1.5s ease-out forwards; pointer-events: none; }
+.delta { position: absolute; right: .5rem; top: -.2rem; font-weight: 800; font-size: .85rem; animation: floatUp 2.1s ease-out forwards; pointer-events: none; }
 .delta.up { color: var(--green); }
 .delta.down { color: var(--red); }
 @keyframes floatUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-26px); } }
@@ -74,8 +74,8 @@ input:focus, select:focus { outline: none; border-color: var(--gold); }
 .pcard .s { align-self: flex-end; }
 .pcard.red { color: #c0201a; }
 .pcard.back { background: repeating-linear-gradient(45deg, #8c1d17 0 4px, #b5332b 4px 8px); border: 2px solid #fff; }
-.pcard.deal { animation: dealIn .35s ease-out backwards; }
-@keyframes dealIn { from { transform: translate(0, -60px) rotate(-12deg) scale(.6); opacity: 0; } }
+.pcard.deal { animation: dealIn .65s cubic-bezier(.2, .8, .3, 1.1) backwards; }
+@keyframes dealIn { 0% { transform: translate(0, -80px) rotate(-18deg) scale(.5); opacity: 0; } 60% { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }

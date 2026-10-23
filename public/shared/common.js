@@ -24,8 +24,10 @@ function patch(el, html) {
   $$('input[id], select[id], textarea[id]', el).forEach((i) => {
     saved[i.id] = { value: i.type === 'checkbox' ? i.checked : i.value, focus: document.activeElement === i };
   });
+  const openDetails = $$('details[id][open]', el).map((d) => d.id);
   el.innerHTML = html;
   el._html = html;
+  openDetails.forEach((id) => { const d = document.getElementById(id); if (d) d.open = true; });
   Object.entries(saved).forEach(([id, s]) => {
     const i = document.getElementById(id);
     if (!i || i.dataset.keep === 'no') return;
@@ -74,7 +76,7 @@ function animateMoney(el, from, to, deltaHost) {
   if (!el) return;
   if (from === to || from === undefined) { el.textContent = fmtM(to); return; }
   const start = performance.now();
-  const dur = 900;
+  const dur = 1400;
   el.classList.remove('up', 'down');
   void el.offsetWidth;
   el.classList.add(to > from ? 'up' : 'down');
@@ -84,7 +86,7 @@ function animateMoney(el, from, to, deltaHost) {
     d.className = `delta ${to > from ? 'up' : 'down'}`;
     d.textContent = `${to > from ? '+' : '−'}${fmtM(Math.abs(to - from))}`;
     deltaHost.appendChild(d);
-    setTimeout(() => d.remove(), 1600);
+    setTimeout(() => d.remove(), 2200);
   }
   cancelAnimationFrame(el._raf);
   (function step(now) {

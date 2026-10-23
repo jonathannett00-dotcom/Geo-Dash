@@ -152,16 +152,20 @@ function syncDice(g) {
   const dur = T('dice');
   const t0 = performance.now();
   diceDone = new Promise((resolve) => {
+    dice.classList.remove('landed');
     (function spin() {
-      if (performance.now() - t0 < dur - 120) {
+      const t = performance.now() - t0;
+      if (t < dur - 380) {
         setDie(0, 1 + Math.floor(Math.random() * 6));
         setDie(1, 1 + Math.floor(Math.random() * 6));
-        setTimeout(spin, 70);
+        // Würfel werden zum Ende hin langsamer
+        setTimeout(spin, 90 + (t / dur) * 160);
       } else {
         setDie(0, r.dice[0]);
         setDie(1, r.dice[1]);
         dice.classList.remove('rolling');
-        setTimeout(resolve, 120);
+        restartAnim(dice, 'landed');
+        setTimeout(resolve, 380);
       }
     })();
   });
@@ -177,6 +181,8 @@ let moving = false;
 function layoutTokens() {
   if (!S || !S.game) return;
   const layer = $('#tokens');
+  layer.style.setProperty('--tstep', `${Math.round(T('step'))}ms`);
+  layer.style.setProperty('--tjump', `${Math.round(T('jump'))}ms`);
   const boardRect = $('#board').getBoundingClientRect();
   const unit = boardRect.width / 12.1;
   const size = Math.max(16, unit * 0.46);
@@ -189,7 +195,7 @@ function layoutTokens() {
       el.className = 'token';
       el.id = `tok-${p.id}`;
       el.style.setProperty('--c', p.color);
-      el.textContent = p.figure;
+      el.innerHTML = `<span class="tok-in">${p.figure}</span>`;
       layer.appendChild(el);
     }
     el.classList.toggle('hidden', p.bankrupt);
@@ -233,19 +239,24 @@ async function runMoves() {
     const tok = document.getElementById(`tok-${m.playerId}`);
     if (tok) tok.classList.add('moving');
     if (m.mode === 'jump') {
+      if (tok) tok.classList.add('jumping');
       shown[m.playerId] = m.to;
       layoutTokens();
       await sleep(T('jump'));
+      if (tok) tok.classList.remove('jumping');
     } else {
       const dir = m.mode === 'back' ? -1 : 1;
       for (let k = 0; k < m.steps; k++) {
         shown[m.playerId] = (shown[m.playerId] + dir + 40) % 40;
+        restartAnim(tok, 'hop');
         layoutTokens();
         await sleep(T('step'));
       }
+      restartAnim(tok, 'land');
+      highlightCell(shown[m.playerId]);
       await sleep(T('land'));
     }
-    if (tok) tok.classList.remove('moving');
+    if (tok) tok.classList.remove('moving', 'hop');
   }
   moving = false;
   S.game.players.forEach((p) => { shown[p.id] = p.position; });
@@ -253,7 +264,22 @@ async function runMoves() {
   showPendingCard();
 }
 
+/** Startet eine CSS-Animation neu (Klasse kurz entfernen und wieder setzen). */
+function restartAnim(el, cls) {
+  if (!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+
+/** Feld, auf dem eine Figur landet, kurz aufleuchten lassen. */
+function highlightCell(i) {
+  restartAnim(document.getElementById(`cell-${i}`), 'pulse');
+}
+
 /* ---------------- Felder (Besitz, Häuser) ---------------- */
+
+const shownOwner = {};
 
 function renderCells(g) {
   g.props.forEach((st, i) => {
@@ -261,6 +287,8 @@ function renderCells(g) {
     const cell = document.getElementById(`cell-${i}`);
     const owner = st.owner ? g.players.find((p) => p.id === st.owner) : null;
     cell.classList.toggle('owned', Boolean(owner));
+    if (i in shownOwner && shownOwner[i] !== st.owner && owner) restartAnim(cell, 'flash');
+    shownOwner[i] = st.owner;
     cell.classList.toggle('mortgaged', st.mortgaged);
     cell.style.setProperty('--owner', owner ? owner.color : 'transparent');
     const houses = cell.querySelector('.houses');
@@ -404,9 +432,11 @@ function showPendingCard() {
   const who = S.game.players.find((p) => p.id === c.playerId);
   el.innerHTML = `<div class="gcard ${c.deck}"><div class="gc-title">${c.deck === 'chance' ? '❓' : '📦'} ${escapeHtml(c.title)}</div>
     <div class="gc-text">${escapeHtml(c.text)}</div><div class="gc-who">${who ? escapeHtml(who.name) : ''}</div></div>`;
-  el.classList.remove('hidden');
+  el.classList.remove('hidden', 'leaving');
   clearTimeout(showPendingCard.t);
-  showPendingCard.t = setTimeout(() => el.classList.add('hidden'), 5200);
+  clearTimeout(showPendingCard.t2);
+  showPendingCard.t = setTimeout(() => el.classList.add('leaving'), 7000);
+  showPendingCard.t2 = setTimeout(() => el.classList.add('hidden'), 7600);
 }
 
 function renderGame() {
@@ -525,7 +555,7 @@ function startRaceAnimation(m, stage) {
     const msToStart = v.startAt - now;
     if (msToStart > 0) {
       const steps = ['3', '2', '1'];
-      const k = Math.min(2, Math.floor((1 - msToStart / (3000 * v.timeScale)) * 3));
+      const k = Math.min(2, Math.floor((1 - msToStart / (v.countdownMs || 3000 * v.timeScale)) * 3));
       count.classList.remove('hidden');
       const txt = steps[Math.max(0, k)];
       if (count.textContent !== txt) count.innerHTML = `<span>${txt}</span>`;
@@ -741,7 +771,8 @@ STAGES.blackjack = (m, stage) => {
     const key = c.hidden ? `h${c.n}` : c.n;
     if (seen.has(key)) return cardHtml(c);
     seen.add(key);
-    const delay = (fresh++ * 0.45 * ts).toFixed(2);
+    const step = m.phase === 'dealer' ? (m.dealerCardMs ?? 1400 * ts) : (m.dealMs ?? 800 * ts);
+    const delay = ((fresh++ * step) / 1000).toFixed(2);
     return cardHtml(c, `deal" style="animation-delay:${delay}s`);
   };
   // Reihenfolge wie beim Austeilen: erst alle ersten Karten, dann alle zweiten

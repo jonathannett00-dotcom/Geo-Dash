@@ -503,53 +503,116 @@ MINI.roulette = (m) => {
 /* ---------- Blackjack ---------- */
 
 const BJ_RESULT = { blackjack: 'Blackjack! 🎉', win: 'Gewonnen', push: 'Unentschieden', lose: 'Verloren', bust: 'Überkauft' };
+const bjSeen = { id: null, keys: new Set(), base: 0 };
+const bjKey = (c) => (c.hidden ? `h${c.n}` : c.n);
+
+/** Merkt sich, ab welcher Karte neu ausgeteilt wird – so passt das Tempo zum Tablet. */
+function bjPrepare(m) {
+  if (bjSeen.id !== m.id) { bjSeen.id = m.id; bjSeen.keys = new Set(); }
+  const all = [...m.dealer, ...m.seats.flatMap((s) => s.hands.flatMap((h) => h.cards))];
+  const fresh = all.filter((c) => !bjSeen.keys.has(bjKey(c))).map((c) => c.n);
+  bjSeen.base = fresh.length ? Math.min(...fresh) : 0;
+}
+
+/** Karten zeichnen; neue Karten fliegen in Austeil-Reihenfolge herein. */
+function bjCards(m, cards) {
+  const step = (m.phase === 'dealer' ? m.dealerCardMs : m.dealMs) || 800;
+  return cards.map((c) => {
+    const key = bjKey(c);
+    if (bjSeen.keys.has(key)) return cardHtml(c);
+    bjSeen.keys.add(key);
+    const delay = (Math.max(0, c.n - bjSeen.base) * step) / 1000;
+    return cardHtml(c, `deal" style="animation-delay:${delay.toFixed(2)}s`);
+  }).join('');
+}
+
+const bjValue = (v) => `${v.total}${v.soft && v.total < 21 ? ' <small>soft</small>' : ''}${v.total > 21 ? ' 💥' : ''}`;
 
 MINI.blackjack = (m) => {
   const myBet = m.bets.find((b) => b.playerId === me);
-  if (m.phase === 'betting' && !m.ready.includes(me)) {
-    return `${betHead(m, '🃏 Blackjack')}
-      <div class="box"><div class="muted small">Dein Einsatz für diese Runde</div>
-        ${amountPicker('bj-amount', String(m.minBet))}
-        <button class="btn huge primary" id="btn-bj-bet">Einsatz setzen</button>
-        <p class="bj-mine">${myBet ? `Gesetzt: <b>${fmtM(myBet.amount)}</b>` : 'Noch kein Einsatz – ohne Einsatz setzt du aus.'}</p>
-        ${myBet ? `<button class="btn small ghost-dark" data-act='${JSON.stringify(miniAct({ type: 'bet', amount: 0 }))}'>Einsatz zurücknehmen</button>` : ''}</div>
-      <p class="muted small rl-odds">Dealer steht auf Soft 17 · Blackjack zahlt 3:2 · keine Versicherung</p>
-      ${readyBtn(m)}`;
-  }
+  const rules = '<p class="bjp-rules">Dealer steht auf Soft 17 · Blackjack zahlt 3:2 · keine Versicherung</p>';
+
+  /* ----- Einsatz ----- */
   if (m.phase === 'betting') {
-    return `${betHead(m, '🃏 Blackjack')}<div class="box">${myBet ? `Dein Einsatz: <b>${fmtM(myBet.amount)}</b>` : 'Du setzt diese Runde aus.'}</div>`;
+    const ready = m.ready.includes(me);
+    const quick = [10, 20, 50, 100].map((v) => `<button class="bjp-q ${myBet && myBet.amount === v ? 'sel' : ''}" data-act='${JSON.stringify(miniAct({ type: 'bet', amount: v }))}' ${ready ? 'disabled' : ''}>${v} M</button>`).join('');
+    return `${betHead(m, '🃏 Blackjack')}
+      <div class="box bjp-bet">
+        <div class="bjp-cur"><span>Dein Einsatz</span><b>${myBet ? fmtM(myBet.amount) : '–'}</b><small>${myBet ? 'Antippen ändert den Einsatz' : 'Ohne Einsatz setzt du aus'}</small></div>
+        ${ready ? '' : `<div class="bjp-quick">${quick}</div>
+        <details class="bjp-more" id="bj-more"><summary>Anderer Betrag</summary>
+          <div class="bid-custom"><input id="bj-amount" type="number" inputmode="numeric" min="10" step="10" placeholder="${m.minBet}" /><button class="btn go" id="btn-bj-bet">Setzen</button></div>
+        </details>
+        ${myBet ? `<button class="btn small ghost-dark" data-act='${JSON.stringify(miniAct({ type: 'bet', amount: 0 }))}'>Einsatz zurücknehmen</button>` : ''}`}
+      </div>
+      ${rules}${readyBtn(m)}`;
   }
-  const dealer = `<div class="box bj-dealer"><div class="muted small">Dealer${m.dealer.length ? ` · ${m.dealerValue.total}${m.dealer.some((c) => c.hidden) ? ' + ?' : ''}` : ''}</div>
-    <div class="cards">${m.dealer.map((c) => cardHtml(c)).join('')}</div></div>`;
+
+  /* ----- Spiel ----- */
+  bjPrepare(m);
   const seat = m.seats.find((s) => s.playerId === me);
-  if (!seat) return `${betHead(m, '🃏 Blackjack')}${dealer}<div class="box info">Du setzt diese Runde aus – schau aufs Tablet.</div>`;
-  const myTurn = m.turn && m.turn.playerId === me;
-  const hands = seat.hands.map((h, k) => {
-    const active = myTurn && m.turn.hand === k;
-    return `<div class="box bj-hand ${active ? 'mine' : ''}">
-      <div class="mh-row"><span class="muted small">${seat.hands.length > 1 ? `Hand ${k + 1} · ` : ''}Einsatz ${fmtM(h.bet)}${h.doubled ? ' (verdoppelt)' : ''}</span>
-        <b class="bj-total">${h.value.total}${h.value.soft && h.value.total < 21 ? ' soft' : ''}</b></div>
-      <div class="cards">${h.cards.map((c) => cardHtml(c)).join('')}</div>
-      ${h.result ? `<div class="bj-result ${h.result}">${BJ_RESULT[h.result]}${h.payout ? ` · +${fmtM(h.payout)}` : ''}</div>` : ''}</div>`;
-  }).join('');
-  let controls = '';
-  if (myTurn) {
-    const h = seat.hands[m.turn.hand];
-    controls = `<div class="box mine bj-controls"><div class="mh-row"><h2>Du bist dran!</h2><div class="mh-timer">⏱ <span data-ends="${m.turn.endsAt}"></span></div></div>
-      <div class="btn-row">
-        <button class="btn huge go" data-act='${JSON.stringify(miniAct({ type: 'hit' }))}'>Hit</button>
-        <button class="btn huge danger" data-act='${JSON.stringify(miniAct({ type: 'stand' }))}'>Stand</button>
-        <button class="btn huge primary" data-act='${JSON.stringify(miniAct({ type: 'double' }))}' ${h.canDouble ? '' : 'disabled'}>Double</button>
-        <button class="btn huge" data-act='${JSON.stringify(miniAct({ type: 'split' }))}' ${h.canSplit ? '' : 'disabled'}>Split</button>
-      </div><p class="muted small">Nach 20 s ohne Entscheidung: automatisch Stand.</p></div>`;
+  const myTurn = Boolean(m.turn && m.turn.playerId === me);
+  const nameOfP = (id) => escapeHtml(m.players.find((p) => p.id === id)?.name || '');
+
+  let status;
+  if (m.phase === 'results') {
+    const net = seat ? seat.hands.reduce((t, h) => t + h.payout - h.bet, 0) : 0;
+    status = seat
+      ? `<div class="bjp-status ${net > 0 ? 'won' : net < 0 ? 'lost' : ''}">${net > 0 ? `🎉 Du gewinnst ${fmtM(net)}` : net < 0 ? `Du verlierst ${fmtM(-net)}` : 'Unentschieden – Einsatz zurück'}</div>`
+      : '<div class="bjp-status">Runde vorbei</div>';
+  } else if (myTurn) {
+    status = `<div class="bjp-status mine"><span>👉 Du bist dran${seat.hands.length > 1 ? ` – Hand ${m.turn.hand + 1}` : ''}!</span><b data-ends="${m.turn.endsAt}"></b>
+      <div class="bjp-bar"><i data-bar-ends="${m.turn.endsAt}" data-bar-total="${m.decisionMs}"></i></div></div>`;
   } else if (m.turn) {
-    controls = `<div class="box info">${escapeHtml(m.players.find((p) => p.id === m.turn.playerId)?.name || '')} entscheidet gerade…</div>`;
+    status = `<div class="bjp-status wait">⏳ ${nameOfP(m.turn.playerId)} entscheidet…</div>`;
   } else if (m.phase === 'dealer') {
-    controls = '<div class="box info">Der Dealer spielt…</div>';
-  } else if (m.phase === 'playing') {
-    controls = '<div class="box info">Der Dealer teilt aus…</div>';
+    status = '<div class="bjp-status wait">🃏 Der Dealer deckt auf und zieht…</div>';
+  } else {
+    status = '<div class="bjp-status wait">🃏 Der Dealer teilt aus…</div>';
   }
-  return `${betHead(m, '🃏 Blackjack')}${controls}${hands}${dealer}`;
+
+  const dealer = `<div class="bjp-row dealer"><div class="bjp-label"><span>Dealer</span><b>${m.dealer.length ? `${m.dealerValue.total}${m.dealer.some((c) => c.hidden) ? ' + ?' : ''}` : ''}</b></div>
+    <div class="cards">${bjCards(m, m.dealer)}</div></div>`;
+
+  let mine;
+  if (!seat) {
+    mine = '<div class="bjp-row"><p class="bjp-out">Du setzt diese Runde aus – schau aufs Tablet.</p></div>';
+  } else {
+    mine = seat.hands.map((h, k) => {
+      const active = myTurn && m.turn.hand === k;
+      return `<div class="bjp-row hand ${active ? 'active' : ''} ${h.done && !h.result && !active ? 'done' : ''}">
+        <div class="bjp-label"><span>${seat.hands.length > 1 ? `Deine Hand ${k + 1}` : 'Deine Hand'} · ${fmtM(h.bet)}${h.doubled ? ' (×2)' : ''}</span><b class="bjp-total">${bjValue(h.value)}</b></div>
+        <div class="cards big">${bjCards(m, h.cards)}</div>
+        ${h.result ? `<div class="bj-result ${h.result}">${BJ_RESULT[h.result]}${h.payout ? ` · ${fmtM(h.payout)} zurück` : ''}</div>` : ''}</div>`;
+    }).join('');
+  }
+
+  let controls = '';
+  if (myTurn && m.phase === 'playing') {
+    const h = seat.hands[m.turn.hand];
+    const b = (type, label, sub, cls, ok = true, why = '') => `<button class="bjp-act ${cls}" data-act='${JSON.stringify(miniAct({ type }))}' ${ok ? '' : 'disabled'}>
+      <b>${label}</b><small>${ok ? sub : why}</small></button>`;
+    controls = `<div class="bj-controls">
+      ${b('hit', 'Hit', 'Karte ziehen', 'hit')}
+      ${b('stand', 'Stand', 'Stehen bleiben', 'stand')}
+      ${b('double', 'Double', `+${fmtM(h.bet)}, genau 1 Karte`, 'double', h.canDouble, 'nur mit 2 Karten')}
+      ${b('split', 'Split', `Paar teilen, +${fmtM(h.bet)}`, 'split', h.canSplit, 'nur bei einem Paar')}
+    </div><p class="bjp-hint">Nach 20 s ohne Entscheidung bleibst du automatisch stehen.</p>`;
+  }
+
+  const others = m.players.filter((p) => p.id !== me).map((p) => {
+    const st = m.seats.find((x) => x.playerId === p.id);
+    let info = 'setzt aus';
+    if (st) {
+      const turnHere = m.turn && m.turn.playerId === p.id;
+      info = st.hands.map((h) => (h.result ? BJ_RESULT[h.result] : `${h.value.total}${h.value.total > 21 ? ' 💥' : ''}`)).join(' / ');
+      if (turnHere) info += ' · am Zug';
+    }
+    return `<li style="--c:${p.color}" class="${m.turn && m.turn.playerId === p.id ? 'turn' : ''}"><span>${escapeHtml(p.name)}</span><b>${info}</b></li>`;
+  }).join('');
+
+  return `<div class="bjp">${status}<div class="bjp-felt">${dealer}${mine}</div>${controls}
+    ${others ? `<div class="box bjp-others"><div class="muted small">Am Tisch</div><ul>${others}</ul></div>` : ''}${rules}</div>`;
 };
 
 /* ---------------- Ereignisse ---------------- */

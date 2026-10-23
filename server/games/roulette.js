@@ -10,8 +10,8 @@ const WHEEL_ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30,
 const CHIPS = [5, 10, 25, 100];
 const MIN_BET = 10;
 const BET_WINDOW_MS = 30000;
-const SPIN_MS = 7000;
-const RESULTS_MS = 7000;
+const SPIN_MS = 10000;
+const RESULTS_MS = 12000;
 
 /** Auszahlungsquoten (x:1). */
 const PAYOUT = { straight: 35, red: 1, black: 1, even: 1, odd: 1, low: 1, high: 1, dozen: 2, column: 2 };

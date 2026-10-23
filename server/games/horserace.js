@@ -14,8 +14,8 @@ const FRAME_STEP = 2;           // jeder 2. Tick wird an das Tablet geschickt
 
 const MIN_BET = 10;
 const BET_WINDOW_MS = 30000;
-const COUNTDOWN_MS = 3000;
-const RESULTS_MS = 9000;
+const COUNTDOWN_MS = 4000;
+const RESULTS_MS = 14000;
 
 const SILK_COLORS = ['#e63946', '#1d72d8', '#f1c40f', '#2ecc71', '#9b59b6', '#ff7f11', '#00b8d4', '#ec407a'];
 const COAT_COLORS = ['#6b3e1f', '#3b2416', '#8a5a2b', '#1f1a17', '#a0703f', '#c9b8a3', '#5b4636'];
@@ -244,6 +244,7 @@ class HorseRace {
       players: this.players,
       minBet: MIN_BET,
       startAt: this.startAt,
+      countdownMs: COUNTDOWN_MS * this.timeScale,
       finishAt: this.finishAt,
       doneAt: this.doneAt,
       order: this.phase === 'results' ? this.order : null,

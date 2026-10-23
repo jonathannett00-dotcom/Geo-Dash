@@ -53,10 +53,24 @@ function refreshJoinInfo() {
   socket.emit('room:info', { code: c }, (res) => {
     if (!res.ok) { joinInfo = null; $('#join-msg').textContent = res.error; renderPickers(); return; }
     joinInfo = res;
-    if (res.started) $('#join-msg').textContent = 'Das Spiel läuft bereits – Beitritt nicht mehr möglich.';
-    else if (res.full) $('#join-msg').textContent = 'Der Raum ist voll.';
+    renderRejoin(res);
+    if (res.full && !res.started) $('#join-msg').textContent = 'Der Raum ist voll.';
     renderPickers();
   });
+}
+
+/** Läuft das Spiel schon, kann man als getrennter Spieler wieder einsteigen. */
+function renderRejoin(info) {
+  const started = Boolean(info && info.started);
+  $('#join-form').classList.toggle('started', started);
+  const box = $('#join-rejoin');
+  box.classList.toggle('hidden', !started);
+  if (!started) return;
+  const away = info.lobby.filter((p) => !p.connected);
+  patch(box, away.length
+    ? `<p><b>Das Spiel läuft bereits.</b> Bist du rausgeflogen? Tippe auf deinen Namen, um wieder einzusteigen:</p>
+       ${away.map((p) => `<button type="button" class="btn rejoin-btn" data-reclaim="${p.id}" style="--c:${p.color}">${p.figure} ${escapeHtml(p.name)}</button>`).join('')}`
+    : '<p><b>Das Spiel läuft bereits</b> und alle Spieler sind verbunden – neue Spieler können nicht mehr beitreten.</p>');
 }
 
 function renderPickers() {
@@ -69,6 +83,32 @@ function renderPickers() {
   patch($('#join-figures'), figures.map((f) => `<button type="button" data-figure="${f}" class="${pick.figure === f ? 'sel' : ''}" ${takenF.has(f) ? 'disabled' : ''} aria-label="Figur ${f}">${f}</button>`).join(''));
   patch($('#join-colors'), colors.map((c) => `<button type="button" data-color="${c}" style="--c:${c}" class="${pick.color === c ? 'sel' : ''}" ${takenC.has(c) ? 'disabled' : ''} aria-label="Farbe"></button>`).join(''));
 }
+
+$('#join-rejoin').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-reclaim]');
+  if (!b) return;
+  const c = $('#join-code').value.trim().toUpperCase();
+  socket.emit('player:reclaim', { code: c, playerId: b.dataset.reclaim }, (res) => {
+    if (!res.ok) { $('#join-msg').textContent = res.error; refreshJoinInfo(); return; }
+    enterRoom(res);
+  });
+});
+
+/** Nach Beitritt oder Wiedereinstieg: Token merken und App zeigen. */
+function enterRoom(res) {
+  code = res.code;
+  me = res.playerId;
+  saveToken(code, res.token);
+  const url = new URL(location.href);
+  url.searchParams.set('room', code);
+  history.replaceState(null, '', url);
+  showApp();
+}
+
+// Handy wieder aufgeweckt: sofort neu verbinden statt auf den nächsten Versuch zu warten
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !socket.connected) socket.connect();
+});
 
 $('#join-code').addEventListener('input', (e) => {
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
@@ -91,13 +131,7 @@ $('#join-form').addEventListener('submit', (e) => {
   if (!pick.color) { $('#join-msg').textContent = 'Bitte wähle eine Farbe.'; return; }
   socket.emit('player:join', { code: c, name: $('#join-name').value, color: pick.color, figure: pick.figure }, (res) => {
     if (!res.ok) { $('#join-msg').textContent = res.error; refreshJoinInfo(); return; }
-    code = res.code;
-    me = res.playerId;
-    saveToken(code, res.token);
-    const url = new URL(location.href);
-    url.searchParams.set('room', code);
-    history.replaceState(null, '', url);
-    showApp();
+    enterRoom(res);
   });
 });
 
@@ -128,10 +162,11 @@ function showApp() {
 }
 
 function setTab(t) {
+  const changed = t !== tab;
   tab = t;
   $$('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === t));
   ['turn', 'props', 'trade', 'mini'].forEach((k) => $(`#panel-${k}`).classList.toggle('hidden', !S?.game || k !== t));
-  window.scrollTo(0, 0);
+  if (changed) window.scrollTo(0, 0);
 }
 
 $('#tabs').addEventListener('click', (e) => {
@@ -147,7 +182,18 @@ const gcolor = (i) => S.groupColors[S.board[i].group];
 
 let shownMoney;
 
-function renderHeader() {
+let holdTimer = null;
+
+/** Läuft am Tablet noch Würfel/Figur? Dann Ergebnis auf dem Handy noch nicht verraten. */
+function animHold() {
+  const left = (S?.animUntil || 0) + 300 - clock.now();
+  if (!S?.game || left <= 0) return false;
+  clearTimeout(holdTimer);
+  holdTimer = setTimeout(render, left + 30);
+  return true;
+}
+
+function renderHeader(hold = false) {
   const p = lobbyMe();
   if (!p) return;
   document.documentElement.style.setProperty('--me', p.color);
@@ -159,6 +205,7 @@ function renderHeader() {
     $('#turn-name').textContent = '–';
     return;
   }
+  if (hold) return;
   const mine = gp(me);
   if (shownMoney !== mine.money) {
     animateMoney($('#me-money'), shownMoney, mine.money, $('.me-money-wrap'));
@@ -709,7 +756,8 @@ function attention() {
 
 function render() {
   if (!S || !me) return;
-  renderHeader();
+  const hold = animHold();
+  renderHeader(hold);
   if (!S.game) {
     $('#tabs').classList.add('hidden');
     $('#panel-wait').classList.remove('hidden');
@@ -719,7 +767,7 @@ function render() {
   if (!gp(me)) return;
   $('#panel-wait').classList.add('hidden');
   $('#tabs').classList.remove('hidden');
-  attention();
+  if (!hold) attention();
   setTab(tab);
   const miniBtn = $('#tabs [data-tab="mini"]');
   miniBtn.disabled = !S.mini;
@@ -731,8 +779,14 @@ function render() {
   const turnTab = $('#tabs [data-tab="turn"]');
   const needs = (['buy', 'jail', 'end'].includes(g.phase) && g.currentId === me) || (g.phase === 'debt' && g.debts[0]?.debtorId === me)
     || (g.phase === 'auction' && !g.auction.passed.includes(me) && g.auction.bidderId !== me && !gp(me).bankrupt);
-  turnTab.classList.toggle('pulse', needs);
-  patch($('#panel-turn'), turnHtml());
+  turnTab.classList.toggle('pulse', needs && !hold);
+  if (hold) {
+    const roller = g.lastRoll ? gp(g.lastRoll.playerId) : null;
+    patch($('#panel-turn'), `<div class="box rolling-box"><div class="huge-emoji">🎲</div><h2>Die Würfel rollen…</h2>
+      <p>${roller ? (roller.id === me ? 'Gleich siehst du, wo du landest.' : `Gleich siehst du, wo ${escapeHtml(roller.name)} landet.`) : ''}</p></div>`);
+  } else {
+    patch($('#panel-turn'), turnHtml());
+  }
   patch($('#panel-props'), propsHtml());
   patch($('#panel-trade'), tradeHtml());
   patch($('#panel-mini'), miniHtml());

@@ -49,8 +49,9 @@ Hinweise zum kostenlosen Plan:
 
 - Das Tablet zeigt Raum-Code und QR-Code. Jeder Spieler tritt am Handy mit **Name, Spielfigur und Farbe** bei (2–10 Spieler).
 - Am Tablet stellt man den **Startbetrag** ein (Standard 1500 M, für alle gleich) und tippt auf **„Spiel starten“**. Das Tablet braucht sonst keine Bedienung.
-- Wer das Handy neu lädt, ist sofort wieder im Spiel.
-- Ein getrennter Spieler bleibt 5 Minuten im Spiel. Ist er gerade dran, wird sein Zug so lange pausiert.
+- Wer das Handy neu lädt oder das gesperrte Display wieder entsperrt, ist sofort wieder im Spiel.
+- Getrennte Spieler bleiben im Spiel. Ist ein getrennter Spieler gerade dran, wird sein Zug pausiert. Wartet das Spiel 5 Minuten lang auf ihn, scheidet er aus.
+- Landet jemand in einem anderen Browser (zum Beispiel nach dem Scannen mit einer QR-App), zeigt die Beitrittsseite die getrennten Spieler. Ein Tipp auf den eigenen Namen führt zurück ins Spiel.
 
 ### Das Handy
 

@@ -51,12 +51,33 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
       phones[name] = await openPage(browser, `${srv.url}/play?room=${code}`, { viewport: { width: 375, height: 740 }, label: name, errors, isMobile: true });
       await joinRoom(phones[name], name);
     }
-    const [A, B, C] = names.map((n) => phones[n]);
+    let [A, B, C] = names.map((n) => phones[n]);
+
+    // Wächter: Während Würfel/Figur laufen, darf weder Tablet noch Handy das Ergebnis verraten
+    const watchBoard = () => board.evaluate(() => {
+      window.__spoiler = [];
+      setInterval(() => {
+        if (typeof animBusy !== 'function' || !animBusy()) return;
+        const st = document.querySelector('#cm-status');
+        if (st && /überlegt|Versteigerung|Miete/.test(st.textContent)) window.__spoiler.push(st.textContent);
+      }, 15);
+    });
+    const watchPhone = (page) => page.evaluate(() => {
+      window.__spoiler = [];
+      setInterval(() => {
+        if (!S || !S.game || clock.now() >= S.animUntil) return;
+        if (document.querySelector('#panel-turn [data-act*="buy"], #panel-turn [data-act*="endTurn"]')) window.__spoiler.push('Kaufen/Zug beenden zu früh sichtbar');
+      }, 15);
+    });
+    await watchBoard();
+    for (const p of [A, B, C]) await watchPhone(p);
 
     // Würfel für die ganze Partie vorgeben
     await board.evaluate(() => window.__debugDice([[1, 2], [1, 2], [1, 4], [3, 4], [2, 6], [1, 5]]));
     await board.waitForFunction(() => !document.querySelector('#btn-start').disabled);
     await board.click('#btn-start');
+    // Erster Wurf: solange die Figur läuft, zeigt das Handy nur „Die Würfel rollen…“
+    await A.waitForSelector('.rolling-box', { timeout: 10000 });
     await board.waitForSelector('#game:not(.hidden)');
 
     /* ---------- Runde 1: Anna kauft die Turmstraße ---------- */
@@ -163,6 +184,18 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     await C.waitForSelector('#tabs:not(.hidden)');
     assert.equal(await C.textContent('#me-name'), 'Cem');
 
+    /* ---------- Wiedereinstieg aus einem anderen Browser (ohne Token) ---------- */
+    await C.context().close();
+    await until(board, () => S.lobby.find((p) => p.name === 'Cem' && !p.connected));
+    C = await openPage(browser, `${srv.url}/play?room=${code}`, { viewport: { width: 375, height: 740 }, label: 'Cem-neu', errors, isMobile: true });
+    await C.waitForSelector('[data-reclaim]');
+    assert.equal(await C.isVisible('#btn-join'), false, 'neuer Beitritt im laufenden Spiel nicht möglich');
+    await C.click('[data-reclaim]:has-text("Cem")');
+    await C.waitForSelector('#tabs:not(.hidden)');
+    assert.equal(await C.textContent('#me-name'), 'Cem');
+    phones.Cem = C;
+    await watchPhone(C);
+
     /* ---------- Handel über das Handy ---------- */
     await phaseIs(board, 'buy', 'Ben'); // Ben steht auf der Seestraße – Handel ist jederzeit erlaubt
     await A.click('#tabs [data-tab="trade"]');
@@ -191,6 +224,9 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     await B.waitForSelector('[data-rl-chip="10"]');
     await B.click('.rnums .rs:text-is("17")');
     await B.click('.rnums .rs:has-text("17")');
+    // Ganz nach unten scrollen – Einsätze der anderen dürfen die Seite nicht nach oben springen lassen
+    const scrolled = await B.evaluate(() => { window.scrollTo(0, document.body.scrollHeight); return window.scrollY; });
+    assert.ok(scrolled > 200, `Roulette-Seite ist scrollbar (${scrolled})`);
     await C.waitForSelector('[data-rl-chip="5"]');
     await C.click('[data-rl-chip="5"]');
     await C.click('.rs.zero');
@@ -199,6 +235,8 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     await C.click('.rs.zero');
     await board.waitForSelector('.rtable .rchip:has-text("Anna")');
     await board.waitForSelector('.rtable .rchip:has-text("Ben")');
+    await board.waitForSelector('.rtable .rchip:has-text("Cem")');
+    assert.equal(await B.evaluate(() => window.scrollY), scrolled, 'Scrollposition bleibt beim Neuzeichnen erhalten');
     await until(board, () => S.mini.bets.filter((b) => b.kind === 'straight' && b.value === 0).reduce((t, b) => t + b.amount, 0) === 10);
     assert.equal(await money(board, 'Anna'), before.Anna - 25);
     await board.waitForTimeout(300);
@@ -277,6 +315,8 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
 
     await shot(board, '03-brett');
     await shot(A, '04-handy');
+    assert.deepEqual(await board.evaluate(() => window.__spoiler), [], 'Tablet verrät das Landefeld nicht zu früh');
+    for (const p of [A, B, C]) assert.deepEqual(await p.evaluate(() => window.__spoiler), [], 'Handy verrät das Landefeld nicht zu früh');
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

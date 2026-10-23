@@ -102,3 +102,47 @@ test('Räume werden nach 6 h Inaktivität gelöscht', () => {
   assert.ok(manager.get(other.code));
   manager.shutdown();
 });
+
+test('Im Spiel: getrennte Spieler bleiben drin – raus nur, wenn das Spiel 5 Minuten auf sie wartet', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { manager, room } = setup();
+  const players = [0, 1, 2].map((i) => join(room, i));
+  const sockets = players.map((p, i) => { const s = fakeSocket(`s${i}`); room.attach(s, p); return s; });
+  room.start();
+  const [a, b] = players;
+  assert.equal(room.game.currentPlayer().id, a.id);
+
+  // a ist am Zug und trennt sich → Zug pausiert; b trennt sich, ist aber nicht dran
+  room.detach(sockets[0]);
+  room.detach(sockets[1]);
+  assert.equal(room.isPaused(), true);
+  t.mock.timers.tick(RECONNECT_GRACE_MS - 1000);
+  assert.equal(room.game.player(a.id).bankrupt, false, 'knapp 5 Minuten: noch im Spiel');
+  t.mock.timers.tick(2000);
+  assert.equal(room.game.player(a.id).bankrupt, true, 'a hat das Spiel 5 Minuten blockiert');
+  assert.equal(room.game.currentPlayer().id, b.id);
+  assert.equal(room.game.player(b.id).bankrupt, false, 'b war schon über 5 Minuten weg, blockiert aber erst jetzt');
+
+  // b kommt zurück, bevor die 5 Minuten seines Zuges um sind → bleibt im Spiel
+  t.mock.timers.tick(RECONNECT_GRACE_MS - 1000);
+  room.attach(fakeSocket('s1b'), room.resume(b.token));
+  t.mock.timers.tick(RECONNECT_GRACE_MS * 2);
+  assert.equal(room.game.player(b.id).bankrupt, false);
+  manager.shutdown();
+});
+
+test('Wiedereinstieg ohne Token: nur getrennte Spieler können übernommen werden', () => {
+  const { manager, room } = setup();
+  const a = join(room, 0);
+  const b = join(room, 1);
+  const sa = fakeSocket('sa');
+  room.attach(sa, a);
+  room.attach(fakeSocket('sb'), b);
+  assert.throws(() => room.reclaim(a.id), /noch nicht begonnen/);
+  room.start();
+  assert.throws(() => room.reclaim(a.id), /noch verbunden/);
+  room.detach(sa);
+  assert.equal(room.reclaim(a.id), a);
+  assert.throws(() => room.reclaim('gibtsnicht'), /gibt es nicht/);
+  manager.shutdown();
+});

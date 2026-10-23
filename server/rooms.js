@@ -156,14 +156,17 @@ class Room {
 
   currentRoomPlayer() { return this.game ? this.playerById(this.game.currentPlayer().id) : null; }
 
-  /** Ist der Zug pausiert, weil der Spieler am Zug getrennt ist? */
-  isPaused() {
+  /** Getrennter Spieler, auf den das Spiel gerade wartet (am Zug oder mit Schulden) – sonst null. */
+  blockingPlayer() {
     const g = this.game;
-    if (!g || !['roll', 'jail', 'buy', 'debt', 'end'].includes(g.phase)) return false;
+    if (!g || !['roll', 'jail', 'buy', 'debt', 'end'].includes(g.phase)) return null;
     const cur = this.currentRoomPlayer();
-    const debtor = g.phase === 'debt' && g.debts[0] ? this.playerById(g.debts[0].debtorId) : cur;
-    return Boolean(debtor && !debtor.connected);
+    const waitingFor = g.phase === 'debt' && g.debts[0] ? this.playerById(g.debts[0].debtorId) : cur;
+    return waitingFor && !waitingFor.connected ? waitingFor : null;
   }
+
+  /** Ist der Zug pausiert, weil der Spieler am Zug getrennt ist? */
+  isPaused() { return Boolean(this.blockingPlayer()); }
 
   /** Merkt sich, wie lange das Tablet für Würfel und Figuren braucht. */
   afterGameChange() {
@@ -208,6 +211,25 @@ class Room {
       this.stopMini();
       Object.keys(this.timers).forEach((k) => this.clearTimer(k));
       return;
+    }
+
+    // Getrennte Spieler bleiben im Spiel. Erst wenn das Spiel 5 Minuten lang
+    // auf sie warten muss (ihr Zug ist pausiert), scheiden sie aus.
+    const blocker = this.blockingPlayer();
+    if (blocker) {
+      if (!this.timers.drop || this.dropFor !== blocker.id) {
+        this.dropFor = blocker.id;
+        this.setTimer('drop', RECONNECT_GRACE_MS, () => {
+          const still = this.blockingPlayer();
+          if (still && still.id === this.dropFor) {
+            this.game.removePlayer(still.id);
+            this.afterGameChange();
+          }
+        });
+      }
+    } else {
+      this.clearTimer('drop');
+      this.dropFor = null;
     }
 
     const cur = this.currentRoomPlayer();
@@ -301,22 +323,30 @@ class Room {
     if (player.sockets.size) return;
     player.connected = false;
     clearTimeout(player.leaveTimer);
-    player.leaveTimer = setTimeout(() => this.dropPlayer(player.id), RECONNECT_GRACE_MS);
-    player.leaveTimer.unref?.();
+    if (!this.started) {
+      // In der Lobby wird ein getrennter Platz nach 5 Minuten wieder frei
+      player.leaveTimer = setTimeout(() => this.dropPlayer(player.id), RECONNECT_GRACE_MS);
+      player.leaveTimer.unref?.();
+    }
     this.schedule();
   }
 
-  /** Spieler war zu lange getrennt. */
+  /** Spieler war in der Lobby zu lange getrennt. */
   dropPlayer(id) {
     const player = this.playerById(id);
-    if (!player || player.connected) return;
+    if (!player || player.connected || this.started) return;
     player.leaveTimer = null;
-    if (!this.started) this.players = this.players.filter((p) => p.id !== id);
-    else if (this.game) {
-      this.game.removePlayer(id);
-      this.afterGameChange();
-    }
+    this.players = this.players.filter((p) => p.id !== id);
     this.broadcast();
+  }
+
+  /** Wiedereinstieg ohne Token (z. B. anderer Browser): nur für getrennte Spieler. */
+  reclaim(playerId) {
+    if (!this.started) fail('Das Spiel hat noch nicht begonnen – tritt einfach neu bei.');
+    const player = this.playerById(playerId);
+    if (!player) fail('Diesen Spieler gibt es nicht.');
+    if (player.connected) fail(`${player.name} ist noch verbunden. Nur getrennte Spieler können übernommen werden.`);
+    return player;
   }
 
   /* ---------- Zustand an Clients ---------- */
@@ -337,6 +367,7 @@ class Room {
       timing: { ...TIMING, timeScale: this.timeScale },
       game: this.game ? this.game.publicState() : null,
       paused: this.isPaused(),
+      animUntil: this.animUntil,
     };
   }
 
@@ -485,6 +516,14 @@ class RoomManager {
       room.attach(socket, player);
       use(room);
       return { playerId: player.id, code: room.code };
+    });
+
+    handle('player:reclaim', ({ code, playerId }, use) => {
+      const room = this.requireRoom(code);
+      const player = room.reclaim(String(playerId || ''));
+      room.attach(socket, player);
+      use(room);
+      return { token: player.token, playerId: player.id, code: room.code };
     });
 
     handle('act', (action, use) => {

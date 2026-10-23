@@ -148,7 +148,8 @@ function syncDice(g) {
   lastRollSeq = r.seq;
   const dice = $('#dice');
   dice.classList.add('rolling');
-  dice.classList.toggle('doubles', r.doubles);
+  dice.classList.remove('doubles');
+  diceRolling = true;
   const dur = T('dice');
   const t0 = performance.now();
   diceDone = new Promise((resolve) => {
@@ -164,8 +165,9 @@ function syncDice(g) {
         setDie(0, r.dice[0]);
         setDie(1, r.dice[1]);
         dice.classList.remove('rolling');
+        dice.classList.toggle('doubles', r.doubles);
         restartAnim(dice, 'landed');
-        setTimeout(resolve, 380);
+        setTimeout(() => { diceRolling = false; resolve(); flushDeferred(); }, 380);
       }
     })();
   });
@@ -261,6 +263,7 @@ async function runMoves() {
   moving = false;
   S.game.players.forEach((p) => { shown[p.id] = p.position; });
   layoutTokens();
+  flushDeferred();
   showPendingCard();
 }
 
@@ -440,6 +443,24 @@ function showPendingCard() {
   showPendingCard.t2 = setTimeout(() => el.classList.add('hidden'), 7600);
 }
 
+let diceRolling = false;
+let deferred = false;
+const animBusy = () => diceRolling || moving || moveQueue.length > 0;
+
+function renderSettled(g) {
+  renderCells(g);
+  renderSidebar(g);
+  renderCenter(g);
+}
+
+/** Nach Würfel- bzw. Figurenanimation den zurückgehaltenen Stand zeigen. */
+function flushDeferred() {
+  if (!deferred || animBusy() || !S || !S.game) return;
+  deferred = false;
+  renderSettled(S.game);
+  tickCountdowns();
+}
+
 function renderGame() {
   $('#lobby').classList.add('hidden');
   $('#game').classList.remove('hidden');
@@ -449,9 +470,9 @@ function renderGame() {
   syncDice(g);
   syncMoves(g);
   syncCard(g);
-  renderCells(g);
-  renderSidebar(g);
-  renderCenter(g);
+  // Ergebnis des Wurfs (Kaufangebot, Miete, Ticker) erst zeigen, wenn die Figur angekommen ist
+  if (animBusy()) deferred = true;
+  else renderSettled(g);
   renderStage();
   layoutTokens();
   tickCountdowns();

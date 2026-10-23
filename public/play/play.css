@@ -285,3 +285,12 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 .end-box .btn-row .btn { min-height: 46px; }
 .btn.end-turn { min-height: 64px; font-size: 1.25rem; animation: endPulse 2.2s ease-in-out infinite; }
 @keyframes endPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(46,154,79,.6); } 50% { box-shadow: 0 0 0 10px rgba(46,154,79,0); } }
+
+/* ---------- Wiedereinstieg & Würfel-Wartezeit ---------- */
+#join-form.started > label:not(:first-child), #join-form.started fieldset, #join-form.started #btn-join { display: none; }
+.rejoin { display: grid; gap: .5rem; }
+.rejoin p { margin: 0; }
+.rejoin-btn { background: #fff; border: 3px solid var(--c); min-height: 52px; font-size: 1.05rem; }
+.rolling-box { text-align: center; }
+.rolling-box .huge-emoji { display: inline-block; animation: rollEmoji 1s ease-in-out infinite; }
+@keyframes rollEmoji { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-20deg) translateY(-4px); } 75% { transform: rotate(20deg) translateY(-4px); } }

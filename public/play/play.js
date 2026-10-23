@@ -154,6 +154,7 @@ let tab = 'turn';
 let lastAttention = '';
 let miniOpen = null;
 let bankruptArmed = 0;
+let quitArmed = false;
 
 function showApp() {
   $('#join').classList.add('hidden');
@@ -254,7 +255,9 @@ function turnHtml() {
   const myTurn = cur.id === me;
   const out = [];
 
-  if (mine.bankrupt) out.push('<div class="box"><h2>💥 Du bist pleite</h2><p>Du kannst weiter auf dem Tablet zuschauen.</p></div>');
+  if (mine.bankrupt) out.push(mine.quit
+    ? '<div class="box"><h2>🏳️ Du hast aufgegeben</h2><p>Du kannst weiter auf dem Tablet zuschauen.</p></div>'
+    : '<div class="box"><h2>💥 Du bist pleite</h2><p>Du kannst weiter auf dem Tablet zuschauen.</p></div>');
 
   if (g.phase === 'gameover') {
     const w = gp(g.winner);
@@ -318,6 +321,13 @@ function turnHtml() {
     out.push(`<div class="box small"><b>Letzter Wurf:</b> ${pname(g.lastRoll.playerId)} – 🎲 ${g.lastRoll.dice[0]} + ${g.lastRoll.dice[1]} = ${g.lastRoll.sum}${g.lastRoll.doubles ? ' (Pasch)' : ''}</div>`);
   }
   out.push(`<ul class="mini-log">${g.log.slice(-5).reverse().map((e) => `<li>${escapeHtml(e.text)}</li>`).join('')}</ul>`);
+  if (!mine.bankrupt && g.phase !== 'gameover') {
+    out.push(quitArmed
+      ? `<div class="box warn quit-box"><h2>🏳️ Wirklich aufgeben?</h2>
+          <p>Dein ganzes Geld (${fmtM(mine.money)}) verfällt und alle deine Grundstücke werden wieder frei. Das lässt sich nicht rückgängig machen.</p>
+          <div class="btn-row"><button class="btn ghost-dark" id="btn-quit-cancel">Abbrechen</button><button class="btn danger" id="btn-quit-yes">Ja, aufgeben</button></div></div>`
+      : '<button class="btn small ghost-dark quit-btn" id="btn-quit">🏳️ Spiel aufgeben</button>');
+  }
   return out.join('');
 }
 
@@ -687,6 +697,15 @@ $('#main').addEventListener('click', async (e) => {
     if (!v) { toast('Bitte einen Betrag eingeben.', 'error'); return; }
     const res = await act({ type: 'bid', amount: v });
     if (res.ok) $('#bid-amount').value = '';
+    return;
+  }
+  if (e.target.id === 'btn-quit') { quitArmed = true; render(); return; }
+  if (e.target.id === 'btn-quit-cancel') { quitArmed = false; render(); return; }
+  if (e.target.id === 'btn-quit-yes') {
+    quitArmed = false;
+    const res = await act({ type: 'quit' });
+    if (res.ok) toast('Du hast aufgegeben.');
+    render();
     return;
   }
   if (e.target.id === 'btn-bankrupt') {

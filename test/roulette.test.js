@@ -77,3 +77,13 @@ test('Roulette: Chips, Mindesteinsatz, Fertig und Auszahlung', () => {
   const expected = 100 - 35 + (r.result === 7 ? 360 : 0) + ([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36].includes(r.result) ? 50 : 0);
   assert.equal(balances.a, expected);
 });
+
+test('Roulette: wer aufgibt, muss nicht mehr „Fertig“ drücken', () => {
+  const wallet = { debit() {}, credit() {} };
+  const r = new Roulette({ id: 2, players: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], wallet, rng: createRng('leave'), timeScale: 0 });
+  r.setReady('a');
+  assert.equal(r.phase, 'betting');
+  r.leave('b');
+  r.stop();
+  assert.equal(r.phase, 'spinning');
+});

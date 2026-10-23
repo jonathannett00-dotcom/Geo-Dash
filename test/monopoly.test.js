@@ -529,3 +529,49 @@ test('Handel: Straßen, Geld und Freikarten tauschen', () => {
   g.respondTrade('p3', t2.id, false);
   assert.equal(g.trades.length, 0);
 });
+
+/* ---------------- Aufgeben ---------------- */
+
+test('Aufgeben: Geld verfällt, Grundstücke werden frei, Häuser gehen an die Bank', () => {
+  const g = makeGame();
+  own(g, 'p1', 'Badstraße', 'Turmstraße', 'Südbahnhof');
+  g.props[sq('Badstraße')].houses = 2;
+  g.props[sq('Turmstraße')].houses = 2;
+  g.bank.houses -= 4;
+  g.props[sq('Südbahnhof')].mortgaged = true;
+  P(g, 'p1').jailCards.push('chance');
+  const deck = g.decks.chance.length;
+  rollWith(g, 'p1', 6, 5); // → Seestraße, Kaufentscheidung offen
+  assert.equal(g.phase, 'buy');
+  g.quit('p1');
+  const p1 = P(g, 'p1');
+  assert.equal(p1.bankrupt, true);
+  assert.equal(p1.money, 0);
+  for (const name of ['Badstraße', 'Turmstraße', 'Südbahnhof']) {
+    assert.deepEqual(g.props[sq(name)], { owner: null, houses: 0, mortgaged: false }, name);
+  }
+  assert.equal(g.bank.houses, BANK_HOUSES, 'Häuser zurück bei der Bank');
+  assert.equal(g.decks.chance.length, deck + 1, 'Freikarte zurück im Stapel');
+  assert.equal(g.auction, null, 'keine Versteigerung');
+  assert.equal(P(g, 'p2').money + P(g, 'p3').money, 3000, 'niemand bekommt das Geld');
+  assert.equal(g.currentPlayer().id, 'p2', 'der Nächste ist dran');
+  assert.match(g.log.at(-2).text, /Spieler 1 gibt auf/);
+  assert.equal(g.publicState().players[0].quit, true);
+  assert.throws(() => g.quit('p1'), /pleite/);
+});
+
+test('Aufgeben: auch wenn man nicht dran ist – Höchstgebot verfällt, letzter Spieler gewinnt', () => {
+  const g = makeGame();
+  rollWith(g, 'p1', 2, 3); // → Südbahnhof
+  g.declineBuy('p1');
+  g.bid('p3', 50);
+  g.quit('p3');
+  assert.equal(g.phase, 'auction');
+  assert.equal(g.auction.bidderId, null);
+  g.passAuction('p2');
+  g.bid('p1', 10);
+  assert.equal(g.props[sq('Südbahnhof')].owner, 'p1');
+  g.quit('p2');
+  assert.equal(g.phase, 'gameover');
+  assert.equal(g.winner, 'p1');
+});

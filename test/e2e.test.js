@@ -315,6 +315,21 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     await until(board, () => !S.mini, null, 60000);
     await endTurn(board, C, 'Cem');
 
+    /* ---------- Ben gibt auf: Geld weg, Grundstücke wieder frei ---------- */
+    await until(board, () => S.game.props[5].owner && S.game.props[11].owner);
+    await B.click('#tabs [data-tab="turn"]');
+    await B.waitForSelector('#btn-quit');
+    await B.click('#btn-quit');
+    await B.waitForSelector('#btn-quit-yes');
+    await shot(B, '17-aufgeben');
+    await B.click('#btn-quit-yes');
+    await until(board, () => S.game.players.find((p) => p.name === 'Ben').bankrupt);
+    assert.equal(await money(board, 'Ben'), 0);
+    assert.deepEqual(await board.evaluate(() => [S.game.props[5].owner, S.game.props[11].owner]), [null, null]);
+    await board.waitForSelector('#ps-' + benId + ' .ps-status b:has-text("aufgegeben")');
+    await board.waitForFunction(() => !document.querySelector('#cell-5').classList.contains('owned') && !document.querySelector('#cell-11').classList.contains('owned'));
+    await B.waitForSelector('h2:has-text("Du hast aufgegeben")');
+
     await shot(board, '03-brett');
     await shot(A, '04-handy');
     assert.deepEqual(await board.evaluate(() => window.__spoiler), [], 'Tablet verrät das Landefeld nicht zu früh');

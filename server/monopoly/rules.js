@@ -239,7 +239,7 @@ class MonopolyGame {
   }
 
   /** Pleite: Besitz geht an den Gläubiger – bei Schulden an die Bank wird er versteigert. */
-  goBankrupt(p, creditorId, { auction = true } = {}) {
+  goBankrupt(p, creditorId, { auction = true, announce = true } = {}) {
     const creditor = creditorId ? this.player(creditorId) : null;
     for (const i of this.ownedBy(p.id)) {
       const st = this.props[i];
@@ -263,7 +263,7 @@ class MonopolyGame {
       this.event(`💥 ${p.name} ist pleite! Geld und Besitz gehen an ${creditor.name}.`, 'bankrupt');
     } else {
       p.jailCards.forEach((deck) => this.returnJailCard(deck));
-      this.event(`💥 ${p.name} ist pleite! Der Besitz geht an die Bank${auction && this.auctionQueue.length ? ' und wird versteigert' : ''}.`, 'bankrupt');
+      if (announce) this.event(`💥 ${p.name} ist pleite! Der Besitz geht an die Bank${auction && this.auctionQueue.length ? ' und wird versteigert' : ''}.`, 'bankrupt');
     }
     p.money = 0;
     p.jailCards = [];
@@ -861,14 +861,30 @@ class MonopolyGame {
 
   /* ---------------- Spieler verlässt das Spiel ---------------- */
 
-  removePlayer(pid) {
+  /** Spieler gibt freiwillig auf: Geld verfällt, alle Grundstücke werden wieder frei. */
+  quit(pid) {
+    const p = this.player(pid);
+    this.assertActive(p);
+    if (this.phase === 'gameover') fail('Das Spiel ist schon vorbei.');
+    this.removePlayer(pid, 'quit');
+  }
+
+  /**
+   * Spieler scheidet aus (aufgegeben oder zu lange getrennt): Geld verfällt,
+   * Häuser gehen an die Bank, Grundstücke werden ohne Versteigerung wieder frei.
+   */
+  removePlayer(pid, reason = 'timeout') {
     const p = this.player(pid);
     if (p.bankrupt || this.phase === 'gameover') return;
     const wasCurrent = this.currentPlayer().id === pid;
     this.debts.forEach((d) => { if (d.creditorId === pid) d.creditorId = null; });
     if (this.auction && this.auction.bidderId === pid) { this.auction.bidderId = null; this.auction.bid = 0; }
-    this.event(`${p.name} war zu lange getrennt und scheidet aus.`, 'bankrupt');
-    this.goBankrupt(p, null, { auction: false });
+    const owned = this.ownedBy(pid).length;
+    this.event(reason === 'quit'
+      ? `🏳️ ${p.name} gibt auf – ${money(p.money)} verfallen${owned ? `, ${owned} Grundstück${owned > 1 ? 'e sind' : ' ist'} wieder frei` : ''}.`
+      : `${p.name} war zu lange getrennt und scheidet aus – der Besitz ist wieder frei.`, 'bankrupt');
+    p.quit = reason === 'quit';
+    this.goBankrupt(p, null, { auction: false, announce: false });
     if (this.checkGameOver()) return;
     if (this.phase === 'minigame') return;
     if (this.auction) { this.checkAuctionEnd(); return; }
@@ -898,6 +914,7 @@ class MonopolyGame {
         jailRolls: p.jailRolls,
         jailCards: p.jailCards.length,
         bankrupt: p.bankrupt,
+        quit: Boolean(p.quit),
         assets: this.liquidationValue(p),
       })),
       props: this.props.map((st) => (st ? { ...st } : null)),

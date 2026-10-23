@@ -328,7 +328,7 @@ function renderSidebar(g) {
     card.classList.toggle('bankrupt', p.bankrupt);
     card.classList.toggle('offline', Boolean(offline));
     const badges = [];
-    if (p.bankrupt) badges.push('<b class="bad">pleite</b>');
+    if (p.bankrupt) badges.push(`<b class="bad">${p.quit ? 'aufgegeben' : 'pleite'}</b>`);
     else {
       if (p.inJail) badges.push('<b class="jail">🔒 Gefängnis</b>');
       if (offline) badges.push('<b class="off">📴 getrennt</b>');

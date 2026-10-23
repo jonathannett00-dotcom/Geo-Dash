@@ -294,3 +294,8 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 .rolling-box { text-align: center; }
 .rolling-box .huge-emoji { display: inline-block; animation: rollEmoji 1s ease-in-out infinite; }
 @keyframes rollEmoji { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-20deg) translateY(-4px); } 75% { transform: rotate(20deg) translateY(-4px); } }
+
+/* ---------- Spiel aufgeben ---------- */
+.quit-btn { justify-self: center; margin-top: .6rem; background: transparent; color: #f3d6d3; border: 2px solid rgba(255,255,255,.25); }
+.quit-box .btn-row { margin-top: .7rem; }
+.quit-box .btn { min-height: 48px; }

@@ -145,6 +145,13 @@ class Roulette {
     if (this.players.every((p) => this.ready.has(p.id))) this.closeBetting();
   }
 
+  /** Spieler hat aufgegeben: nicht mehr auf sein „Fertig“ warten. */
+  leave(pid) {
+    if (this.phase !== 'betting' || !this.players.some((p) => p.id === pid)) return;
+    this.ready.add(pid);
+    if (this.players.every((p) => this.ready.has(p.id))) this.closeBetting();
+  }
+
   handle(pid, action) {
     switch (action.type) {
       case 'chip': this.placeChip(pid, action); break;

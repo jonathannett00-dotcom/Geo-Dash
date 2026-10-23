@@ -184,6 +184,13 @@ class HorseRace {
     if (this.players.every((p) => this.ready.has(p.id))) this.closeBetting();
   }
 
+  /** Spieler hat aufgegeben: nicht mehr auf sein „Fertig“ warten. */
+  leave(pid) {
+    if (this.phase !== 'betting' || !this.players.some((p) => p.id === pid)) return;
+    this.ready.add(pid);
+    if (this.players.every((p) => this.ready.has(p.id))) this.closeBetting();
+  }
+
   /** Aktion vom Handy. */
   handle(pid, action) {
     switch (action.type) {

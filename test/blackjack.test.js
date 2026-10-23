@@ -121,3 +121,13 @@ test('Blackjack: Einsatzregeln und Neumischen bei 75 % Verbrauch', () => {
   assert.equal(shoe.cards.length, 312);
   assert.equal(shoe.pos, 4, 'nach dem Mischen: 2 Karten Spieler + 2 Dealer');
 });
+
+test('Blackjack: wer aufgibt, blockiert die Runde nicht', () => {
+  const { bj } = makeTable([8, 5, 10, 8, 6, 7]);
+  bj.advance();
+  assert.equal(bj.view().turn.playerId, 'a');
+  bj.leave('a');
+  bj.stop();
+  assert.equal(bj.view().turn.playerId, 'b', 'nächster Spieler ist dran');
+  assert.equal(bj.seats[0].hands[0].done, true);
+});

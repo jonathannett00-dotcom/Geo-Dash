@@ -142,6 +142,10 @@ class Room {
       case 'unmortgage': g.unmortgage(pid, action.square); break;
       case 'bankrupt': g.declareBankruptcy(pid); break;
       case 'endTurn': g.endTurn(pid); break;
+      case 'quit':
+        g.quit(pid);
+        if (this.mini && this.mini.leave) this.mini.leave(pid);
+        break;
       case 'trade:propose': g.proposeTrade(pid, action.trade || {}); break;
       case 'trade:respond': g.respondTrade(pid, action.id, Boolean(action.accept)); break;
       case 'trade:cancel': g.cancelTrade(pid, action.id); break;

@@ -149,6 +149,20 @@ class Blackjack {
     if (this.players.every((p) => this.ready.has(p.id))) this.closeBetting();
   }
 
+  /** Spieler hat aufgegeben: nicht mehr auf ihn warten. */
+  leave(pid) {
+    if (!this.players.some((p) => p.id === pid)) return;
+    if (this.phase === 'betting') {
+      this.ready.add(pid);
+      if (this.players.every((p) => this.ready.has(p.id))) this.closeBetting();
+      return;
+    }
+    const seat = this.seats.find((s) => s.playerId === pid);
+    if (this.phase !== 'playing' || !seat) return;
+    seat.hands.forEach((h) => { h.done = true; });
+    if (this.turn && this.seats[this.turn.seat].playerId === pid) this.advance();
+  }
+
   handle(pid, action) {
     switch (action.type) {
       case 'bet': this.placeBet(pid, action.amount); break;

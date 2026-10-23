@@ -61,7 +61,7 @@ Oben stehen immer dein Kontostand und wer gerade dran ist. Unten gibt es vier Ta
 
 | Tab | Wofür |
 | --- | --- |
-| 🎲 **Zug** | Zug beenden, Kaufen oder Ablehnen, Versteigerung (Gebote, Aussteigen), Gefängnis (50 M zahlen, Freikarte, Pasch würfeln), Schulden begleichen |
+| 🎲 **Zug** | Zug beenden, Spiel aufgeben, Kaufen oder Ablehnen, Versteigerung (Gebote, Aussteigen), Gefängnis (50 M zahlen, Freikarte, Pasch würfeln), Schulden begleichen |
 | 🏠 **Besitz** | Häuser/Hotels bauen und verkaufen, Hypothek aufnehmen und ablösen |
 | 🤝 **Handel** | Angebote aus Straßen, Geld und Freikarten an Mitspieler senden, annehmen oder ablehnen |
 | 🎰 **Minispiel** | Nur aktiv, wenn ein Minispiel läuft |
@@ -102,6 +102,7 @@ Geht eine Aktion nicht, zum Beispiel weil du nicht dran bist oder zu wenig Geld 
 - **Schulden und Pleite:**
   - Reicht dein Geld nicht, verkaufst du zuerst Häuser oder nimmst Hypotheken auf. Sobald das Geld reicht, wird automatisch bezahlt.
   - Reicht auch das nicht, bist du pleite. Dein Besitz geht an den Gläubiger, bei Schulden an die Bank wird er versteigert.
+- **Aufgeben:** Über „🏳️ Spiel aufgeben“ (mit Sicherheitsabfrage) kann jeder jederzeit aussteigen. Das ganze Guthaben verfällt, alle Grundstücke werden ohne Versteigerung wieder frei, Häuser und Hotels gehen an die Bank.
 - **Sieg:** Wer als Letzter übrig bleibt, gewinnt.
 
 ### Minispiele

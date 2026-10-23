@@ -1,0 +1,13 @@
+# Render-Blueprint für den kostenlosen Plan (Dashboard → New → Blueprint).
+services:
+  - type: web
+    name: monopoly-abend
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

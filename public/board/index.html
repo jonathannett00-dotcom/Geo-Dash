@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monopoly-Abend – Spielfeld</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/shared/base.css" />
+  <link rel="stylesheet" href="/board/board.css" />
+</head>
+<body class="board-page">
+  <!-- ============ LOBBY ============ -->
+  <section id="lobby" class="lobby hidden">
+    <div class="lobby-card">
+      <h1>🎲 Monopoly-Abend</h1>
+      <p class="sub">Scannt den Code mit dem Handy, um mitzuspielen.</p>
+      <div class="lobby-grid">
+        <div class="join">
+          <img id="qr" class="qr" alt="QR-Code zum Beitreten" width="220" height="220" />
+          <div class="code-label">Raum-Code</div>
+          <div id="room-code" class="room-code">····</div>
+          <div id="join-url" class="join-url"></div>
+        </div>
+        <div class="lobby-side">
+          <h2>Spieler <span id="lobby-count" class="count"></span></h2>
+          <ul id="lobby-players" class="lobby-players"></ul>
+          <label class="start-money">Startbetrag für alle
+            <span class="money-input"><input id="start-money" type="number" min="100" max="100000" step="50" value="1500" /><b>M</b></span>
+          </label>
+          <button id="btn-start" class="btn primary big" disabled>Spiel starten</button>
+          <p id="lobby-hint" class="hint"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SPIEL ============ -->
+  <section id="game" class="game hidden">
+    <div class="board-wrap">
+      <div id="board" class="board">
+        <div id="center" class="center">
+          <div id="center-main" class="center-main"></div>
+          <div id="stage" class="stage hidden"></div>
+          <div id="card-pop" class="card-pop hidden"></div>
+        </div>
+        <div id="tokens" class="tokens"></div>
+      </div>
+    </div>
+    <aside class="sidebar">
+      <div class="side-head">
+        <span class="brand">🎲 Monopoly-Abend</span>
+        <span>Raum <b id="side-code"></b></span>
+      </div>
+      <div id="side-players" class="side-players"></div>
+    </aside>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/shared/common.js"></script>
+  <script src="/board/board.js"></script>
+</body>
+</html>

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { MonopolyGame } = require('./monopoly/rules');
 const { SQUARES, GROUP_COLORS } = require('./monopoly/board');
 const { createRng } = require('./rng');
+const { HorseRace } = require('./games/horserace');
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const MAX_PLAYERS = 10;
@@ -18,8 +19,10 @@ const FIGURES = ['🎩', '🚗', '🐕', '🚢', '👢', '🐈', '🦆', '🦖',
 /* Animationszeiten (ms) – Tablet und Server rechnen mit denselben Werten. */
 const TIMING = { dice: 1100, step: 230, jump: 700, land: 500, rollDelay: 1600, miniDelay: 1200 };
 
-/** Minispiele nach Typ (werden in den folgenden Phasen ergänzt). */
-const MINIGAMES = {};
+/** Minispiele nach Typ. */
+const MINIGAMES = {
+  horserace: HorseRace,
+};
 
 /** Statische Brettdaten für die Clients. */
 const BOARD = SQUARES.map((s) => ({

@@ -80,6 +80,13 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Ablehnungen', { timeout: 24
     await A.fill('#bid-amount', '99999');
     await A.click('#btn-bid');
     assert.match(await toastText(A, /Nicht genug Geld/), /Nicht genug Geld: Du hast nur 1\.444 M/);
+    // Besitz-Tab: Bauen ohne komplette Farbgruppe wird abgelehnt
+    await A.click('#tabs [data-tab="props"]');
+    await A.waitForSelector('.prop:has-text("Turmstraße")');
+    await A.evaluate(() => window.__act({ type: 'build', square: 3 }));
+    assert.match(await toastText(A, /Farbgruppe/), /kompletten Farbgruppe/);
+    await A.click('#tabs [data-tab="turn"]');
+
     await A.click('button:has-text("10 M")');
     await until(board, () => S.game.auction && S.game.auction.bid === 10);
     await shot(board, '02-versteigerung');
@@ -88,14 +95,42 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Ablehnungen', { timeout: 24
     await until(board, () => S.game.props[5].owner && S.game.players.find((p) => p.id === S.game.props[5].owner).name === 'Anna');
     assert.equal(await money(board, 'Anna'), 1434);
 
-    /* ---------- Besitz-Tab zeigt die Grundstücke ---------- */
-    await A.click('#tabs [data-tab="props"]');
-    await A.waitForSelector('.prop:has-text("Turmstraße")');
-    await A.waitForSelector('.prop:has-text("Südbahnhof")');
-    // Bauen ohne Farbgruppe → Button gesperrt; direkte Absicht wird abgelehnt
-    await A.evaluate(() => window.__act({ type: 'build', square: 3 }));
-    assert.match(await toastText(A, /Farbgruppe/), /kompletten Farbgruppe/);
-    await A.click('#tabs [data-tab="turn"]');
+
+    /* ---------- Anna würfelt 3 + 4 = 7 → Pferderennen für alle ---------- */
+    await until(board, () => S.mini && S.mini.type === 'horserace');
+    await A.waitForSelector('[data-hr-horse="0"]');
+    await A.click('[data-hr-horse="0"]');
+    await A.fill('#hr-amount', '50');
+    await A.click('#btn-hr-bet');
+    await B.waitForSelector('[data-hr-horse="1"]');
+    await B.click('[data-hr-horse="1"]');
+    await B.click('[data-hr-type="place"]');
+    await B.fill('#hr-amount', '20');
+    await B.click('#btn-hr-bet');
+    await C.waitForSelector('[data-hr-horse="2"]');
+    await C.click('[data-hr-horse="2"]');
+    await C.fill('#hr-amount', '99999');
+    await C.click('#btn-hr-bet');
+    assert.match(await toastText(C, /Nicht genug Geld/), /Nicht genug Geld/);
+    await board.waitForSelector('.hr-table .bchip:has-text("Anna")');
+    await board.waitForSelector('.hr-table .bchip:has-text("Ben")');
+    assert.equal(await money(board, 'Anna'), 1384, 'Einsatz sofort vom Monopoly-Konto');
+    await shot(board, '05-rennen-wetten');
+    await shot(B, '06-handy-rennen');
+    for (const p of [A, B, C]) await p.click('button:has-text("Fertig")');
+    await until(board, () => S.mini && S.mini.phase === 'running');
+    await board.waitForSelector('.hr-track .horse.backed');
+    await board.waitForSelector('.hr-track .trail text');
+    await board.waitForTimeout(1600);
+    await shot(board, '07-rennen');
+    await until(board, () => S.mini && S.mini.phase === 'results');
+    await board.waitForSelector('.hr-results:not(.hidden)');
+    const raceResult = await board.evaluate(() => S.mini.results);
+    const annaId = await board.evaluate(() => S.game.players.find((p) => p.name === 'Anna').id);
+    const annaWin = raceResult.filter((r) => r.playerId === annaId).reduce((sum, r) => sum + r.payout, 0);
+    assert.equal(await money(board, 'Anna'), 1384 + annaWin);
+    await shot(board, '08-zieleinlauf');
+    await until(board, () => !S.mini, null, 60000);
 
     /* ---------- Layout-Prüfungen ---------- */
     for (const p of [A, B, C]) assert.equal(await noHorizontalScroll(p), true, 'Handy (375 px) ohne horizontales Scrollen');
@@ -117,6 +152,7 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Ablehnungen', { timeout: 24
     await A.click('#tabs [data-tab="trade"]');
     const benId = await board.evaluate(() => S.game.players.find((p) => p.name === 'Ben').id);
     await A.selectOption('#tr-partner', benId);
+    const annaBefore = await money(board, 'Anna');
     await A.check('#tg-5');
     await A.fill('#tw-money', '150');
     await A.click('#btn-trade');
@@ -124,7 +160,7 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Ablehnungen', { timeout: 24
     await B.click('#tabs [data-tab="trade"]');
     await B.click('.offer button:has-text("Annehmen")');
     await until(board, () => S.game.players.find((p) => p.id === S.game.props[5].owner).name === 'Ben');
-    assert.equal(await money(board, 'Anna'), 1434 + 150);
+    assert.equal(await money(board, 'Anna'), annaBefore + 150);
     await until(board, () => [...document.querySelectorAll('#ticker li')].some((li) => /Handel/.test(li.textContent)));
     await B.click('#tabs [data-tab="turn"]');
 

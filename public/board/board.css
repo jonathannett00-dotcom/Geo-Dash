@@ -160,3 +160,55 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .ps-props { display: flex; flex-wrap: wrap; gap: 2px; min-height: 9px; }
 .pb { width: 11px; height: 9px; background: var(--g); border-radius: 2px; border: 1px solid rgba(0,0,0,.35); font: 800 7px/7px var(--font-body); color: #fff; text-align: center; text-shadow: 0 0 2px #000; }
 .pb.mort { opacity: .35; }
+
+/* ================= Minispiel-Bühne ================= */
+.sg { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 1cqw; padding: 1.6cqw 2cqw; background: radial-gradient(circle at 50% 30%, #1f5a37, #0e2f1d); color: #fff; }
+.sg-head { display: flex; justify-content: space-between; align-items: center; }
+.sg-title { font-family: var(--font-display); font-size: 3.2cqw; letter-spacing: .03em; }
+.sg-timer { font-size: 3cqw; font-weight: 800; font-variant-numeric: tabular-nums; background: rgba(0,0,0,.35); border-radius: 1cqw; padding: .2cqw 1.2cqw; }
+.sg-timer .urgent { color: #ff8a80; }
+.sg-ready { display: flex; flex-wrap: wrap; gap: .6cqw; }
+.sg-ready span { font-size: 1.35cqw; font-weight: 700; border-radius: 99px; padding: .25cqw .9cqw; background: rgba(255,255,255,.12); border: 2px solid var(--c); opacity: .7; }
+.sg-ready span.ok { background: var(--c); opacity: 1; }
+.bchip { display: inline-block; font-size: 1.2cqw; font-weight: 700; border-radius: 99px; padding: .15cqw .7cqw; background: var(--c); color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.5); margin: .1cqw; white-space: nowrap; animation: pop .3s ease-out; }
+
+/* ---------- Pferderennen ---------- */
+.hr-table { width: 100%; border-collapse: collapse; font-size: 1.55cqw; background: rgba(255,255,255,.06); border-radius: 1cqw; overflow: hidden; }
+.hr-table th { text-align: left; font-size: 1.1cqw; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.6); padding: .5cqw .7cqw; }
+.hr-table td { padding: .55cqw .7cqw; border-top: 1px solid rgba(255,255,255,.12); vertical-align: middle; }
+.hr-table tr.backed td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
+.hr-table .odd { font-weight: 800; font-variant-numeric: tabular-nums; }
+.hr-table .form { color: var(--gold); font-size: 1.1cqw; }
+.hr-table .bets { width: 40%; }
+.hr-race { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .6cqw; }
+.hr-commentary { background: #111; color: var(--gold); font: 700 1.6cqw "Courier New", monospace; padding: .5cqw 1cqw; border-radius: .6cqw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-stage { position: relative; border-radius: 1cqw; overflow: hidden; box-shadow: var(--shadow); }
+.hr-infield {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40%; max-height: 38%; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; gap: .2cqw; pointer-events: none;
+  background: rgba(10, 30, 18, .72); border: 2px solid rgba(255,255,255,.35); border-radius: 1cqw; padding: .6cqw 1cqw; text-align: center;
+}
+.hr-label { font-size: 1cqw; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+.hr-live { list-style: none; margin: 0; padding: 0; font-size: 1.35cqw; text-align: left; }
+.hr-live li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-live li.backed { color: var(--gold); font-weight: 700; }
+.hr-live .muted { color: rgba(255,255,255,.65); font-style: italic; }
+.hr-live .silk { width: 1.1cqw; height: 1.1cqw; }
+.hr-count { position: absolute; inset: 0; display: grid; place-items: center; font-size: 9cqw; font-weight: 900; color: #fff; text-shadow: 0 6px 20px rgba(0,0,0,.6); background: rgba(0,0,0,.25); }
+.hr-count span { animation: countPop .9s ease-out forwards; }
+@keyframes countPop { from { transform: scale(2); opacity: 0; } 30% { transform: scale(1); opacity: 1; } to { transform: scale(.85); opacity: .9; } }
+.hr-results { position: absolute; left: 2cqw; right: 2cqw; bottom: 1.6cqw; max-height: 62%; overflow: hidden; background: rgba(255, 250, 240, .97); color: var(--ink); border-radius: 1.4cqw; padding: 1.2cqw 1.6cqw; box-shadow: 0 10px 30px rgba(0,0,0,.5); animation: slideUp .4s ease-out; }
+@keyframes slideUp { from { transform: translateY(30px); opacity: 0; } }
+
+.podium { display: flex; justify-content: center; align-items: flex-end; gap: .8cqw; margin-bottom: 1cqw; }
+.podium .step { width: 16cqw; border-radius: 1cqw 1cqw 0 0; color: #fff; padding: .6cqw .4cqw; font-weight: 700; font-size: 1.3cqw; text-align: center; animation: rise .6s ease-out backwards; }
+.podium .step .pos { font-size: 2.6cqw; }
+.podium .p1 { height: 11cqw; background: #d4a514; animation-delay: .4s; }
+.podium .p2 { height: 8.5cqw; background: #9aa4ad; animation-delay: .2s; }
+.podium .p3 { height: 7cqw; background: #b0703c; }
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } }
+.payouts { list-style: none; padding: 0; margin: 0; font-size: 1.4cqw; }
+.payouts li { display: flex; justify-content: space-between; gap: 1cqw; padding: .35cqw 0; border-top: 1px solid var(--line); }
+.payouts .win { color: var(--green); }
+.payouts .lose { color: var(--red); }
+.payouts .dot { width: 1.1cqw; height: 1.1cqw; vertical-align: -1px; }

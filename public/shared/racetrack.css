@@ -1,0 +1,52 @@
+/* Ovale Rennbahn – Stile aus dem Original-Spiel (style.css) übernommen */
+.track { position: relative; }
+.track svg { display: block; width: 100%; height: auto; }
+.t-turf { fill: var(--turf); }
+.t-mow { fill: rgba(255, 255, 255, .05); }
+.t-infield { fill: var(--grass-1); }
+.t-dirt { fill: none; stroke: var(--dirt); }
+.t-divider { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: 1.2; stroke-dasharray: 10 8; }
+.t-rail { fill: none; stroke: #fff; stroke-width: 3.5; }
+.t-post { fill: #fff; }
+.t-postcap { fill: var(--red); stroke: #fff; stroke-width: 2; }
+.t-laneno { fill: rgba(255, 255, 255, .6); font: 700 12px var(--font-body); text-anchor: middle; }
+
+.horse .leg { transform-box: fill-box; transform-origin: 50% 0; }
+.track.running .horse .bob { animation: bob .3s ease-in-out infinite; transform-box: fill-box; }
+.track.running .horse .leg.a { animation: gallopA .3s ease-in-out infinite; }
+.track.running .horse .leg.b { animation: gallopB .3s ease-in-out infinite; }
+.track.running .horse .tail { animation: tail .3s ease-in-out infinite; transform-box: fill-box; transform-origin: 100% 0; }
+.horse.finished .leg, .horse.finished .bob, .horse.finished .tail { animation-duration: .6s !important; }
+.horse .sprite { filter: drop-shadow(0 3px 1.5px rgba(0,0,0,.35)); }
+@keyframes gallopA { 0%,100% { transform: rotate(35deg); } 50% { transform: rotate(-35deg); } }
+@keyframes gallopB { 0%,100% { transform: rotate(-35deg); } 50% { transform: rotate(35deg); } }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes tail { 0%,100% { transform: rotate(-10deg); } 50% { transform: rotate(12deg); } }
+.place-badge rect { fill: var(--gold); stroke: #2a2200; stroke-width: 1.5; }
+.place-badge text { fill: #2a2200; font: 800 12px var(--font-body); text-anchor: middle; }
+.place-badge { animation: badgePop .3s ease-out; transform-box: fill-box; transform-origin: center; }
+@keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* Pferde mit Wetten: pulsierender Lichtkranz */
+.horse .glow { fill: none; opacity: 0; }
+.horse.backed .glow {
+  fill: rgba(255, 224, 120, .3);
+  opacity: 1; animation: glowPulse 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center;
+}
+.horse.backed .sprite { filter: drop-shadow(0 0 2.5px rgba(255, 227, 122, .7)) drop-shadow(0 3px 1.5px rgba(0,0,0,.35)); }
+@keyframes glowPulse { 0%,100% { transform: scale(.95); opacity: .5; } 50% { transform: scale(1.05); opacity: .85; } }
+
+/* Namen der Wettenden: wie Bahnbeschriftung auf den Boden gemalt */
+.trail text {
+  font: 700 17px var(--font-lane); letter-spacing: .06em;
+  text-anchor: middle; dominant-baseline: central;
+  fill: rgba(255, 255, 255, .9);
+  paint-order: stroke; stroke: rgba(70, 40, 15, .45); stroke-width: 2.5px; stroke-linejoin: round;
+}
+
+.dust { fill: rgba(235, 205, 165, .85); animation: dust .6s ease-out forwards; transform-box: fill-box; transform-origin: center; pointer-events: none; }
+@keyframes dust { to { opacity: 0; transform: translateY(-8px) scale(2.6); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .track.running .horse .bob, .track.running .horse .leg, .track.running .horse .tail, .dust, .horse.backed .glow { animation: none !important; }
+}

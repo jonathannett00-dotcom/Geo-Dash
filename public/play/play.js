@@ -386,9 +386,72 @@ function collectTrade() {
 
 /* ---------------- Tab: Minispiel ---------------- */
 
+const MINI = {};
+const miniSel = { horse: null, type: 'win' };
+const miniAct = (action) => ({ type: 'mini', action });
+const myBets = (m) => (m.bets || []).filter((b) => b.playerId === me);
+
 function miniHtml() {
-  return '<div class="box info">Gerade läuft kein Minispiel.</div>';
+  const m = S.mini;
+  if (!m) return '<div class="box info">Gerade läuft kein Minispiel.</div>';
+  const playing = m.players.some((p) => p.id === me);
+  if (!playing) return '<div class="box info">Du spielst bei diesem Minispiel nicht mit – schau aufs Tablet.</div>';
+  return MINI[m.type] ? MINI[m.type](m) : '';
 }
+
+/** Kopf mit Countdown und Mindesteinsatz-Hinweis während der Wettzeit. */
+function betHead(m, title) {
+  const ready = m.ready.includes(me);
+  return `<div class="box mini-head"><div class="mh-row"><h2>${title}</h2>
+    ${m.phase === 'betting' ? `<div class="mh-timer">⏱ <span data-ends="${m.endsAt}"></span></div>` : ''}</div>
+    ${m.phase === 'betting' ? `<p class="muted small">Mindesteinsatz ${fmtM(m.minBet)} · wer nichts setzt, setzt aus. ${m.ready.length}/${m.players.length} fertig.</p>` : ''}
+    ${ready && m.phase === 'betting' ? '<p class="note">✓ Du bist fertig – warte auf die anderen.</p>' : ''}</div>`;
+}
+
+const readyBtn = (m) => (m.phase === 'betting' && !m.ready.includes(me)
+  ? `<button class="btn huge go" data-act='${JSON.stringify(miniAct({ type: 'ready' }))}'>✓ Fertig</button>` : '');
+
+const amountPicker = (id, placeholder = '0') => `<div class="amount">
+    <input id="${id}" type="number" inputmode="numeric" min="10" step="10" placeholder="${placeholder}" />
+    <div class="chips">${[10, 50, 100].map((v) => `<button class="btn small" data-amt="${id}:${v}">+${v}</button>`).join('')}<button class="btn small" data-amt="${id}:0">✕</button></div></div>`;
+
+/* ---------- Pferderennen ---------- */
+
+MINI.horserace = (m) => {
+  const mine = myBets(m);
+  const stake = mine.reduce((s, b) => s + b.amount, 0);
+  const betList = mine.length
+    ? `<ul class="bet-list">${mine.map((b) => `<li><span class="silk" style="background:${m.horses[b.horse].silk}"></span>#${b.horse + 1} ${escapeHtml(m.horses[b.horse].name)} · ${b.type === 'win' ? 'Sieg' : 'Platz'}<b>${fmtM(b.amount)}</b></li>`).join('')}</ul>`
+    : '<p class="muted">Noch keine Wette.</p>';
+
+  if (m.phase === 'betting' && !m.ready.includes(me)) {
+    const sel = miniSel.horse;
+    const h = sel !== null ? m.horses[sel] : null;
+    return `${betHead(m, '🏇 Pferderennen')}
+      <div class="box"><div class="muted small">1. Pferd wählen</div>
+        <div class="horse-list">${m.horses.map((x, i) => `<button class="hl ${sel === i ? 'sel' : ''}" data-hr-horse="${i}">
+          <span class="silk" style="background:${x.silk}"></span><span class="hl-name">#${i + 1} ${escapeHtml(x.name)}</span>
+          <span class="hl-odds">S ${x.winOdds.toFixed(1)} · P ${x.placeOdds.toFixed(2)}</span></button>`).join('')}</div>
+        <div class="muted small">2. Wettart</div>
+        <div class="seg"><button data-hr-type="win" class="${miniSel.type === 'win' ? 'sel' : ''}">Sieg</button><button data-hr-type="place" class="${miniSel.type === 'place' ? 'sel' : ''}">Platz (Top 3)</button></div>
+        <div class="muted small">3. Einsatz</div>
+        ${amountPicker('hr-amount', String(m.minBet))}
+        <button class="btn huge primary" id="btn-hr-bet" ${h ? '' : 'disabled'}>${h ? `Wette auf #${sel + 1} (${miniSel.type === 'win' ? `Quote ${h.winOdds.toFixed(1)}` : `Quote ${h.placeOdds.toFixed(2)}`})` : 'Erst ein Pferd wählen'}</button>
+      </div>
+      <div class="box"><h3>Deine Wetten ${stake ? `· ${fmtM(stake)}` : ''}</h3>${betList}
+        ${mine.length ? `<button class="btn small ghost-dark" data-act='${JSON.stringify(miniAct({ type: 'clear' }))}'>Alle zurücknehmen</button>` : ''}</div>
+      ${readyBtn(m)}`;
+  }
+  if (m.phase === 'betting') return `${betHead(m, '🏇 Pferderennen')}<div class="box"><h3>Deine Wetten</h3>${betList}</div>`;
+  if (m.phase === 'running') return `${betHead(m, '🏇 Pferderennen')}<div class="box mine"><h2>🏁 Das Rennen läuft!</h2><p>Schau aufs Tablet.</p></div><div class="box"><h3>Deine Wetten</h3>${betList}</div>`;
+  const res = (m.results || []).filter((r) => r.playerId === me);
+  const net = res.reduce((s, r) => s + r.payout - r.amount, 0);
+  const order = m.order || [];
+  return `${betHead(m, '🏇 Zieleinlauf')}
+    <div class="box"><ol class="podium-list">${order.slice(0, 3).map((i) => `<li><span class="silk" style="background:${m.horses[i].silk}"></span>#${i + 1} ${escapeHtml(m.horses[i].name)}</li>`).join('')}</ol></div>
+    <div class="box ${net > 0 ? 'mine' : ''}"><h2>${res.length ? (net > 0 ? `🎉 +${fmtM(net)}` : (net < 0 ? `−${fmtM(-net)}` : '±0 M')) : 'Du hast nicht gewettet'}</h2>
+      <ul class="bet-list">${res.map((r) => `<li>#${r.horse + 1} ${r.type === 'win' ? 'Sieg' : 'Platz'} · ${fmtM(r.amount)}<b class="${r.won ? 'win' : 'lose'}">${r.won ? `+${fmtM(r.payout)}` : 'verloren'}</b></li>`).join('')}</ul></div>`;
+};
 
 /* ---------------- Ereignisse ---------------- */
 
@@ -413,6 +476,23 @@ $('#main').addEventListener('click', async (e) => {
     if (Date.now() - bankruptArmed < 5000) { bankruptArmed = 0; act({ type: 'bankrupt' }); } else { bankruptArmed = Date.now(); render(); }
     return;
   }
+  const amt = e.target.closest('[data-amt]');
+  if (amt) {
+    const [id, v] = amt.dataset.amt.split(':');
+    const input = document.getElementById(id);
+    input.value = Number(v) ? (Number(input.value) || 0) + Number(v) : '';
+    return;
+  }
+  const horse = e.target.closest('[data-hr-horse]');
+  if (horse) { miniSel.horse = Number(horse.dataset.hrHorse); render(); return; }
+  const htype = e.target.closest('[data-hr-type]');
+  if (htype) { miniSel.type = htype.dataset.hrType; render(); return; }
+  if (e.target.id === 'btn-hr-bet') {
+    const amount = Number($('#hr-amount').value) || 0;
+    const res = await act(miniAct({ type: 'bet', horse: miniSel.horse, kind: miniSel.type, amount }));
+    if (res.ok) { $('#hr-amount').value = ''; toast('Wette platziert!'); }
+    return;
+  }
   if (e.target.id === 'btn-trade') {
     const res = await act({ type: 'trade:propose', trade: collectTrade() });
     if (res.ok) {
@@ -432,7 +512,13 @@ $('#main').addEventListener('change', (e) => {
 function attention() {
   const g = S.game;
   const miniActive = Boolean(S.mini);
-  if (miniActive && miniOpen !== S.mini.id) { miniOpen = S.mini.id; setTab('mini'); return; }
+  if (miniActive && miniOpen !== S.mini.id) {
+    miniOpen = S.mini.id;
+    miniSel.horse = null;
+    miniSel.type = 'win';
+    setTab('mini');
+    return;
+  }
   if (!miniActive && miniOpen !== null) { miniOpen = null; if (tab === 'mini') setTab('turn'); }
   const needsMe = (g.phase === 'buy' || g.phase === 'jail') ? g.currentId === me
     : g.phase === 'auction' ? !gp(me).bankrupt

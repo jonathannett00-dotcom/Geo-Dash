@@ -128,3 +128,28 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 .check.off { opacity: .5; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .5rem; }
 #btn-trade { margin-top: .8rem; }
+
+/* ---------- Minispiele ---------- */
+.mini-head h2 { margin: 0; }
+.mh-row { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.mh-timer { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.amount { display: grid; gap: .4rem; margin: .3rem 0 .7rem; }
+.amount input { font-size: 1.2rem; font-weight: 700; }
+.chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: .35rem; }
+.horse-list { display: grid; gap: .35rem; margin: .3rem 0 .7rem; }
+.hl {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .4rem; text-align: left; min-height: 46px;
+  background: #fff; border: 2px solid var(--line); border-radius: 10px; padding: .45rem .6rem; font: inherit; font-size: .9rem; cursor: pointer; color: var(--ink);
+}
+.hl.sel { border-color: var(--ink); box-shadow: 0 0 0 3px var(--gold); background: #fff8dd; }
+.hl-name { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl-odds { font-size: .78rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; margin: .3rem 0 .7rem; }
+.seg button { min-height: 46px; border: 2px solid var(--line); background: #fff; border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; color: var(--ink); }
+.seg button.sel { border-color: var(--ink); background: var(--gold); }
+.bet-list { list-style: none; padding: 0; margin: .3rem 0 .6rem; display: grid; gap: .3rem; }
+.bet-list li { display: flex; align-items: center; gap: .3rem; background: #fff; border-radius: 8px; padding: .4rem .6rem; font-size: .9rem; }
+.bet-list li b { margin-left: auto; white-space: nowrap; }
+.win { color: var(--green); }
+.lose { color: var(--red); }
+.podium-list { margin: 0; padding-left: 1.4rem; font-weight: 700; display: grid; gap: .25rem; }

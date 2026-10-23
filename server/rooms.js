@@ -1,6 +1,9 @@
 'use strict';
 
 const crypto = require('crypto');
+const { MonopolyGame } = require('./monopoly/rules');
+const { SQUARES, GROUP_COLORS } = require('./monopoly/board');
+const { createRng } = require('./rng');
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const MAX_PLAYERS = 10;
@@ -11,6 +14,17 @@ const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 
 const COLORS = ['#e63946', '#1d72d8', '#2a9d8f', '#f4a261', '#8e44ad', '#e9c46a', '#ff6fb5', '#264653', '#8ac926', '#795548'];
 const FIGURES = ['🎩', '🚗', '🐕', '🚢', '👢', '🐈', '🦆', '🦖', '✈️', '🎸'];
+
+/* Animationszeiten (ms) – Tablet und Server rechnen mit denselben Werten. */
+const TIMING = { dice: 1100, step: 230, jump: 700, land: 500, rollDelay: 1600, miniDelay: 1200 };
+
+/** Minispiele nach Typ (werden in den folgenden Phasen ergänzt). */
+const MINIGAMES = {};
+
+/** Statische Brettdaten für die Clients. */
+const BOARD = SQUARES.map((s) => ({
+  name: s.name, type: s.type, group: s.group || s.type, price: s.price, house: s.house, rent: s.rent, amount: s.amount,
+}));
 
 /** Fehler, deren Text dem Spieler angezeigt wird. */
 class UserError extends Error {
@@ -27,7 +41,18 @@ class Room {
     this.settings = { startMoney: 1500 };
     this.started = false;
     this.lastActivity = Date.now();
+    this.rng = createRng(this.config.seed);
+    this.game = null;
+    this.mini = null;
+    this.timers = {};
+    this.animUntil = 0;
+    this.seenRollSeq = 0;
+    this.seenMoveSeq = 0;
+    this.pendingDice = [];
+    this.shoe = {};
   }
+
+  get timeScale() { return this.config.timeScale ?? 1; }
 
   get io() { return this.manager.io; }
 
@@ -79,7 +104,172 @@ class Room {
   start() {
     if (this.started) fail('Das Spiel läuft bereits.');
     if (this.players.length < MIN_PLAYERS) fail(`Es werden mindestens ${MIN_PLAYERS} Spieler gebraucht.`);
+    this.game = new MonopolyGame({
+      players: this.players.map(({ id, name, color, figure }) => ({ id, name, color, figure })),
+      startMoney: this.settings.startMoney,
+      rng: this.rng,
+    });
+    this.game.forcedDice.push(...this.pendingDice);
+    this.pendingDice = [];
     this.started = true;
+    this.afterGameChange();
+  }
+
+  /* ---------- Spielzüge ---------- */
+
+  /** Absicht eines Spielers ausführen – der Server prüft alles selbst. */
+  act(pid, action = {}) {
+    const g = this.game;
+    if (!g) fail('Das Spiel hat noch nicht begonnen.');
+    switch (action.type) {
+      case 'buy': g.buy(pid); break;
+      case 'decline': g.declineBuy(pid); break;
+      case 'jail:pay': g.payJail(pid); break;
+      case 'jail:card': g.useJailCard(pid); break;
+      case 'jail:roll': g.rollInJail(pid); break;
+      case 'bid': g.bid(pid, action.amount); break;
+      case 'pass': g.passAuction(pid); break;
+      case 'build': g.buildHouse(pid, action.square); break;
+      case 'sell': g.sellHouse(pid, action.square); break;
+      case 'mortgage': g.mortgage(pid, action.square); break;
+      case 'unmortgage': g.unmortgage(pid, action.square); break;
+      case 'bankrupt': g.declareBankruptcy(pid); break;
+      case 'trade:propose': g.proposeTrade(pid, action.trade || {}); break;
+      case 'trade:respond': g.respondTrade(pid, action.id, Boolean(action.accept)); break;
+      case 'trade:cancel': g.cancelTrade(pid, action.id); break;
+      case 'mini':
+        if (!this.mini) fail('Gerade läuft kein Minispiel.');
+        this.mini.handle(pid, action.action || {});
+        break;
+      default: fail('Unbekannte Aktion.');
+    }
+    this.afterGameChange();
+  }
+
+  currentRoomPlayer() { return this.game ? this.playerById(this.game.currentPlayer().id) : null; }
+
+  /** Ist der Zug pausiert, weil der Spieler am Zug getrennt ist? */
+  isPaused() {
+    const g = this.game;
+    if (!g || !['roll', 'jail', 'buy', 'debt'].includes(g.phase)) return false;
+    const cur = this.currentRoomPlayer();
+    const debtor = g.phase === 'debt' && g.debts[0] ? this.playerById(g.debts[0].debtorId) : cur;
+    return Boolean(debtor && !debtor.connected);
+  }
+
+  /** Merkt sich, wie lange das Tablet für Würfel und Figuren braucht. */
+  afterGameChange() {
+    const g = this.game;
+    if (!g) return;
+    let anim = 0;
+    if (g.lastRoll && g.lastRoll.seq > this.seenRollSeq) {
+      this.seenRollSeq = g.lastRoll.seq;
+      anim += TIMING.dice;
+    }
+    for (const m of g.moves) {
+      if (m.seq <= this.seenMoveSeq) continue;
+      this.seenMoveSeq = m.seq;
+      anim += m.mode === 'jump' ? TIMING.jump : m.steps * TIMING.step + TIMING.land;
+    }
+    if (anim) this.animUntil = Math.max(this.animUntil, Date.now()) + anim * this.timeScale;
+    this.schedule();
+  }
+
+  setTimer(key, ms, fn) {
+    clearTimeout(this.timers[key]);
+    this.timers[key] = setTimeout(() => {
+      delete this.timers[key];
+      try { fn(); } catch (err) { console.error(err); }
+      this.touch();
+      this.broadcast();
+    }, Math.max(0, ms));
+  }
+
+  clearTimer(key) {
+    clearTimeout(this.timers[key]);
+    delete this.timers[key];
+  }
+
+  /** Automatisches Würfeln, Auktions-Timer und Start der Minispiele. */
+  schedule() {
+    const g = this.game;
+    if (!g) return;
+    const ts = this.timeScale;
+    const waitAnim = () => Math.max(0, this.animUntil - Date.now());
+    if (g.phase === 'gameover') {
+      this.stopMini();
+      Object.keys(this.timers).forEach((k) => this.clearTimer(k));
+      return;
+    }
+
+    const cur = this.currentRoomPlayer();
+    if (g.phase === 'roll' && cur && cur.connected) {
+      if (!this.timers.roll) {
+        this.setTimer('roll', waitAnim() + TIMING.rollDelay * ts, () => {
+          const p = this.currentRoomPlayer();
+          if (this.game.phase === 'roll' && p && p.connected) this.game.roll(p.id);
+          this.afterGameChange();
+        });
+      }
+    } else {
+      this.clearTimer('roll');
+    }
+
+    if (g.phase === 'auction' && g.auction) {
+      this.setTimer('auction', g.auction.endsAt - Date.now() + 50, () => {
+        this.game.auctionTimeout();
+        this.afterGameChange();
+      });
+    } else {
+      this.clearTimer('auction');
+    }
+
+    if (g.phase === 'minigame' && !this.mini && !this.timers.mini) {
+      this.setTimer('mini', waitAnim() + TIMING.miniDelay * ts, () => this.startMini());
+    }
+  }
+
+  /* ---------- Minispiele ---------- */
+
+  startMini() {
+    const g = this.game;
+    if (!g || g.phase !== 'minigame' || this.mini) return;
+    const { type, seq } = g.minigame;
+    const Game = MINIGAMES[type];
+    if (!Game) {
+      g.finishMinigame();
+      this.afterGameChange();
+      return;
+    }
+    this.mini = new Game({
+      id: seq,
+      players: g.activePlayers().map(({ id, name, color, figure }) => ({ id, name, color, figure })),
+      wallet: {
+        balance: (id) => g.player(id).money,
+        debit: (id, amount) => g.debitBet(id, amount),
+        credit: (id, amount) => g.creditWin(id, amount),
+      },
+      rng: this.rng,
+      timeScale: this.timeScale,
+      shoe: this.shoe,
+      log: (text) => g.event(text, 'minigame'),
+      onChange: () => { this.touch(); this.broadcast(); },
+      onDone: () => this.finishMini(),
+    });
+    this.mini.start();
+  }
+
+  finishMini() {
+    this.stopMini();
+    if (this.game) this.game.finishMinigame();
+    this.afterGameChange();
+    this.touch();
+    this.broadcast();
+  }
+
+  stopMini() {
+    if (this.mini) this.mini.stop();
+    this.mini = null;
   }
 
   /* ---------- Verbindungen ---------- */
@@ -93,6 +283,7 @@ class Room {
     player.connected = true;
     clearTimeout(player.leaveTimer);
     player.leaveTimer = null;
+    this.schedule();
   }
 
   detach(socket) {
@@ -104,6 +295,7 @@ class Room {
     clearTimeout(player.leaveTimer);
     player.leaveTimer = setTimeout(() => this.dropPlayer(player.id), RECONNECT_GRACE_MS);
     player.leaveTimer.unref?.();
+    this.schedule();
   }
 
   /** Spieler war zu lange getrennt. */
@@ -112,6 +304,10 @@ class Room {
     if (!player || player.connected) return;
     player.leaveTimer = null;
     if (!this.started) this.players = this.players.filter((p) => p.id !== id);
+    else if (this.game) {
+      this.game.removePlayer(id);
+      this.afterGameChange();
+    }
     this.broadcast();
   }
 
@@ -128,18 +324,26 @@ class Room {
       colors: COLORS,
       figures: FIGURES,
       lobby: this.players.map((p) => ({ id: p.id, name: p.name, color: p.color, figure: p.figure, connected: p.connected })),
+      board: this.game ? BOARD : null,
+      groupColors: GROUP_COLORS,
+      timing: { ...TIMING, timeScale: this.timeScale },
+      game: this.game ? this.game.publicState() : null,
+      paused: this.isPaused(),
     };
   }
 
   broadcast() {
     if (!this.io) return;
     const snap = this.snapshot();
-    this.io.to(`${this.code}:board`).emit('state', { ...snap, role: 'board' });
-    this.io.to(`${this.code}:players`).emit('state', { ...snap, role: 'player' });
+    const mini = (role) => (this.mini ? this.mini.view(role) : null);
+    this.io.to(`${this.code}:board`).emit('state', { ...snap, role: 'board', mini: mini('board') });
+    this.io.to(`${this.code}:players`).emit('state', { ...snap, role: 'player', mini: mini('player') });
   }
 
   dispose() {
     this.players.forEach((p) => clearTimeout(p.leaveTimer));
+    Object.keys(this.timers).forEach((k) => this.clearTimer(k));
+    this.stopMini();
   }
 }
 
@@ -275,6 +479,24 @@ class RoomManager {
       return { playerId: player.id, code: room.code };
     });
 
+    handle('act', (action, use) => {
+      const room = ownRoom();
+      if (socket.data.role !== 'player') fail('Nur Spieler können Aktionen ausführen.');
+      use(room);
+      room.act(socket.data.playerId, action);
+    });
+
+    if (this.config.testMode) {
+      // Nur im Testmodus: Würfel vorgeben, damit Browser-Tests reproduzierbar sind.
+      handle('debug:dice', ({ dice }, use) => {
+        const room = ownRoom();
+        const list = (Array.isArray(dice) ? dice : []).map((d) => [Number(d[0]), Number(d[1])]);
+        if (room.game) room.game.forcedDice.push(...list);
+        else room.pendingDice.push(...list);
+        use(room);
+      });
+    }
+
     socket.on('disconnect', () => {
       const room = this.get(socket.data.code);
       if (!room || socket.data.role !== 'player') return;
@@ -284,4 +506,4 @@ class RoomManager {
   }
 }
 
-module.exports = { RoomManager, Room, UserError, COLORS, FIGURES, MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS };
+module.exports = { RoomManager, Room, UserError, MINIGAMES, TIMING, COLORS, FIGURES, MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS };

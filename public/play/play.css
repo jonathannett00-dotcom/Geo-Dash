@@ -77,3 +77,54 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 .lobby-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
 .lobby-list li { display: flex; align-items: center; gap: .5rem; background: #fff; border-radius: 10px; padding: .5rem .7rem; border-left: 8px solid var(--c); font-weight: 700; }
 .lobby-list li.off { opacity: .5; }
+
+/* ---------- Spiel: Zug ---------- */
+.box.mine { background: #fff8dd; box-shadow: 0 0 0 3px var(--gold), var(--shadow); }
+.box.warn { background: #ffe9e6; box-shadow: 0 0 0 3px var(--red), var(--shadow); }
+.box.small { padding: .6rem .9rem; font-size: .9rem; }
+.box.center { text-align: center; }
+.box p { margin: .3rem 0 0; }
+.huge-emoji { font-size: 3.5rem; }
+.btn.small { padding: .55rem .7rem; font-size: .85rem; border-radius: 10px; min-height: 44px; }
+.btn.ghost-dark { background: #fff; border: 2px solid #c9bfa8; color: var(--ink); }
+.note { background: #fff1c2; border-radius: 8px; padding: .4rem .6rem; font-size: .85rem; margin: .5rem 0 0; }
+.small { font-size: .8rem; }
+.mini-log { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.mini-log li { background: rgba(255,255,255,.12); color: #e9f3ea; border-radius: 8px; padding: .4rem .6rem; font-size: .82rem; }
+.mini-log li:first-child { background: rgba(255,255,255,.22); color: #fff; font-weight: 600; }
+
+.deed { background: #fff; border: 2px solid #1b1b19; border-radius: 10px; overflow: hidden; margin: .5rem 0; font-size: .9rem; }
+.deed-head { background: var(--g); padding: .55rem; font-weight: 800; text-align: center; border-bottom: 2px solid #1b1b19; }
+.deed table { width: 100%; border-collapse: collapse; }
+.deed td { padding: .15rem .7rem; }
+.deed td + td { text-align: right; font-weight: 700; }
+.deed-price { text-align: center; font-weight: 800; padding: .35rem; border-top: 1px solid var(--line); }
+
+.au-row { display: flex; justify-content: space-between; align-items: center; gap: .6rem; }
+.au-bid { font-size: 1.8rem; font-weight: 800; }
+.au-timer { font-size: 1.4rem; font-weight: 800; white-space: nowrap; }
+.urgent { color: var(--red); }
+.bid-custom { display: grid; grid-template-columns: 1fr auto; gap: .5rem; margin-top: .6rem; }
+
+/* ---------- Spiel: Besitz ---------- */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.stat-row b { font-size: 1.05rem; }
+.prop { background: var(--panel); border-radius: 12px; border-left: 10px solid var(--g); padding: .7rem .8rem; box-shadow: var(--shadow); display: grid; gap: .5rem; }
+.prop.mort { opacity: .75; background: repeating-linear-gradient(45deg, #f4eedf 0 8px, #ebe3cf 8px 16px); }
+.prop-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
+.prop-head span { font-size: .8rem; color: var(--muted); text-align: right; }
+.prop-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: .4rem; }
+
+/* ---------- Spiel: Handel ---------- */
+.box h3 { font-size: .95rem; margin: .9rem 0 .4rem; }
+.offer-row { display: grid; grid-template-columns: 92px 1fr; gap: .4rem; align-items: start; margin: .3rem 0; }
+.offer .btn-row { margin-top: .6rem; }
+.offer .btn { min-height: 44px; }
+.chip { display: inline-block; border-radius: 999px; padding: .15rem .55rem; background: #fff; border: 2px solid var(--g, #ccc); font-size: .8rem; font-weight: 700; margin: .1rem 0; }
+.chip.money { border-color: var(--green); }
+.checks { display: grid; gap: .3rem; }
+.check { flex-direction: row; align-items: center; gap: .55rem; background: #fff; border-radius: 10px; padding: .45rem .6rem; border-left: 8px solid var(--g); color: var(--ink); font-weight: 600; font-size: .9rem; min-height: 44px; }
+.check input { width: 22px; height: 22px; flex: none; }
+.check.off { opacity: .5; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .5rem; }
+#btn-trade { margin-top: .8rem; }

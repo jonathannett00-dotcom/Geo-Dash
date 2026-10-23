@@ -1,0 +1,138 @@
+'use strict';
+
+/*
+ * Kompletter Durchlauf mit 1 Tablet und 3 Handys: Lobby, Kauf, Miete,
+ * Versteigerung, abgelehnte Aktionen und erzwungene Minispiele.
+ * Würfel kommen über das Debug-Flag (nur im Testmodus des Servers).
+ */
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('path');
+const { startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
+
+const SHOTS = process.env.E2E_SHOTS;
+const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${name}.png`) }); };
+
+/** Wartet, bis das Tablet eine Bedingung über den Spielstand erfüllt sieht. */
+const until = (board, fn, arg, timeout = 30000) => board.waitForFunction(fn, arg, { timeout, polling: 100 });
+const phaseIs = (board, phase, currentName) => until(board, ([ph, name]) => S && S.game && S.game.phase === ph
+  && (!name || S.game.players.find((p) => p.id === S.game.currentId).name === name), [phase, currentName]);
+const money = (board, name) => board.evaluate((n) => S.game.players.find((p) => p.name === n).money, name);
+
+/** Letzte Toast-Meldung auf dem Handy abwarten. */
+const toastText = async (page, re) => {
+  await page.waitForFunction((src) => {
+    const t = document.querySelector('#toast.show');
+    return t && new RegExp(src).test(t.textContent);
+  }, re.source, { timeout: 10000 });
+  return page.textContent('#toast');
+};
+
+test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Ablehnungen', { timeout: 240000 }, async () => {
+  const srv = await startServer();
+  const browser = await launch();
+  const errors = [];
+  try {
+    /* ---------- Lobby ---------- */
+    const board = await openPage(browser, `${srv.url}/board`, { viewport: { width: 1024, height: 768 }, label: 'tablet', errors });
+    await board.waitForFunction(() => /^[A-Z]{4}$/.test(document.querySelector('#room-code').textContent));
+    const code = await board.textContent('#room-code');
+    const names = ['Anna', 'Ben', 'Cem'];
+    const phones = {};
+    for (const name of names) {
+      phones[name] = await openPage(browser, `${srv.url}/play?room=${code}`, { viewport: { width: 375, height: 740 }, label: name, errors, isMobile: true });
+      await joinRoom(phones[name], name);
+    }
+    const [A, B, C] = names.map((n) => phones[n]);
+
+    // Würfel für die ganze Partie vorgeben
+    await board.evaluate(() => window.__debugDice([[1, 2], [1, 2], [1, 4], [3, 4], [2, 6], [1, 5]]));
+    await board.waitForFunction(() => !document.querySelector('#btn-start').disabled);
+    await board.click('#btn-start');
+    await board.waitForSelector('#game:not(.hidden)');
+
+    /* ---------- Runde 1: Anna kauft die Turmstraße ---------- */
+    await phaseIs(board, 'buy', 'Anna');
+    await A.waitForSelector('button:has-text("Kaufen für 60 M")');
+
+    // Ben ist nicht dran → Server lehnt ab, Handy zeigt die Meldung
+    await B.evaluate(() => window.__act({ type: 'buy' }));
+    assert.match(await toastText(B, /nicht am Zug/), /Du bist nicht am Zug – gerade ist Anna dran/);
+
+    await shot(board, '01-kaufen');
+    await A.click('button:has-text("Kaufen für 60 M")');
+    await phaseIs(board, 'roll', 'Ben');
+    assert.equal(await money(board, 'Anna'), 1440);
+    await board.waitForSelector('#cell-3.owned');
+
+    /* ---------- Ben zahlt Miete ---------- */
+    await phaseIs(board, 'buy', 'Cem');
+    assert.equal(await money(board, 'Ben'), 1496);
+    assert.equal(await money(board, 'Anna'), 1444);
+    await until(board, () => [...document.querySelectorAll('#ticker li')].some((li) => /Miete an Anna/.test(li.textContent)));
+
+    /* ---------- Cem lehnt ab → Versteigerung ---------- */
+    await C.click('button:has-text("Nicht kaufen")');
+    await phaseIs(board, 'auction');
+    await A.waitForSelector('#bid-amount');
+    // zu wenig Geld → verständliche Ablehnung
+    await A.fill('#bid-amount', '99999');
+    await A.click('#btn-bid');
+    assert.match(await toastText(A, /Nicht genug Geld/), /Nicht genug Geld: Du hast nur 1\.444 M/);
+    await A.click('button:has-text("10 M")');
+    await until(board, () => S.game.auction && S.game.auction.bid === 10);
+    await shot(board, '02-versteigerung');
+    await B.click('button:has-text("Aussteigen")');
+    await C.click('button:has-text("Aussteigen")');
+    await until(board, () => S.game.props[5].owner && S.game.players.find((p) => p.id === S.game.props[5].owner).name === 'Anna');
+    assert.equal(await money(board, 'Anna'), 1434);
+
+    /* ---------- Besitz-Tab zeigt die Grundstücke ---------- */
+    await A.click('#tabs [data-tab="props"]');
+    await A.waitForSelector('.prop:has-text("Turmstraße")');
+    await A.waitForSelector('.prop:has-text("Südbahnhof")');
+    // Bauen ohne Farbgruppe → Button gesperrt; direkte Absicht wird abgelehnt
+    await A.evaluate(() => window.__act({ type: 'build', square: 3 }));
+    assert.match(await toastText(A, /Farbgruppe/), /kompletten Farbgruppe/);
+    await A.click('#tabs [data-tab="turn"]');
+
+    /* ---------- Layout-Prüfungen ---------- */
+    for (const p of [A, B, C]) assert.equal(await noHorizontalScroll(p), true, 'Handy (375 px) ohne horizontales Scrollen');
+    const fit = await board.evaluate(() => {
+      const r = document.querySelector('#board').getBoundingClientRect();
+      return { right: r.right, bottom: r.bottom, scrollH: document.documentElement.scrollHeight, scrollW: document.documentElement.scrollWidth };
+    });
+    assert.ok(fit.right <= 1024 && fit.bottom <= 768, `Brett passt auf 1024×768 (${JSON.stringify(fit)})`);
+    assert.ok(fit.scrollH <= 768 && fit.scrollW <= 1024, 'Tablet ohne Scrollen');
+
+    /* ---------- Neuladen eines Handys mitten im Spiel ---------- */
+    await C.reload();
+    await C.waitForSelector('#app:not(.hidden)');
+    await C.waitForSelector('#tabs:not(.hidden)');
+    assert.equal(await C.textContent('#me-name'), 'Cem');
+
+    /* ---------- Handel über das Handy ---------- */
+    await phaseIs(board, 'buy', 'Ben'); // Ben steht auf der Seestraße – Handel ist jederzeit erlaubt
+    await A.click('#tabs [data-tab="trade"]');
+    const benId = await board.evaluate(() => S.game.players.find((p) => p.name === 'Ben').id);
+    await A.selectOption('#tr-partner', benId);
+    await A.check('#tg-5');
+    await A.fill('#tw-money', '150');
+    await A.click('#btn-trade');
+    await B.waitForSelector('#trade-badge:not(.hidden)');
+    await B.click('#tabs [data-tab="trade"]');
+    await B.click('.offer button:has-text("Annehmen")');
+    await until(board, () => S.game.players.find((p) => p.id === S.game.props[5].owner).name === 'Ben');
+    assert.equal(await money(board, 'Anna'), 1434 + 150);
+    await until(board, () => [...document.querySelectorAll('#ticker li')].some((li) => /Handel/.test(li.textContent)));
+    await B.click('#tabs [data-tab="turn"]');
+
+    await shot(board, '03-brett');
+    await shot(A, '04-handy');
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await srv.close();
+  }
+});

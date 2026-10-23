@@ -53,7 +53,8 @@ function refreshJoinInfo() {
   socket.emit('room:info', { code: c }, (res) => {
     if (!res.ok) { joinInfo = null; $('#join-msg').textContent = res.error; renderPickers(); return; }
     joinInfo = res;
-    $('#join-msg').textContent = res.started ? 'Das Spiel läuft bereits – Beitritt nicht mehr möglich.' : (res.full ? 'Der Raum ist voll.' : '');
+    if (res.started) $('#join-msg').textContent = 'Das Spiel läuft bereits – Beitritt nicht mehr möglich.';
+    else if (res.full) $('#join-msg').textContent = 'Der Raum ist voll.';
     renderPickers();
   });
 }
@@ -71,6 +72,7 @@ function renderPickers() {
 
 $('#join-code').addEventListener('input', (e) => {
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+  $('#join-msg').textContent = '';
   refreshJoinInfo();
 });
 $('#join-figures').addEventListener('click', (e) => {
@@ -99,7 +101,25 @@ $('#join-form').addEventListener('submit', (e) => {
   });
 });
 
+/* ---------------- Aktionen ---------------- */
+
+/** Schickt eine Absicht an den Server; Ablehnungen erscheinen als Meldung. */
+function act(action) {
+  return new Promise((resolve) => {
+    socket.emit('act', action, (res) => {
+      if (!res.ok) toast(res.error, 'error');
+      resolve(res);
+    });
+  });
+}
+window.__act = act;
+
 /* ---------------- App ---------------- */
+
+let tab = 'turn';
+let lastAttention = '';
+let miniOpen = null;
+let bankruptArmed = 0;
 
 function showApp() {
   $('#join').classList.add('hidden');
@@ -107,7 +127,25 @@ function showApp() {
   render();
 }
 
-function lobbyMe() { return S?.lobby.find((p) => p.id === me); }
+function setTab(t) {
+  tab = t;
+  $$('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === t));
+  ['turn', 'props', 'trade', 'mini'].forEach((k) => $(`#panel-${k}`).classList.toggle('hidden', !S?.game || k !== t));
+  window.scrollTo(0, 0);
+}
+
+$('#tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-tab]');
+  if (b && !b.disabled) setTab(b.dataset.tab);
+});
+
+const lobbyMe = () => S?.lobby.find((p) => p.id === me);
+const gp = (id) => S.game.players.find((p) => p.id === id);
+const pname = (id) => (id ? escapeHtml(gp(id)?.name || '?') : 'die Bank');
+const sqName = (i) => escapeHtml(S.board[i].name);
+const gcolor = (i) => S.groupColors[S.board[i].group];
+
+let shownMoney;
 
 function renderHeader() {
   const p = lobbyMe();
@@ -115,6 +153,21 @@ function renderHeader() {
   document.documentElement.style.setProperty('--me', p.color);
   $('#me-fig').textContent = p.figure;
   $('#me-name').textContent = p.name;
+  const g = S.game;
+  if (!g) {
+    $('#me-money').textContent = fmtM(S.settings.startMoney);
+    $('#turn-name').textContent = '–';
+    return;
+  }
+  const mine = gp(me);
+  if (shownMoney !== mine.money) {
+    animateMoney($('#me-money'), shownMoney, mine.money, $('.me-money-wrap'));
+    shownMoney = mine.money;
+  }
+  const cur = gp(g.currentId);
+  const t = $('#turn-name');
+  t.textContent = g.phase === 'gameover' ? 'Spielende' : (cur.id === me ? 'Du!' : cur.name);
+  t.classList.toggle('mine', cur.id === me && g.phase !== 'gameover');
 }
 
 function renderWaiting() {
@@ -127,13 +180,296 @@ function renderWaiting() {
     <ul class="lobby-list">${S.lobby.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}">${p.figure} ${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</li>`).join('')}</ul>`);
 }
 
+/* ---------------- Tab: Zug ---------------- */
+
+function deed(i) {
+  const sq = S.board[i];
+  let rows;
+  if (sq.type === 'street') {
+    const labels = ['Miete', '1 Haus', '2 Häuser', '3 Häuser', '4 Häuser', 'Hotel'];
+    rows = sq.rent.map((r, k) => `<tr><td>${labels[k]}</td><td>${fmtM(r)}</td></tr>`).join('') + `<tr><td>Hauspreis</td><td>${fmtM(sq.house)}</td></tr>`;
+  } else if (sq.type === 'railroad') {
+    rows = [25, 50, 100, 200].map((r, k) => `<tr><td>${k + 1} Bahnhof${k ? 'e' : ''}</td><td>${fmtM(r)}</td></tr>`).join('');
+  } else {
+    rows = '<tr><td>1 Werk</td><td>4× Augenzahl</td></tr><tr><td>2 Werke</td><td>10× Augenzahl</td></tr>';
+  }
+  return `<div class="deed"><div class="deed-head" style="--g:${gcolor(i)}">${sqName(i)}</div><table>${rows}</table>
+    <div class="deed-price">Kaufpreis ${fmtM(sq.price)}</div></div>`;
+}
+
+const btn = (label, action, cls = '', disabled = false) =>
+  `<button class="btn huge ${cls}" data-act='${escapeHtml(JSON.stringify(action))}' ${disabled ? 'disabled' : ''}>${label}</button>`;
+
+function turnHtml() {
+  const g = S.game;
+  const mine = gp(me);
+  const cur = gp(g.currentId);
+  const myTurn = cur.id === me;
+  const out = [];
+
+  if (mine.bankrupt) out.push('<div class="box"><h2>💥 Du bist pleite</h2><p>Du kannst weiter auf dem Tablet zuschauen.</p></div>');
+
+  if (g.phase === 'gameover') {
+    const w = gp(g.winner);
+    out.push(`<div class="box center"><div class="huge-emoji">🏆</div><h2>${w ? (w.id === me ? 'Du hast gewonnen!' : `${escapeHtml(w.name)} gewinnt!`) : 'Spielende'}</h2></div>`);
+  } else if (S.paused && !myTurn) {
+    out.push(`<div class="box info">⏸ ${escapeHtml(cur.name)} ist getrennt – der Zug ist pausiert.</div>`);
+  } else {
+    switch (g.phase) {
+      case 'roll':
+        out.push(myTurn
+          ? '<div class="box mine"><h2>🎲 Du bist dran!</h2><p>Das Tablet würfelt gleich für dich.</p></div>'
+          : `<div class="box">🎲 <b>${escapeHtml(cur.name)}</b> ist am Zug.</div>`);
+        break;
+      case 'jail':
+        if (myTurn) {
+          out.push(`<div class="box mine"><h2>🔒 Du sitzt im Gefängnis</h2><p>Wie willst du raus? Versuch ${mine.jailRolls + 1} von 3.</p></div>
+            ${btn(`${fmtM(50)} zahlen`, { type: 'jail:pay' }, 'primary')}
+            ${btn(`Freikarte einsetzen (${mine.jailCards})`, { type: 'jail:card' }, '', mine.jailCards === 0)}
+            ${btn('🎲 Würfeln – auf einen Pasch hoffen', { type: 'jail:roll' }, 'go')}`);
+        } else out.push(`<div class="box">🔒 <b>${escapeHtml(cur.name)}</b> sitzt im Gefängnis und entscheidet.</div>`);
+        break;
+      case 'buy': {
+        const i = g.turn.buyOffer;
+        if (myTurn) {
+          out.push(`<div class="box mine"><h2>Kaufen?</h2>${deed(i)}<p class="muted">Du hast ${fmtM(mine.money)}.</p></div>
+            ${btn(`Kaufen für ${fmtM(S.board[i].price)}`, { type: 'buy' }, 'go')}
+            ${btn('Nicht kaufen → Versteigerung', { type: 'decline' }, 'ghost-dark')}`);
+        } else out.push(`<div class="box">🤔 <b>${escapeHtml(cur.name)}</b> überlegt, ob ${sqName(i)} gekauft wird.</div>`);
+        break;
+      }
+      case 'auction': out.push(auctionHtml(g, mine)); break;
+      case 'debt': {
+        const d = g.debts[0];
+        if (d.debtorId === me) {
+          const armed = Date.now() - bankruptArmed < 5000;
+          out.push(`<div class="box warn"><h2>💸 Du musst ${fmtM(d.amount)} zahlen</h2>
+            <p>an ${pname(d.creditorId)} (${escapeHtml(d.reason)}). Du hast ${fmtM(mine.money)}.</p>
+            <p>Verkaufe Häuser oder nimm Hypotheken auf – sobald das Geld reicht, wird automatisch bezahlt.</p></div>
+            <button class="btn huge primary" data-tab-go="props">🏠 Zum Besitz</button>
+            <button class="btn huge danger" id="btn-bankrupt">${armed ? 'Wirklich? Nochmal tippen = pleite' : 'Bankrott erklären'}</button>`);
+        } else out.push(`<div class="box">💸 <b>${pname(d.debtorId)}</b> muss ${fmtM(d.amount)} an ${pname(d.creditorId)} zahlen und beschafft Geld.</div>`);
+        break;
+      }
+      case 'minigame':
+        out.push(`<div class="box mine"><h2>🎰 Minispiel für alle!</h2><p>Gleich geht es los – schau ins Tab „Minispiel“.</p></div>
+          <button class="btn huge primary" data-tab-go="mini" ${S.mini ? '' : 'disabled'}>Zum Minispiel</button>`);
+        break;
+      default: break;
+    }
+  }
+
+  if (g.lastRoll) {
+    out.push(`<div class="box small"><b>Letzter Wurf:</b> ${pname(g.lastRoll.playerId)} – 🎲 ${g.lastRoll.dice[0]} + ${g.lastRoll.dice[1]} = ${g.lastRoll.sum}${g.lastRoll.doubles ? ' (Pasch)' : ''}</div>`);
+  }
+  out.push(`<ul class="mini-log">${g.log.slice(-5).reverse().map((e) => `<li>${escapeHtml(e.text)}</li>`).join('')}</ul>`);
+  return out.join('');
+}
+
+function auctionHtml(g, mine) {
+  const a = g.auction;
+  const min = a.bidderId ? a.bid + 10 : 10;
+  const head = `<div class="box"><h2>🔨 Versteigerung: ${sqName(a.square)}</h2>
+    <div class="au-row"><div><div class="muted">Höchstgebot</div><div class="au-bid">${a.bidderId ? fmtM(a.bid) : '–'}</div>
+    <div class="muted">${a.bidderId ? `von ${a.bidderId === me ? 'dir' : pname(a.bidderId)}` : 'noch kein Gebot'}</div></div>
+    <div class="au-timer">⏱ <span data-ends="${a.endsAt}"></span></div></div></div>`;
+  if (mine.bankrupt) return head;
+  if (a.passed.includes(me)) return `${head}<div class="box info">Du bist ausgestiegen.</div>`;
+  if (a.bidderId === me) return `${head}<div class="box mine">Du hast das Höchstgebot! Warte, ob jemand überbietet.</div>`;
+  const quick = [min, min + 40, min + 90].map((v) => `<button class="btn primary" data-act='${JSON.stringify({ type: 'bid', amount: v })}'>${fmtM(v)}</button>`).join('');
+  return `${head}${deed(a.square)}
+    <div class="box"><div class="muted">Schnell bieten (Mindestschritt 10 M)</div><div class="btn-row three">${quick}</div>
+      <div class="bid-custom"><input id="bid-amount" type="number" inputmode="numeric" min="${min}" step="10" placeholder="${min}" /><button class="btn go" id="btn-bid">Bieten</button></div>
+      <p class="muted">Du hast ${fmtM(mine.money)}.</p></div>
+    ${btn('Aussteigen', { type: 'pass' }, 'ghost-dark')}`;
+}
+
+/* ---------------- Tab: Besitz ---------------- */
+
+function propsHtml() {
+  const g = S.game;
+  const mine = gp(me);
+  const locked = g.phase === 'minigame' || g.phase === 'gameover' || mine.bankrupt;
+  const owned = g.props.map((st, i) => (st && st.owner === me ? i : -1)).filter((i) => i >= 0);
+  const head = `<div class="box"><div class="stat-row">
+      <div><div class="muted">Kontostand</div><b>${fmtM(mine.money)}</b></div>
+      <div><div class="muted">Beleihbar</div><b>${fmtM(mine.assets)}</b></div>
+      <div><div class="muted">Freikarten</div><b>${mine.jailCards}</b></div></div>
+    <p class="muted small">Bank: ${g.bank.houses}/32 Häuser · ${g.bank.hotels}/12 Hotels</p>
+    ${locked && !mine.bankrupt ? '<p class="note">Während des Minispiels ist Bauen gesperrt.</p>' : ''}</div>`;
+  if (!owned.length) return `${head}<div class="box info">Du besitzt noch keine Grundstücke.</div>`;
+  const items = owned.map((i) => {
+    const sq = S.board[i];
+    const st = g.props[i];
+    const group = g.props.map((x, j) => (S.board[j].group === sq.group && x ? j : -1)).filter((j) => j >= 0);
+    const full = group.every((j) => g.props[j].owner === me);
+    let status = st.mortgaged ? 'Hypothek' : (st.houses === 5 ? '🏨 Hotel' : (st.houses ? `${'🏠'.repeat(st.houses)}` : (sq.type === 'street' ? (full ? 'Farbgruppe komplett' : 'unbebaut') : '')));
+    const mv = sq.price / 2;
+    const buttons = [];
+    if (sq.type === 'street') {
+      buttons.push(`<button class="btn small go" data-act='${JSON.stringify({ type: 'build', square: i })}' ${locked || !full || st.houses >= 5 || st.mortgaged ? 'disabled' : ''}>+ ${st.houses === 4 ? 'Hotel' : 'Haus'} (${fmtM(sq.house)})</button>`);
+      buttons.push(`<button class="btn small" data-act='${JSON.stringify({ type: 'sell', square: i })}' ${locked || !st.houses ? 'disabled' : ''}>− ${st.houses === 5 ? 'Hotel' : 'Haus'} (+${fmtM(sq.house / 2)})</button>`);
+    }
+    buttons.push(st.mortgaged
+      ? `<button class="btn small primary" data-act='${JSON.stringify({ type: 'unmortgage', square: i })}' ${locked ? 'disabled' : ''}>Ablösen (${fmtM(mv + Math.ceil(mv / 10))})</button>`
+      : `<button class="btn small" data-act='${JSON.stringify({ type: 'mortgage', square: i })}' ${locked || st.houses ? 'disabled' : ''}>Hypothek (+${fmtM(mv)})</button>`);
+    return `<div class="prop ${st.mortgaged ? 'mort' : ''}" style="--g:${gcolor(i)}">
+      <div class="prop-head"><b>${sqName(i)}</b><span>${status}</span></div>
+      <div class="prop-btns">${buttons.join('')}</div></div>`;
+  });
+  return head + items.join('');
+}
+
+/* ---------------- Tab: Handel ---------------- */
+
+function tradeSide(t, side) {
+  const s = t[side];
+  const parts = s.props.map((i) => `<span class="chip" style="--g:${gcolor(i)}">${sqName(i)}</span>`);
+  if (s.money) parts.push(`<span class="chip money">${fmtM(s.money)}</span>`);
+  if (s.jailCards) parts.push(`<span class="chip">🎫 ${s.jailCards}</span>`);
+  return parts.join(' ') || '<span class="muted">nichts</span>';
+}
+
+function tradeHtml() {
+  const g = S.game;
+  const mine = gp(me);
+  const locked = g.phase === 'minigame' || g.phase === 'gameover' || mine.bankrupt;
+  const incoming = g.trades.filter((t) => t.toId === me);
+  const outgoing = g.trades.filter((t) => t.fromId === me);
+  const out = [];
+  incoming.forEach((t) => out.push(`<div class="box offer"><h2>Angebot von ${pname(t.fromId)}</h2>
+    <div class="offer-row"><span class="muted">Du bekommst</span><div>${tradeSide(t, 'give')}</div></div>
+    <div class="offer-row"><span class="muted">Du gibst</span><div>${tradeSide(t, 'want')}</div></div>
+    <div class="btn-row"><button class="btn go" data-act='${JSON.stringify({ type: 'trade:respond', id: t.id, accept: true })}' ${locked ? 'disabled' : ''}>Annehmen</button>
+    <button class="btn danger" data-act='${JSON.stringify({ type: 'trade:respond', id: t.id, accept: false })}'>Ablehnen</button></div></div>`));
+  outgoing.forEach((t) => out.push(`<div class="box offer mine"><h2>Dein Angebot an ${pname(t.toId)}</h2>
+    <div class="offer-row"><span class="muted">Du gibst</span><div>${tradeSide(t, 'give')}</div></div>
+    <div class="offer-row"><span class="muted">Du bekommst</span><div>${tradeSide(t, 'want')}</div></div>
+    <button class="btn ghost-dark" data-act='${JSON.stringify({ type: 'trade:cancel', id: t.id })}'>Zurückziehen</button></div>`));
+
+  if (mine.bankrupt) return out.join('') || '<div class="box info">Du spielst nicht mehr mit.</div>';
+  const partners = g.players.filter((p) => !p.bankrupt && p.id !== me);
+  if (!partners.length) return out.join('');
+  const sel = $('#tr-partner')?.value;
+  const partner = partners.find((p) => p.id === sel) || partners[0];
+  const tradable = (pid, prefix) => g.props.map((st, i) => (st && st.owner === pid ? i : -1)).filter((i) => i >= 0).map((i) => {
+    const sq = S.board[i];
+    const built = sq.type === 'street' && g.props.some((x, j) => x && S.board[j].group === sq.group && x.houses > 0);
+    return `<label class="check ${built ? 'off' : ''}" style="--g:${gcolor(i)}"><input type="checkbox" id="${prefix}-${i}" value="${i}" ${built ? 'disabled' : ''} />
+      <span>${sqName(i)}${g.props[i].mortgaged ? ' (Hypothek)' : ''}${built ? ' – Häuser' : ''}</span></label>`;
+  }).join('') || '<p class="muted small">keine Grundstücke</p>';
+
+  out.push(`<div class="box"><h2>Neues Angebot</h2>
+    ${locked ? '<p class="note">Während eines Minispiels ist kein Handel möglich.</p>' : ''}
+    <label>Mit<select id="tr-partner">${partners.map((p) => `<option value="${p.id}" ${p.id === partner.id ? 'selected' : ''}>${p.figure} ${escapeHtml(p.name)}</option>`).join('')}</select></label>
+    <h3>Du gibst</h3>
+    <div class="checks">${tradable(me, 'tg')}</div>
+    <div class="two"><label>Geld<input id="tg-money" type="number" min="0" step="10" inputmode="numeric" placeholder="0" /></label>
+      <label>Freikarten<input id="tg-cards" type="number" min="0" max="${mine.jailCards}" inputmode="numeric" placeholder="0" /></label></div>
+    <h3>Du bekommst von ${escapeHtml(partner.name)}</h3>
+    <div class="checks">${tradable(partner.id, `tw-${partner.id}`)}</div>
+    <div class="two"><label>Geld<input id="tw-money" type="number" min="0" step="10" inputmode="numeric" placeholder="0" /></label>
+      <label>Freikarten<input id="tw-cards" type="number" min="0" max="${partner.jailCards}" inputmode="numeric" placeholder="0" /></label></div>
+    <button class="btn huge primary" id="btn-trade" ${locked ? 'disabled' : ''}>Angebot senden</button></div>`);
+  return out.join('');
+}
+
+function collectTrade() {
+  const partner = $('#tr-partner').value;
+  const picked = (prefix) => $$(`input[id^="${prefix}-"]:checked`).map((i) => Number(i.value));
+  return {
+    toId: partner,
+    give: { props: picked('tg'), money: Number($('#tg-money').value) || 0, jailCards: Number($('#tg-cards').value) || 0 },
+    want: { props: picked(`tw-${partner}`), money: Number($('#tw-money').value) || 0, jailCards: Number($('#tw-cards').value) || 0 },
+  };
+}
+
+/* ---------------- Tab: Minispiel ---------------- */
+
+function miniHtml() {
+  return '<div class="box info">Gerade läuft kein Minispiel.</div>';
+}
+
+/* ---------------- Ereignisse ---------------- */
+
+$('#main').addEventListener('click', async (e) => {
+  const actBtn = e.target.closest('[data-act]');
+  if (actBtn && !actBtn.disabled) {
+    actBtn.disabled = true;
+    await act(JSON.parse(actBtn.dataset.act));
+    actBtn.disabled = false;
+    return;
+  }
+  const go = e.target.closest('[data-tab-go]');
+  if (go && !go.disabled) { setTab(go.dataset.tabGo); return; }
+  if (e.target.id === 'btn-bid') {
+    const v = Number($('#bid-amount').value);
+    if (!v) { toast('Bitte einen Betrag eingeben.', 'error'); return; }
+    const res = await act({ type: 'bid', amount: v });
+    if (res.ok) $('#bid-amount').value = '';
+    return;
+  }
+  if (e.target.id === 'btn-bankrupt') {
+    if (Date.now() - bankruptArmed < 5000) { bankruptArmed = 0; act({ type: 'bankrupt' }); } else { bankruptArmed = Date.now(); render(); }
+    return;
+  }
+  if (e.target.id === 'btn-trade') {
+    const res = await act({ type: 'trade:propose', trade: collectTrade() });
+    if (res.ok) {
+      toast('Angebot gesendet.');
+      $$('#panel-trade input').forEach((i) => { if (i.type === 'checkbox') i.checked = false; else i.value = ''; });
+    }
+  }
+});
+
+$('#main').addEventListener('change', (e) => {
+  if (e.target.id === 'tr-partner') render();
+});
+
+/* ---------------- Rendern ---------------- */
+
+/** Wechselt automatisch in den passenden Tab, wenn etwas vom Spieler gebraucht wird. */
+function attention() {
+  const g = S.game;
+  const miniActive = Boolean(S.mini);
+  if (miniActive && miniOpen !== S.mini.id) { miniOpen = S.mini.id; setTab('mini'); return; }
+  if (!miniActive && miniOpen !== null) { miniOpen = null; if (tab === 'mini') setTab('turn'); }
+  const needsMe = (g.phase === 'buy' || g.phase === 'jail') ? g.currentId === me
+    : g.phase === 'auction' ? !gp(me).bankrupt
+      : g.phase === 'debt' ? g.debts[0]?.debtorId === me : false;
+  const key = `${g.phase}:${g.currentId}:${g.auction?.seq || ''}:${g.debts[0]?.debtorId || ''}`;
+  if (needsMe && key !== lastAttention && tab !== 'turn') setTab('turn');
+  lastAttention = key;
+}
+
 function render() {
   if (!S || !me) return;
   renderHeader();
-  if (!S.started) {
-    $('#me-money').textContent = fmtM(S.settings.startMoney);
+  if (!S.game) {
+    $('#tabs').classList.add('hidden');
+    $('#panel-wait').classList.remove('hidden');
     renderWaiting();
     return;
   }
-  patch($('#panel-wait'), '<div class="waiting"><div class="big">🎲</div><h2>Das Spiel hat begonnen!</h2></div>');
+  if (!gp(me)) return;
+  $('#panel-wait').classList.add('hidden');
+  $('#tabs').classList.remove('hidden');
+  attention();
+  setTab(tab);
+  const miniBtn = $('#tabs [data-tab="mini"]');
+  miniBtn.disabled = !S.mini;
+  miniBtn.classList.toggle('pulse', Boolean(S.mini));
+  const incoming = S.game.trades.filter((t) => t.toId === me).length;
+  $('#trade-badge').textContent = incoming;
+  $('#trade-badge').classList.toggle('hidden', !incoming);
+  const g = S.game;
+  const turnTab = $('#tabs [data-tab="turn"]');
+  const needs = (['buy', 'jail'].includes(g.phase) && g.currentId === me) || (g.phase === 'debt' && g.debts[0]?.debtorId === me)
+    || (g.phase === 'auction' && !g.auction.passed.includes(me) && g.auction.bidderId !== me && !gp(me).bankrupt);
+  turnTab.classList.toggle('pulse', needs);
+  patch($('#panel-turn'), turnHtml());
+  patch($('#panel-props'), propsHtml());
+  patch($('#panel-trade'), tradeHtml());
+  patch($('#panel-mini'), miniHtml());
+  tickCountdowns();
 }

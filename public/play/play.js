@@ -500,6 +500,58 @@ MINI.roulette = (m) => {
       <ul class="bet-list">${res.map((r) => `<li>${escapeHtml(r.label)} · ${fmtM(r.amount)}<b class="${r.payout ? 'win' : 'lose'}">${r.payout ? `+${fmtM(r.payout)}` : 'verloren'}</b></li>`).join('')}</ul></div>`;
 };
 
+/* ---------- Blackjack ---------- */
+
+const BJ_RESULT = { blackjack: 'Blackjack! 🎉', win: 'Gewonnen', push: 'Unentschieden', lose: 'Verloren', bust: 'Überkauft' };
+
+MINI.blackjack = (m) => {
+  const myBet = m.bets.find((b) => b.playerId === me);
+  if (m.phase === 'betting' && !m.ready.includes(me)) {
+    return `${betHead(m, '🃏 Blackjack')}
+      <div class="box"><div class="muted small">Dein Einsatz für diese Runde</div>
+        ${amountPicker('bj-amount', String(m.minBet))}
+        <button class="btn huge primary" id="btn-bj-bet">Einsatz setzen</button>
+        <p class="bj-mine">${myBet ? `Gesetzt: <b>${fmtM(myBet.amount)}</b>` : 'Noch kein Einsatz – ohne Einsatz setzt du aus.'}</p>
+        ${myBet ? `<button class="btn small ghost-dark" data-act='${JSON.stringify(miniAct({ type: 'bet', amount: 0 }))}'>Einsatz zurücknehmen</button>` : ''}</div>
+      <p class="muted small rl-odds">Dealer steht auf Soft 17 · Blackjack zahlt 3:2 · keine Versicherung</p>
+      ${readyBtn(m)}`;
+  }
+  if (m.phase === 'betting') {
+    return `${betHead(m, '🃏 Blackjack')}<div class="box">${myBet ? `Dein Einsatz: <b>${fmtM(myBet.amount)}</b>` : 'Du setzt diese Runde aus.'}</div>`;
+  }
+  const dealer = `<div class="box bj-dealer"><div class="muted small">Dealer${m.dealer.length ? ` · ${m.dealerValue.total}${m.dealer.some((c) => c.hidden) ? ' + ?' : ''}` : ''}</div>
+    <div class="cards">${m.dealer.map((c) => cardHtml(c)).join('')}</div></div>`;
+  const seat = m.seats.find((s) => s.playerId === me);
+  if (!seat) return `${betHead(m, '🃏 Blackjack')}${dealer}<div class="box info">Du setzt diese Runde aus – schau aufs Tablet.</div>`;
+  const myTurn = m.turn && m.turn.playerId === me;
+  const hands = seat.hands.map((h, k) => {
+    const active = myTurn && m.turn.hand === k;
+    return `<div class="box bj-hand ${active ? 'mine' : ''}">
+      <div class="mh-row"><span class="muted small">${seat.hands.length > 1 ? `Hand ${k + 1} · ` : ''}Einsatz ${fmtM(h.bet)}${h.doubled ? ' (verdoppelt)' : ''}</span>
+        <b class="bj-total">${h.value.total}${h.value.soft && h.value.total < 21 ? ' soft' : ''}</b></div>
+      <div class="cards">${h.cards.map((c) => cardHtml(c)).join('')}</div>
+      ${h.result ? `<div class="bj-result ${h.result}">${BJ_RESULT[h.result]}${h.payout ? ` · +${fmtM(h.payout)}` : ''}</div>` : ''}</div>`;
+  }).join('');
+  let controls = '';
+  if (myTurn) {
+    const h = seat.hands[m.turn.hand];
+    controls = `<div class="box mine bj-controls"><div class="mh-row"><h2>Du bist dran!</h2><div class="mh-timer">⏱ <span data-ends="${m.turn.endsAt}"></span></div></div>
+      <div class="btn-row">
+        <button class="btn huge go" data-act='${JSON.stringify(miniAct({ type: 'hit' }))}'>Hit</button>
+        <button class="btn huge danger" data-act='${JSON.stringify(miniAct({ type: 'stand' }))}'>Stand</button>
+        <button class="btn huge primary" data-act='${JSON.stringify(miniAct({ type: 'double' }))}' ${h.canDouble ? '' : 'disabled'}>Double</button>
+        <button class="btn huge" data-act='${JSON.stringify(miniAct({ type: 'split' }))}' ${h.canSplit ? '' : 'disabled'}>Split</button>
+      </div><p class="muted small">Nach 20 s ohne Entscheidung: automatisch Stand.</p></div>`;
+  } else if (m.turn) {
+    controls = `<div class="box info">${escapeHtml(m.players.find((p) => p.id === m.turn.playerId)?.name || '')} entscheidet gerade…</div>`;
+  } else if (m.phase === 'dealer') {
+    controls = '<div class="box info">Der Dealer spielt…</div>';
+  } else if (m.phase === 'playing') {
+    controls = '<div class="box info">Der Dealer teilt aus…</div>';
+  }
+  return `${betHead(m, '🃏 Blackjack')}${controls}${hands}${dealer}`;
+};
+
 /* ---------------- Ereignisse ---------------- */
 
 $('#main').addEventListener('click', async (e) => {
@@ -540,6 +592,13 @@ $('#main').addEventListener('click', async (e) => {
     const amount = Number($('#hr-amount').value) || 0;
     const res = await act(miniAct({ type: 'bet', horse: miniSel.horse, kind: miniSel.type, amount }));
     if (res.ok) { $('#hr-amount').value = ''; toast('Wette platziert!'); }
+    return;
+  }
+  if (e.target.id === 'btn-bj-bet') {
+    const amount = Number($('#bj-amount').value) || 0;
+    if (!amount) { toast('Bitte einen Einsatz eingeben.', 'error'); return; }
+    const res = await act(miniAct({ type: 'bet', amount }));
+    if (res.ok) { $('#bj-amount').value = ''; toast(`Einsatz: ${fmtM(amount)}`); }
     return;
   }
   if (e.target.id === 'btn-trade') {

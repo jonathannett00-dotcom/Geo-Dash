@@ -205,6 +205,56 @@ test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Min
     await shot(board, '12-roulette-ergebnis');
     await until(board, () => !S.mini, null, 60000);
 
+    /* ---------- Cem würfelt 1 + 5 = 6: Miete an Ben, dann Blackjack ---------- */
+    await until(board, () => S.mini && S.mini.type === 'blackjack');
+    assert.equal(await money(board, 'Cem'), before.Cem + roulette.results.filter((r) => r.playerId === roulette.players[2].id).reduce((t, r) => t + r.payout - r.amount, 0) - 10, 'Cem zahlt 10 M Miete für die Seestraße');
+    const bjBefore = { Anna: await money(board, 'Anna'), Ben: await money(board, 'Ben'), Cem: await money(board, 'Cem') };
+    await A.waitForSelector('#bj-amount');
+    await A.fill('#bj-amount', '20');
+    await A.click('#btn-bj-bet');
+    await B.waitForSelector('#bj-amount');
+    await B.fill('#bj-amount', '5');
+    await B.click('#btn-bj-bet');
+    assert.match(await toastText(B, /Mindesteinsatz/), /Mindesteinsatz ist 10 M/);
+    await B.fill('#bj-amount', '10');
+    await B.click('#btn-bj-bet');
+    await board.waitForSelector('.bj-seat .bj-chip:has-text("20 M")');
+    await shot(board, '13-blackjack-einsaetze');
+    for (const p of [A, B, C]) await p.click('button:has-text("Fertig")');
+    await until(board, () => S.mini && S.mini.phase !== 'betting');
+    await board.waitForSelector('.bj-seat .bj-hand .pcard');
+
+    // Entscheidungen auf den Handys treffen, bis der Dealer abrechnet
+    let rejected = false;
+    let shotTaken = false;
+    while (await board.evaluate(() => S.mini && ['playing', 'dealer'].includes(S.mini.phase))) {
+      const turn = await board.evaluate(() => S.mini && S.mini.turn && S.mini.players.find((p) => p.id === S.mini.turn.playerId).name);
+      if (turn) {
+        if (!shotTaken) { await board.waitForTimeout(400); await shot(board, '14-blackjack-tisch'); await shot(phones[turn], '15-handy-blackjack'); shotTaken = true; }
+        if (!rejected) {
+          const other = turn === 'Anna' ? B : A;
+          await other.evaluate(() => window.__act({ type: 'mini', action: { type: 'hit' } }));
+          assert.match(await toastText(other, /nicht dran/), new RegExp(`Du bist nicht dran – gerade entscheidet ${turn}`));
+          rejected = true;
+        }
+        const page = phones[turn];
+        await page.waitForSelector('.bj-controls button:has-text("Stand"):not([disabled])', { timeout: 10000 }).catch(() => {});
+        if (await page.$('.bj-controls button:has-text("Stand"):not([disabled])')) await page.click('.bj-controls button:has-text("Stand")');
+      }
+      await board.waitForTimeout(150);
+    }
+    await until(board, () => S.mini && S.mini.phase === 'results');
+    await board.waitForSelector('.bj-res');
+    const bj = await board.evaluate(() => ({ seats: S.mini.seats, players: S.mini.players }));
+    for (const name of names) {
+      const id = bj.players.find((p) => p.name === name).id;
+      const seat = bj.seats.find((x) => x.playerId === id);
+      const net = seat ? seat.hands.reduce((t, h) => t + h.payout - h.bet, 0) : 0;
+      assert.equal(await money(board, name), bjBefore[name] + net, `Blackjack-Abrechnung ${name}`);
+    }
+    await shot(board, '16-blackjack-ergebnis');
+    await until(board, () => !S.mini, null, 60000);
+
     await shot(board, '03-brett');
     await shot(A, '04-handy');
     assert.deepEqual(errors, []);

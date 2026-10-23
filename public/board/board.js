@@ -711,6 +711,80 @@ function showRouletteResults(stage, m) {
   patch(stage.querySelector('.rl-results'), `<ul class="payouts">${rows.join('') || '<li>Niemand hat gesetzt.</li>'}</ul>`);
 }
 
+/* ---------------- Blackjack ---------------- */
+
+const BJ_RESULT = { blackjack: 'Blackjack!', win: 'Gewinn', push: 'Push', lose: 'Verloren', bust: 'Überkauft' };
+
+/** Sitzpositionen im Halbkreis um den Dealer, abhängig von der Spielerzahl. */
+function seatPositions(n) {
+  if (n === 1) return [{ x: 50, y: 74 }];
+  // je mehr Spieler, desto weiter und tiefer der Bogen
+  const [rx, ry, cy] = n <= 4 ? [37, 58, 20] : (n <= 7 ? [40, 62, 16] : [42, 66, 13]);
+  const from = 170;
+  const to = 10;
+  return Array.from({ length: n }, (_, i) => {
+    const a = ((from - (i * (from - to)) / (n - 1)) * Math.PI) / 180;
+    return { x: 50 + rx * Math.cos(a), y: cy + ry * Math.sin(a) };
+  });
+}
+
+STAGES.blackjack = (m, stage) => {
+  if (!stage.querySelector('.bj')) {
+    stage.innerHTML = '<div class="bj sg"><div class="bj-top"></div><div class="bj-table"></div></div>';
+    stage._seen = new Set();
+  }
+  patch(stage.querySelector('.bj-top'), stageHead(m, '🃏 Blackjack'));
+  const seen = stage._seen;
+  const ts = m.timeScale ?? 1;
+  let fresh = 0;
+  const card = (c) => {
+    const key = c.hidden ? `h${c.n}` : c.n;
+    if (seen.has(key)) return cardHtml(c);
+    seen.add(key);
+    const delay = (fresh++ * 0.45 * ts).toFixed(2);
+    return cardHtml(c, `deal" style="animation-delay:${delay}s`);
+  };
+  // Reihenfolge wie beim Austeilen: erst alle ersten Karten, dann alle zweiten
+  const ordered = [];
+  m.seats.forEach((s) => s.hands.forEach((h) => h.cards.forEach((c) => ordered.push(c))));
+  m.dealer.forEach((c) => ordered.push(c));
+  const html = new Map();
+  ordered.sort((a, b) => a.n - b.n).forEach((c) => html.set(c.n, card(c)));
+  const cardsOf = (list) => list.map((c) => html.get(c.n)).join('');
+
+  const n = m.players.length;
+  const pos = seatPositions(n);
+  const size = n <= 4 ? 'l' : (n <= 7 ? 'm' : 's');
+  const seats = m.players.map((p, i) => {
+    const seat = m.seats.find((s) => s.playerId === p.id);
+    const bet = m.bets.find((b) => b.playerId === p.id);
+    const active = m.turn && m.turn.playerId === p.id;
+    let body;
+    if (m.phase === 'betting') {
+      body = `<div class="bj-bet">${bet ? `<span class="bj-chip">${fmtM(bet.amount)}</span>` : '<span class="muted">–</span>'}</div>`;
+    } else if (!seat) {
+      body = '<div class="bj-out">setzt aus</div>';
+    } else {
+      body = seat.hands.map((h, k) => {
+        const turnHere = active && m.turn.hand === k;
+        const res = h.result ? `<div class="bj-res ${h.result}">${BJ_RESULT[h.result]}${h.payout ? ` +${fmtM(h.payout)}` : ''}</div>` : '';
+        return `<div class="bj-hand ${turnHere ? 'turn' : ''}"><div class="bj-cards">${cardsOf(h.cards)}</div>
+          <div class="bj-meta"><span class="bj-chip">${fmtM(h.bet)}${h.doubled ? ' ×2' : ''}</span><b>${h.value.total > 21 ? `${h.value.total} 💥` : h.value.total}</b></div>${res}
+          ${turnHere ? `<div class="bj-bar"><i data-bar-ends="${m.turn.endsAt}" data-bar-total="${m.decisionMs}"></i></div>` : ''}</div>`;
+      }).join('');
+    }
+    const ready = m.phase === 'betting' && m.ready.includes(p.id) ? ' ✓' : '';
+    return `<div class="bj-seat ${size} ${active ? 'active' : ''}" style="left:${pos[i].x}%;top:${pos[i].y}%;--c:${p.color}">
+      <div class="bj-name">${escapeHtml(p.name)}${ready}</div>${body}</div>`;
+  }).join('');
+
+  const dv = m.dealer.length ? `<b>${m.dealerValue.total}${m.dealer.some((c) => c.hidden) ? ' + ?' : ''}</b>` : '';
+  const dealer = `<div class="bj-dealer"><div class="bj-dlabel">Dealer ${dv}</div><div class="bj-cards big">${cardsOf(m.dealer)}</div>
+    <div class="bj-rule">Dealer steht auf Soft 17 · Blackjack zahlt 3:2</div></div>`;
+  const shoe = `<div class="bj-shoe" title="Karten im Schuh">🂠 ${m.shoeLeft}</div>`;
+  patch(stage.querySelector('.bj-table'), `<div class="bj-felt"></div>${dealer}${shoe}${seats}`);
+};
+
 function render() {
   if (!S) return;
   if (!S.started || !S.game) renderLobby();

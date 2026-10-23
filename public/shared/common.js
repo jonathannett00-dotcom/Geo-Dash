@@ -95,3 +95,10 @@ function animateMoney(el, from, to, deltaHost) {
     else setTimeout(() => el.classList.remove('up', 'down'), 500);
   })(start);
 }
+
+/** Spielkarte (Blackjack); verdeckte Karten zeigen die Rückseite. */
+function cardHtml(c, extra = '') {
+  if (c.hidden) return `<span class="pcard back ${extra}"></span>`;
+  const red = c.s === '♥' || c.s === '♦';
+  return `<span class="pcard ${red ? 'red' : ''} ${extra}"><span>${c.r}</span><span class="s">${c.s}</span></span>`;
+}

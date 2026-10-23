@@ -6,6 +6,7 @@ const { SQUARES, GROUP_COLORS } = require('./monopoly/board');
 const { createRng } = require('./rng');
 const { HorseRace } = require('./games/horserace');
 const { Roulette } = require('./games/roulette');
+const { Blackjack } = require('./games/blackjack');
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const MAX_PLAYERS = 10;
@@ -24,6 +25,7 @@ const TIMING = { dice: 1100, step: 230, jump: 700, land: 500, rollDelay: 1600, m
 const MINIGAMES = {
   horserace: HorseRace,
   roulette: Roulette,
+  blackjack: Blackjack,
 };
 
 /** Statische Brettdaten für die Clients. */

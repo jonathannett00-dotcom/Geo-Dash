@@ -187,3 +187,14 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 .rl-result.red { background: #b81f25; }
 .rl-result.black { background: #1b1b1b; }
 .rl-result.green { background: #1a8a3a; }
+
+/* ---------- Blackjack ---------- */
+.cards { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; font-size: 1.35rem; }
+.bj-dealer .cards { font-size: 1.1rem; }
+.bj-total { font-size: 1.5rem; }
+.bj-result { margin-top: .5rem; font-weight: 800; border-radius: 8px; padding: .3rem .6rem; color: #fff; text-align: center; }
+.bj-result.win, .bj-result.blackjack { background: var(--green); }
+.bj-result.push { background: #777; }
+.bj-result.lose, .bj-result.bust { background: var(--red); }
+.bj-controls .btn-row { margin-top: .5rem; }
+.bj-mine { margin: .6rem 0 .3rem; }

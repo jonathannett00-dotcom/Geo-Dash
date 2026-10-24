@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================
- *  Ovale Rennbahn – Rendering aus dem Original-Spiel (game.js)
+ *  Ovale Rennbahn – Rendering aus dem Original-Spiel (legacy/game.js)
  *  übernommen und als wiederverwendbare Klasse verpackt.
  *  Rechnet keine Ergebnisse: Positionen kommen vom Server.
  * ========================================================= */

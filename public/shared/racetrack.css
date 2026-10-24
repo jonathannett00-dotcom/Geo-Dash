@@ -1,4 +1,4 @@
-/* Ovale Rennbahn – Stile aus dem Original-Spiel (style.css) übernommen */
+/* Ovale Rennbahn – Stile aus dem Original-Spiel (legacy/style.css) übernommen */
 .track { position: relative; }
 .track svg { display: block; width: 100%; height: auto; }
 .t-turf { fill: var(--turf); }

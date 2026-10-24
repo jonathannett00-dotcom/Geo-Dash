@@ -2,7 +2,7 @@
 
 /* =========================================================
  *  Pferderennen – Simulation und Quoten aus dem Original-Spiel
- *  (game.js), jetzt auf dem Server mit dessen Zufallsgenerator.
+ *  (legacy/game.js), jetzt auf dem Server mit dessen Zufallsgenerator.
  * ========================================================= */
 
 const HORSES_PER_RACE = 6;

@@ -6,7 +6,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const { launch } = require('./helpers');
 
-test('Root-Version (index.html, style.css, game.js) läuft weiterhin eigenständig', { timeout: 60000 }, async () => {
+test('Alte Einzelversion (legacy/index.html, style.css, game.js) läuft weiterhin eigenständig', { timeout: 60000 }, async () => {
   const browser = await launch();
   const errors = [];
   try {
@@ -15,7 +15,7 @@ test('Root-Version (index.html, style.css, game.js) läuft weiterhin eigenständ
     await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
     page.on('console', (m) => { if (m.type() === 'error' && !/fonts|ERR_FAILED/.test(m.text())) errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push(e.message));
-    await page.goto(pathToFileURL(path.join(__dirname, '..', 'index.html')).href);
+    await page.goto(pathToFileURL(path.join(__dirname, '..', 'legacy', 'index.html')).href);
     await page.fill('#player-inputs input >> nth=0', 'Anna');
     await page.fill('#player-inputs input >> nth=1', 'Ben');
     await page.click('#setup-form button[type="submit"]');

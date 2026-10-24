@@ -170,8 +170,9 @@ public/
   play/               Handy (Controller)
   shared/             gemeinsame Helfer und die Rennbahn aus dem Pferderennen-Spiel
 test/                 node:test- und Playwright-Tests
+legacy/               alte Einzelversion des Pferderennens (ohne Server)
 ```
 
 ## Grand Prix Galopp (Einzelversion)
 
-Das ursprüngliche Pferderennen-Wettspiel liegt weiterhin unverändert im Hauptverzeichnis (`index.html`, `style.css`, `game.js`). Es läuft komplett im Browser ohne Server: einfach `index.html` öffnen.
+Das ursprüngliche Pferderennen-Wettspiel liegt unverändert im Ordner `legacy/` (`index.html`, `style.css`, `game.js`). Es läuft komplett im Browser ohne Server: einfach `legacy/index.html` öffnen.

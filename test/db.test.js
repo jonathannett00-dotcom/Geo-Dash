@@ -3,7 +3,8 @@
 /*
  * Tests gegen eine echte Postgres-Datenbank (z. B. Neon).
  * Laufen nur mit gesetzter DATABASE_URL, sonst werden sie übersprungen.
- * Jeder Lauf nutzt eine eigene Tabelle und entfernt sie danach wieder.
+ * Jeder Lauf nutzt eine eigene Tabelle. Am Ende wird jeder angelegte Raum
+ * gelöscht (und geprüft, dass er weg ist), danach die Tabelle selbst.
  */
 
 const test = require('node:test');
@@ -15,8 +16,27 @@ const { persistenceScenario } = require('./persistence-scenario');
 const URL = process.env.DATABASE_URL;
 const skip = URL ? false : 'DATABASE_URL nicht gesetzt – Datenbank-Tests übersprungen';
 
+/** Speicher mit eigener Tabelle, der sich jeden gespeicherten Raumcode merkt. */
 function testStore() {
-  return createPgStore({ connectionString: URL, table: `rooms_test_${crypto.randomBytes(4).toString('hex')}`, max: 2 });
+  const store = createPgStore({ connectionString: URL, table: `rooms_test_${crypto.randomBytes(4).toString('hex')}`, max: 2 });
+  const codes = new Set();
+  const save = store.save.bind(store);
+  store.save = (code, state) => { codes.add(code); return save(code, state); };
+  store.codes = codes;
+  return store;
+}
+
+/** Löscht jeden angelegten Raum, prüft das und entfernt dann die Tabelle. */
+async function cleanup(store) {
+  try {
+    for (const code of store.codes) {
+      await store.remove(code);
+      assert.equal(await store.load(code), null, `Raum ${code} wurde gelöscht`);
+    }
+  } finally {
+    await store.drop();
+    await store.close();
+  }
 }
 
 test('Datenbank: Raum speichern, laden, überschreiben und löschen', { skip, timeout: 60000 }, async () => {
@@ -31,8 +51,7 @@ test('Datenbank: Raum speichern, laden, überschreiben und löschen', { skip, ti
     await store.remove('ABCD');
     assert.equal(await store.load('ABCD'), null);
   } finally {
-    await store.drop();
-    await store.close();
+    await cleanup(store);
   }
 });
 
@@ -41,7 +60,6 @@ test('Datenbank: Partie überlebt zwei Server-Neustarts und läuft weiter', { sk
   try {
     await persistenceScenario(store);
   } finally {
-    await store.drop();
-    await store.close();
+    await cleanup(store);
   }
 });

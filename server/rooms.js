@@ -376,6 +376,7 @@ class Room {
   }
 
   broadcast() {
+    this.manager.persist(this);
     if (!this.io) return;
     const snap = this.snapshot();
     const mini = (role) => (this.mini ? this.mini.view(role) : null);
@@ -388,11 +389,56 @@ class Room {
     Object.keys(this.timers).forEach((k) => this.clearTimer(k));
     this.stopMini();
   }
+
+  /* ---------- Speichern & Wiederherstellen ---------- */
+
+  /** Zustand des Raums als reine Daten für die Datenbank (ohne Sockets und Timer). */
+  serialize() {
+    return {
+      version: 1,
+      code: this.code,
+      settings: this.settings,
+      started: this.started,
+      lastActivity: this.lastActivity,
+      players: this.players.map(({ id, token, name, color, figure }) => ({ id, token, name, color, figure })),
+      game: this.game ? this.game.toJSON() : null,
+      shoe: this.shoe,
+    };
+  }
+
+  /**
+   * Stellt einen gespeicherten Raum wieder her. Alle Spieler gelten als getrennt
+   * und kommen per Token zurück; ein unterbrochenes Minispiel startet neu.
+   */
+  static restore(data, manager) {
+    const room = new Room(data.code, manager);
+    room.settings = { ...room.settings, ...data.settings };
+    room.started = Boolean(data.started);
+    room.lastActivity = data.lastActivity || Date.now();
+    room.players = (data.players || []).map((p) => ({ ...p, connected: false, sockets: new Set(), leaveTimer: null }));
+    room.shoe = data.shoe || {};
+    if (data.game) {
+      room.game = MonopolyGame.fromJSON(data.game, { rng: room.rng });
+      // Bereits gezeigte Würfe und Züge nicht noch einmal abwarten
+      room.seenRollSeq = room.game.lastRoll ? room.game.lastRoll.seq : 0;
+      room.seenMoveSeq = room.game.moves.reduce((m, x) => Math.max(m, x.seq), 0);
+    }
+    if (!room.started) {
+      room.players.forEach((p) => {
+        p.leaveTimer = setTimeout(() => room.dropPlayer(p.id), RECONNECT_GRACE_MS);
+        p.leaveTimer.unref?.();
+      });
+    }
+    return room;
+  }
 }
 
 class RoomManager {
   constructor(config = {}) {
     this.config = config;
+    this.store = config.store || null;   // Postgres-Speicher oder null (nur Arbeitsspeicher)
+    this.saveTimers = new Map();
+    this.saving = new Map();
     this.io = null;
     this.rooms = new Map();
     this.sweeper = setInterval(() => this.sweep(), SWEEP_INTERVAL_MS);
@@ -419,12 +465,73 @@ class RoomManager {
       if (now - room.lastActivity > ROOM_IDLE_MS) {
         room.dispose();
         this.rooms.delete(code);
+        clearTimeout(this.saveTimers.get(code));
+        this.saveTimers.delete(code);
+        if (this.store) this.store.remove(code).catch((err) => console.error(`Raum ${code} konnte nicht gelöscht werden:`, err.message));
       }
     }
   }
 
+  /* ---------- Speichern in der Datenbank ---------- */
+
+  /**
+   * Merkt einen Raum zum Speichern vor (gebündelt). Während eines Minispiels wird
+   * nicht gespeichert – der letzte Stand ist dann der Beginn des Minispiels.
+   */
+  persist(room) {
+    if (!this.store || room.mini) return;
+    clearTimeout(this.saveTimers.get(room.code));
+    const t = setTimeout(() => { this.saveTimers.delete(room.code); this.saveNow(room); }, 250);
+    t.unref?.();
+    this.saveTimers.set(room.code, t);
+  }
+
+  /** Speichert sofort; Fehler werden geloggt, das Spiel läuft im Arbeitsspeicher weiter. */
+  saveNow(room) {
+    if (!this.store) return Promise.resolve();
+    const previous = this.saving.get(room.code) || Promise.resolve();
+    const next = previous
+      .then(() => this.store.save(room.code, room.serialize()))
+      .catch((err) => console.error(`Raum ${room.code} konnte nicht gespeichert werden:`, err.message));
+    this.saving.set(room.code, next);
+    return next;
+  }
+
+  /** Alle vorgemerkten Speicherungen sofort ausführen (z. B. vor dem Beenden). */
+  async flush() {
+    if (!this.store) return;
+    for (const [code, t] of this.saveTimers) {
+      clearTimeout(t);
+      const room = this.rooms.get(code);
+      if (room && !room.mini) this.saveNow(room);
+    }
+    this.saveTimers.clear();
+    await Promise.all(this.saving.values());
+  }
+
+  /** Lädt beim Start alle gespeicherten Räume der letzten 6 h. */
+  async loadFromStore() {
+    if (!this.store) return 0;
+    const states = await this.store.loadAll(ROOM_IDLE_MS);
+    let count = 0;
+    for (const data of states) {
+      if (!data || !data.code || this.rooms.has(data.code)) continue;
+      try {
+        const room = Room.restore(data, this);
+        this.rooms.set(room.code, room);
+        room.schedule();
+        count++;
+      } catch (err) {
+        console.error(`Raum ${data.code} konnte nicht wiederhergestellt werden:`, err.message);
+      }
+    }
+    return count;
+  }
+
   shutdown() {
     clearInterval(this.sweeper);
+    this.saveTimers.forEach(clearTimeout);
+    this.saveTimers.clear();
     for (const room of this.rooms.values()) room.dispose();
     this.rooms.clear();
   }

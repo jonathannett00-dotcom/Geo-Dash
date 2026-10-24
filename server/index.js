@@ -7,6 +7,7 @@ const express = require('express');
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
 const { RoomManager } = require('./rooms');
+const { createPgStore } = require('./db');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
@@ -39,7 +40,9 @@ function createServer(options = {}) {
     testMode,
     seed: options.seed ?? process.env.MONOPOLY_SEED,
     timeScale: options.timeScale ?? (testMode ? 0.25 : 1),
+    store: options.store || null,
   };
+  const { store } = config;
 
   const app = express();
   app.set('trust proxy', true);
@@ -81,23 +84,41 @@ function createServer(options = {}) {
     server,
     io,
     rooms,
-    listen(port = 0) {
+    /** Lädt (falls eine Datenbank angebunden ist) gespeicherte Räume und startet dann den Server. */
+    async listen(port = 0) {
+      if (store) {
+        await store.init();
+        const count = await rooms.loadFromStore();
+        if (count) console.log(`${count} gespeicherte${count === 1 ? 'r Raum' : ' Räume'} wiederhergestellt.`);
+      }
       return new Promise((resolve) => server.listen(port, () => resolve(server.address().port)));
     },
-    close() {
+    async close() {
+      await rooms.flush();
       rooms.shutdown();
       io.close();
-      return new Promise((resolve) => server.close(() => resolve()));
+      await new Promise((resolve) => server.close(() => resolve()));
+      if (store) await store.close();
     },
   };
 }
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 3000;
-  const instance = createServer();
+  // Mit DATABASE_URL werden Räume in Postgres gespeichert, sonst nur im Arbeitsspeicher
+  const store = process.env.DATABASE_URL ? createPgStore({ connectionString: process.env.DATABASE_URL }) : null;
+  const instance = createServer({ store });
   instance.listen(port).then((p) => {
     console.log(`Monopoly-Abend läuft auf http://localhost:${p}  (Tablet: /board, Handy: /play)`);
+    console.log(store ? 'Spielstände werden in Postgres gespeichert.' : 'Keine DATABASE_URL – Spielstände nur im Arbeitsspeicher.');
+  }).catch((err) => {
+    console.error('Start fehlgeschlagen:', err.message);
+    process.exit(1);
   });
+  // Render beendet den Dienst bei Deploys mit SIGTERM: vorher alles speichern
+  const stop = () => instance.close().finally(() => process.exit(0));
+  process.once('SIGTERM', stop);
+  process.once('SIGINT', stop);
 }
 
 module.exports = { createServer, joinUrl };

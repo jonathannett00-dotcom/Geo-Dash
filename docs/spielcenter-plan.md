@@ -43,7 +43,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 - Es braucht eine Spielauswahl in der Lobby der Host-Ansicht.
 
 ### Betrieb
-- Ohne Persistenz: Ein Neustart, ein Deploy oder das Einschlafen des Render-Free-Plans löscht laufende Spiele.
+- Persistenz (Branch `feature/persistenz`): Mit `DATABASE_URL` werden Räume in Postgres (Neon) gespeichert und beim Start geladen. Offen: Anbindung an Neon und Nachweis gegen die echte Neon-Datenbank; ein unterbrochenes Minispiel startet nach einem Neustart neu.
 - Nur eine Server-Instanz möglich, weil Socket.IO keinen gemeinsamen Adapter (z. B. Redis) nutzt.
 - Keine Authentifizierung: Wer den Raumcode kennt, kann die Host-Ansicht öffnen und starten. Getrennte Plätze lassen sich übernehmen.
 

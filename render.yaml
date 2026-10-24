@@ -11,3 +11,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # Verbindungs-URL von Neon – wird im Render-Dashboard eingetragen, nie im Repo
+      - key: DATABASE_URL
+        sync: false

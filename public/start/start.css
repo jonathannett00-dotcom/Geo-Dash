@@ -1,0 +1,53 @@
+/* ================= Startseite ================= */
+html, body.start-page { min-height: 100%; }
+body.start-page { position: relative; overflow-x: hidden; font-size: clamp(15px, min(1.15vw, 2vh), 24px); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.st-wrap {
+  position: relative; z-index: 1; min-height: 100vh; min-height: 100dvh; max-width: 64em; margin: 0 auto;
+  padding: 3em 2em; display: flex; flex-direction: column; justify-content: center; gap: 2.2em;
+}
+.st-title { font-family: var(--font-body); font-weight: 800; font-size: 3.6em; letter-spacing: -.01em; margin: 0 0 .25em; line-height: 1; }
+.st-sub { margin: 0; color: var(--lb-muted); font-size: 1.2em; line-height: 1.45; max-width: 34em; }
+
+.st-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2em; }
+.st-card { background: var(--lb-panel); border-radius: .9em; padding: 1.6em 1.7em 1.7em; display: flex; flex-direction: column; gap: .7em; }
+.st-new { background: var(--lb-mono); }
+.st-join { background: var(--lb-risk); }
+.st-card h2 { margin: 0; font-size: 1.7em; font-weight: 800; }
+.st-card p { margin: 0 0 .6em; color: rgba(255, 255, 255, .8); line-height: 1.45; }
+
+.st-btn {
+  font: inherit; font-weight: 800; font-size: 1.2em; border: 0; border-radius: .55em; cursor: pointer; min-height: 2.9em;
+  padding: .6em 1.2em; background: rgba(255, 255, 255, .14); color: var(--lb-text); margin-top: auto;
+}
+.st-btn.primary { background: var(--lb-accent); color: var(--lb-accent-ink); }
+.st-btn:disabled { opacity: .55; cursor: progress; }
+.st-btn:focus-visible { outline: 3px solid var(--lb-text); outline-offset: 3px; }
+
+.st-join-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6em; margin-top: auto; }
+.st-join-form .st-btn { margin-top: 0; }
+.st-code {
+  font: inherit; font-weight: 800; font-size: 1.5em; letter-spacing: .3em; text-align: center; text-transform: uppercase;
+  min-height: 1.95em; border-radius: .37em; border: 2px solid transparent; background: rgba(0, 0, 0, .25); color: var(--lb-text); padding: 0 .4em;
+}
+.st-code::placeholder { color: rgba(255, 255, 255, .35); }
+.st-code:focus { border-color: var(--lb-accent); outline: none; }
+
+.st-status { min-height: 3.2em; display: grid; gap: .6em; align-content: start; }
+.st-msg { margin: 0; font-weight: 600; color: #f0c4be; min-height: 1.3em; }
+.st-wait { display: flex; align-items: center; gap: .9em; color: var(--lb-muted); }
+/* Ruhiges Lade-Element ohne Icon: ein schmaler Streifen, der langsam hin und her läuft */
+.st-bar { position: relative; width: 6em; height: .3em; border-radius: 1em; background: rgba(255, 255, 255, .12); overflow: hidden; flex: none; }
+.st-bar span { position: absolute; top: 0; bottom: 0; width: 35%; border-radius: 1em; background: var(--lb-text); opacity: .7; animation: stSlide 1.8s ease-in-out infinite alternate; }
+@keyframes stSlide { from { left: 0; } to { left: 65%; } }
+@media (prefers-reduced-motion: reduce) { .st-bar span { animation: none; left: 0; width: 100%; opacity: .35; } }
+
+@media (max-width: 720px) {
+  body.start-page { font-size: 16px; }
+  .st-wrap { padding: 2em 16px; justify-content: flex-start; gap: 1.6em; }
+  .st-title { font-size: 2.6em; }
+  .st-actions { grid-template-columns: 1fr; }
+  /* Am Handy will man meist beitreten: das zuerst */
+  .st-join { order: -1; }
+}

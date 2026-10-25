@@ -51,7 +51,8 @@ function createServer(options = {}) {
   const rooms = new RoomManager(config);
 
   const sendPage = (file) => (req, res) => res.sendFile(path.join(PUBLIC_DIR, file));
-  app.get('/', (req, res) => res.redirect('/board/'));
+  // Öffentliche Startseite: neues Spiel anlegen oder einem Raum beitreten
+  app.get('/', sendPage('start/index.html'));
   app.get(['/board', '/board/'], sendPage('board/index.html'));
   app.get(['/play', '/play/'], sendPage('play/index.html'));
   app.use(express.static(PUBLIC_DIR, { index: false }));
@@ -61,6 +62,26 @@ function createServer(options = {}) {
   app.get('/healthz', (req, res) => res.json({ ok: true, rooms: rooms.size }));
 
   const roomCode = (req) => String(req.query.room || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+
+  // Neuen Raum anlegen (Startseite). Grenzen: 20 Räume gleichzeitig, 5 pro Minute und IP.
+  app.post('/api/rooms', (req, res) => {
+    try {
+      const room = rooms.open({ ip: req.ip });
+      res.status(201).json({ code: room.code });
+    } catch (err) {
+      if (err.name !== 'UserError') { console.error(err); return res.status(500).json({ error: 'Interner Fehler – bitte nochmal versuchen.' }); }
+      res.status(err.status || 400).json({ error: err.message });
+    }
+  });
+
+  // Gibt es den Raum? (Beitritt per Code auf der Startseite)
+  app.get('/api/rooms/:code', (req, res) => {
+    const code = String(req.params.code || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+    const room = code.length === 4 && rooms.get(code);
+    // Unbekannter Code ist eine normale Antwort (kein 404), damit der Browser keinen Fehler protokolliert
+    if (!room) return res.json({ exists: false, error: 'Diesen Raum gibt es nicht (mehr). Bitte prüfe den Code.' });
+    res.json({ exists: true, code: room.code, gameType: room.gameType, started: room.started });
+  });
 
   app.get('/api/join-url', (req, res) => {
     const code = roomCode(req);

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#14181d" />
+  <title>Spieleabend</title>
+  <meta name="description" content="Spieleabend: Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly und Risiko, ohne Anmeldung." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/shared/base.css" />
+  <link rel="stylesheet" href="/shared/lobby.css" />
+  <link rel="stylesheet" href="/start/start.css" />
+</head>
+<body class="start-page lb-theme">
+  <div id="st-bg" class="lb-bg" aria-hidden="true"></div>
+  <main class="st-wrap">
+    <header class="st-head">
+      <h1 class="st-title">Spieleabend</h1>
+      <p class="st-sub">Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly und Risiko – ohne Anmeldung.</p>
+    </header>
+
+    <div class="st-actions">
+      <section class="st-card st-new" aria-labelledby="st-new-title">
+        <h2 id="st-new-title">Neues Spiel starten</h2>
+        <p>Für den Fernseher, Laptop oder das Tablet. Hier erscheinen Raumcode und QR-Code, das Spiel wählt ihr in der Lobby.</p>
+        <button id="st-create" class="st-btn primary" type="button">Neues Spiel starten</button>
+      </section>
+
+      <section class="st-card st-join" aria-labelledby="st-join-title">
+        <h2 id="st-join-title">Spiel beitreten</h2>
+        <p>Mit dem Handy: den Raumcode vom großen Bildschirm eingeben.</p>
+        <form id="st-join-form" class="st-join-form" autocomplete="off">
+          <label class="sr-only" for="st-code">Raumcode</label>
+          <input id="st-code" class="st-code" maxlength="4" inputmode="text" autocapitalize="characters" placeholder="ABCD" aria-label="Raumcode" />
+          <button id="st-join" class="st-btn" type="submit">Beitreten</button>
+        </form>
+      </section>
+    </div>
+
+    <div id="st-status" class="st-status" aria-live="polite">
+      <p id="st-msg" class="st-msg"></p>
+      <div id="st-wait" class="st-wait hidden">
+        <span class="st-bar" aria-hidden="true"><span></span></span>
+        <span>Der Server startet, das dauert bis zu einer Minute.</span>
+      </div>
+    </div>
+  </main>
+
+  <script src="/shared/lobby.js"></script>
+  <script src="/start/start.js"></script>
+</body>
+</html>

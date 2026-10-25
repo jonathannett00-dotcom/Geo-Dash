@@ -22,7 +22,8 @@ function remember(code) {
 function createRoom() {
   socket.emit('board:create', {}, (res) => {
     if (res.ok) remember(res.code);
-    else toast(res.error, 'error');
+    // Grenze erreicht: zurück zur Startseite, dort steht die Meldung
+    else location.replace(`/?fehler=${encodeURIComponent(res.error)}`);
   });
 }
 

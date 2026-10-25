@@ -10,7 +10,15 @@ const MAX_PLAYERS = 10;
 const MIN_PLAYERS = 2;
 const RECONNECT_GRACE_MS = 5 * 60 * 1000;
 const ROOM_IDLE_MS = 6 * 60 * 60 * 1000;
-const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
+const SWEEP_INTERVAL_MS = 60 * 1000;
+/** Schutz vor Missbrauch (Seite und Repo sind öffentlich). */
+const MAX_ACTIVE_ROOMS = 20;
+const ROOMS_PER_MINUTE_PER_IP = 5;
+const RATE_WINDOW_MS = 60 * 1000;
+/** Räume ohne Host-Ansicht und ohne Spieler verschwinden nach 30 Minuten. */
+const EMPTY_ROOM_MS = 30 * 60 * 1000;
+/** Ist das Raumlimit erreicht, dürfen leere Räume schon nach 2 Minuten Platz machen. */
+const EMPTY_EVICT_MS = 2 * 60 * 1000;
 
 const COLORS = ['#e63946', '#1d72d8', '#2a9d8f', '#f4a261', '#8e44ad', '#e9c46a', '#ff6fb5', '#264653', '#8ac926', '#795548'];
 const FIGURES = ['🎩', '🚗', '🐕', '🚢', '👢', '🐈', '🦆', '🦖', '✈️', '🎸'];
@@ -48,6 +56,15 @@ class Room {
   get minPlayers() { return this.module.minPlayers; }
 
   touch() { this.lastActivity = Date.now(); }
+
+  /** Ist gerade eine Host-Ansicht verbunden? */
+  hasHost() {
+    const sockets = this.io && this.io.sockets && this.io.sockets.adapter.rooms.get(`${this.code}:board`);
+    return Boolean(sockets && sockets.size);
+  }
+
+  /** Leer: keine Host-Ansicht verbunden und kein Spieler im Raum. */
+  isEmpty() { return !this.players.length && !this.hasHost(); }
 
   playerById(id) { return this.players.find((p) => p.id === id); }
 
@@ -332,6 +349,12 @@ class Room {
   }
 }
 
+/** Adresse des Aufrufers (hinter dem Proxy von Render steht sie in X-Forwarded-For). */
+function socketIp(socket) {
+  const fwd = socket.handshake.headers['x-forwarded-for'];
+  return (fwd ? String(fwd).split(',')[0].trim() : '') || socket.handshake.address || 'unbekannt';
+}
+
 class RoomManager {
   constructor(config = {}) {
     this.config = config;
@@ -340,6 +363,8 @@ class RoomManager {
     this.saving = new Map();
     this.io = null;
     this.rooms = new Map();
+    this.recentCreates = new Map();      // IP → Zeitpunkte der letzten Raum-Erstellungen
+    this.maxRooms = config.maxRooms ?? MAX_ACTIVE_ROOMS;
     this.sweeper = setInterval(() => this.sweep(), SWEEP_INTERVAL_MS);
     this.sweeper.unref?.();
   }
@@ -358,16 +383,47 @@ class RoomManager {
     return room;
   }
 
-  /** Löscht Räume nach 6 h ohne Aktivität. */
+  /**
+   * Neuer Raum über die Startseite oder die Host-Ansicht – mit Grenzen: höchstens
+   * 20 Räume gleichzeitig und 5 neue pro Minute und IP.
+   */
+  open({ ip = 'unbekannt', now = Date.now() } = {}) {
+    const recent = (this.recentCreates.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+    if (recent.length >= ROOMS_PER_MINUTE_PER_IP) {
+      this.recentCreates.set(ip, recent);
+      throw Object.assign(new UserError('Von hier wurden gerade viele Räume angelegt. Bitte warte eine Minute und versuche es dann noch einmal.'), { status: 429 });
+    }
+    if (this.rooms.size >= this.maxRooms) {
+      // Erst verlassene, leere Räume aufräumen, dann erst ablehnen
+      const empty = [...this.rooms.values()].filter((r) => r.isEmpty() && now - r.lastActivity > EMPTY_EVICT_MS)
+        .sort((a, b) => a.lastActivity - b.lastActivity);
+      if (empty.length) this.remove(empty[0].code);
+      else throw Object.assign(new UserError(`Gerade laufen schon ${this.maxRooms} Spiele – mehr gehen nicht gleichzeitig. Bitte versuche es später noch einmal.`), { status: 503 });
+    }
+    recent.push(now);
+    this.recentCreates.set(ip, recent);
+    return this.create();
+  }
+
+  /** Raum entfernen (auch aus der Datenbank). */
+  remove(code) {
+    const room = this.rooms.get(code);
+    if (!room) return;
+    room.dispose();
+    this.rooms.delete(code);
+    clearTimeout(this.saveTimers.get(code));
+    this.saveTimers.delete(code);
+    if (this.store) this.store.remove(code).catch((err) => console.error(`Raum ${code} konnte nicht gelöscht werden:`, err.message));
+  }
+
+  /** Löscht Räume nach 6 h ohne Aktivität und leere Räume (ohne Host und Spieler) nach 30 Minuten. */
   sweep(now = Date.now()) {
     for (const [code, room] of this.rooms) {
-      if (now - room.lastActivity > ROOM_IDLE_MS) {
-        room.dispose();
-        this.rooms.delete(code);
-        clearTimeout(this.saveTimers.get(code));
-        this.saveTimers.delete(code);
-        if (this.store) this.store.remove(code).catch((err) => console.error(`Raum ${code} konnte nicht gelöscht werden:`, err.message));
-      }
+      const idle = now - room.lastActivity;
+      if (idle > ROOM_IDLE_MS || (idle > EMPTY_ROOM_MS && room.isEmpty())) this.remove(code);
+    }
+    for (const [ip, list] of this.recentCreates) {
+      if (!list.some((t) => now - t < RATE_WINDOW_MS)) this.recentCreates.delete(ip);
     }
   }
 
@@ -408,10 +464,17 @@ class RoomManager {
     await Promise.all(this.saving.values());
   }
 
-  /** Lädt beim Start alle gespeicherten Räume der letzten 6 h. */
+  /**
+   * Lädt beim Start alle gespeicherten Räume der letzten 6 h – höchstens so viele, wie
+   * gleichzeitig erlaubt sind (die neuesten); ältere werden aus der Datenbank gelöscht.
+   */
   async loadFromStore() {
     if (!this.store) return 0;
-    const states = await this.store.loadAll(ROOM_IDLE_MS);
+    const all = await this.store.loadAll(ROOM_IDLE_MS);   // älteste zuerst
+    const states = all.slice(-this.maxRooms);
+    for (const data of all.slice(0, all.length - states.length)) {
+      if (data && data.code) this.store.remove(data.code).catch((err) => console.error(`Raum ${data.code} konnte nicht gelöscht werden:`, err.message));
+    }
     let count = 0;
     for (const data of states) {
       if (!data || !data.code || this.rooms.has(data.code)) continue;
@@ -475,7 +538,7 @@ class RoomManager {
     };
 
     handle('board:create', (_, use) => {
-      const room = this.create();
+      const room = this.open({ ip: socketIp(socket) });
       socket.join(`${room.code}:board`);
       socket.data.code = room.code;
       socket.data.role = 'board';
@@ -564,11 +627,17 @@ class RoomManager {
 
     socket.on('disconnect', () => {
       const room = this.get(socket.data.code);
-      if (!room || socket.data.role !== 'player') return;
+      if (!room) return;
+      // Ab jetzt zählt die Zeit, nach der ein leerer Raum verschwindet
+      if (socket.data.role === 'board') { room.touch(); return; }
+      if (socket.data.role !== 'player') return;
       room.detach(socket);
       room.broadcast();
     });
   }
 }
 
-module.exports = { RoomManager, Room, UserError, MINIGAMES, TIMING, COLORS, FIGURES, MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS };
+module.exports = {
+  RoomManager, Room, UserError, MINIGAMES, TIMING, COLORS, FIGURES, MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS,
+  MAX_ACTIVE_ROOMS, ROOMS_PER_MINUTE_PER_IP, EMPTY_ROOM_MS,
+};

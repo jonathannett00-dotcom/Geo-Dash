@@ -1,0 +1,65 @@
+/* ================= Handy: Risiko ================= */
+.rk-box { display: grid; gap: .6rem; }
+.rk-box h2 small { font-size: .75rem; color: var(--muted); font-weight: 600; }
+.rk-box label { display: grid; gap: .25rem; font-weight: 700; font-size: .85rem; color: var(--muted); }
+.rk-row { display: flex; gap: .5rem; align-items: end; }
+.rk-row label { flex: 1; }
+.rk-row .btn { flex: none; padding: .6rem .9rem; }
+.btn.block { width: 100%; }
+.rk-must { color: var(--red); font-weight: 700; margin: 0; }
+.rk-dice-pick { display: flex; gap: .5rem; }
+.rk-pick { flex: 1; display: flex !important; align-items: center; justify-content: center; gap: .4rem; padding: .7rem; border: 2px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink) !important; font-size: 1rem !important; cursor: pointer; }
+.rk-pick.sel { border-color: var(--gold); background: #fff8dd; }
+.rk-pick input { width: auto; }
+.rk-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: .4rem; }
+.rk-card { display: grid !important; gap: .1rem; padding: .5rem; border: 2px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink) !important; cursor: pointer; }
+.rk-card.sel { border-color: var(--gold); background: #fff8dd; }
+.rk-card input { width: auto; justify-self: end; margin: 0; }
+.rk-card small { color: var(--muted); font-weight: 600; }
+.rk-own { margin: .5rem 0 0; padding-left: 1rem; display: grid; gap: .35rem; font-size: .85rem; }
+.rk-own b { color: var(--ink); }
+
+/* ---------- Phasenanzeige ---------- */
+.rk-phase { position: sticky; top: 0; z-index: 5; }
+.rk-phase-inner {
+  background: #17263a; color: #fff; border-radius: var(--radius); padding: .7rem 1rem;
+  box-shadow: inset .3rem 0 0 rgba(255, 255, 255, .25); transition: background-color .3s ease, box-shadow .3s ease;
+}
+.rk-phase-inner.mine { box-shadow: inset .3rem 0 0 var(--me, var(--gold)); }
+.rk-phase-inner.warn { background: #5a1f1a; box-shadow: inset .3rem 0 0 #f0b4ad; }
+.rk-phase-title { font-size: 1.45rem; font-weight: 800; line-height: 1.15; }
+.rk-phase-detail { font-size: 1rem; color: #c9d3dd; margin-top: .15rem; min-height: 1.2em; }
+
+/* ---------- Karte zum Antippen ---------- */
+.rk-mapcard { position: relative; border-radius: var(--radius); overflow: hidden; background: #1c3149; box-shadow: var(--shadow); }
+.rk-pmap { display: block; width: 100%; height: min(62vw, 46vh); touch-action: none; user-select: none; -webkit-user-select: none; }
+.rk-p-ocean { fill: #1c3149; }
+.rk-p-other { fill: #3a4656; }
+.rk-p-area { fill: #b5b0a4; fill-rule: evenodd; stroke: #17202a; stroke-width: .6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: fill .4s ease; }
+.rk-p-lakes { fill: #1c3149; }
+.rk-p-cont path { fill: none; stroke: #17202a; stroke-width: 1.3px; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rk-p-sel { fill: none; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rk-p-sel.from, .rk-p-sel.to { fill: #fff; fill-opacity: .2; stroke: #fff; stroke-width: 2.4px; }
+.rk-p-sel.to.attack { fill: #f0b4ad; stroke: #f0b4ad; }
+.rk-p-sel.target { stroke: rgba(255, 255, 255, .7); stroke-width: 1.3px; stroke-dasharray: 3 3; }
+.rk-p-marker circle { fill: #f6f4ef; stroke: #17202a; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.rk-p-marker.mine circle { stroke: var(--me, #17202a); stroke-width: 2.2px; }
+.rk-p-marker text { fill: #17202a; font: 700 8.2px var(--font-body); font-variant-numeric: tabular-nums; pointer-events: none; }
+.rk-p-labels text { fill: rgba(236, 240, 244, .9); font-family: var(--font-body); font-weight: 600; dominant-baseline: central; paint-order: stroke; stroke: rgba(16, 24, 33, .8); stroke-width: .3em; pointer-events: none; }
+.rk-mapbtns { display: flex; gap: .4rem; padding: .4rem; background: #142538; }
+.rk-mapbtns .btn { min-width: 48px; min-height: 44px; padding: 0 .9rem; background: #23384f; color: #fff; font-size: 1.05rem; }
+.rk-mapbtns .btn:last-child { margin-left: auto; }
+
+/* Kopfzeile im Risiko-Modus: ohne Spielfigur, Zahlen auf einer Zeile */
+body.risiko-mode .me-fig { display: none; }
+body.risiko-mode .me-money { font-size: 1rem; white-space: nowrap; }
+
+/* ---------- Große, eindeutige Bedienung ---------- */
+#panel-risiko .btn { min-height: 48px; }
+#panel-risiko select, #panel-risiko input[type="number"] { min-height: 44px; }
+#panel-risiko .btn.armed { background: #7a1610; color: #fff; }
+#panel-risiko .rk-pick { min-height: 48px; }
+.rk-switch { display: flex !important; flex-direction: row !important; align-items: center; gap: .6rem; color: var(--ink) !important; font-weight: 600 !important; font-size: .95rem !important; margin-top: .5rem; }
+.rk-switch input { width: 1.4rem; height: 1.4rem; flex: none; }
+#rk-settings summary { cursor: pointer; font-weight: 700; min-height: 32px; display: flex; align-items: center; }
+#rk-actions { display: grid; gap: .8rem; }

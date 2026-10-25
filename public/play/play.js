@@ -52,6 +52,7 @@ function refreshJoinInfo() {
   if (c.length !== 4) { joinInfo = null; renderPickers(); return; }
   socket.emit('room:info', { code: c }, (res) => {
     if (!res.ok) { joinInfo = null; $('#join-msg').textContent = res.error; renderPickers(); return; }
+    if ($('#join-code').value.trim().toUpperCase() !== c) return;
     joinInfo = res;
     renderRejoin(res);
     if (res.full && !res.started) $('#join-msg').textContent = 'Der Raum ist voll.';
@@ -69,11 +70,22 @@ function renderRejoin(info) {
   const away = info.lobby.filter((p) => !p.connected);
   patch(box, away.length
     ? `<p><b>Das Spiel läuft bereits.</b> Bist du rausgeflogen? Tippe auf deinen Namen, um wieder einzusteigen:</p>
-       ${away.map((p) => `<button type="button" class="btn rejoin-btn" data-reclaim="${p.id}" style="--c:${p.color}">${p.figure} ${escapeHtml(p.name)}</button>`).join('')}`
+       ${away.map((p) => `<button type="button" class="btn rejoin-btn" data-reclaim="${p.id}" style="--c:${p.color}">${info.gameType === 'monopoly' ? `${p.figure} ` : ''}${escapeHtml(p.name)}</button>`).join('')}`
     : '<p><b>Das Spiel läuft bereits</b> und alle Spieler sind verbunden – neue Spieler können nicht mehr beitreten.</p>');
 }
 
+/** Spielfigur gibt es nur bei Monopoly; Farbe und Name immer. */
+const needsFigure = () => joinInfo?.gameType === 'monopoly';
+
 function renderPickers() {
+  const game = joinInfo?.gameType || '';
+  const screen = $('#join');
+  screen.dataset.game = game;
+  $('#join-form').dataset.game = game;
+  lbBackground($('#join-bg'), game);
+  const gi = LB_GAMES[game];
+  $('#join-game').textContent = gi && joinInfo ? `${gi.name} · ${joinInfo.lobby.length} von ${joinInfo.max} Spielern` : '';
+  $('#join-figure-set').classList.toggle('hidden', !needsFigure());
   const figures = joinInfo?.figures || ['🎩', '🚗', '🐕', '🚢', '👢', '🐈', '🦆', '🦖', '✈️', '🎸'];
   const colors = joinInfo?.colors || [];
   const takenF = new Set((joinInfo?.lobby || []).map((p) => p.figure));
@@ -127,9 +139,9 @@ $('#join-colors').addEventListener('click', (e) => {
 $('#join-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const c = $('#join-code').value.trim().toUpperCase();
-  if (!pick.figure) { $('#join-msg').textContent = 'Bitte wähle eine Spielfigur.'; return; }
+  if (needsFigure() && !pick.figure) { $('#join-msg').textContent = 'Bitte wähle eine Spielfigur.'; return; }
   if (!pick.color) { $('#join-msg').textContent = 'Bitte wähle eine Farbe.'; return; }
-  socket.emit('player:join', { code: c, name: $('#join-name').value, color: pick.color, figure: pick.figure }, (res) => {
+  socket.emit('player:join', { code: c, name: $('#join-name').value, color: pick.color, figure: needsFigure() ? pick.figure : undefined }, (res) => {
     if (!res.ok) { $('#join-msg').textContent = res.error; refreshJoinInfo(); return; }
     enterRoom(res);
   });
@@ -202,7 +214,7 @@ function renderHeader(hold = false) {
   $('#me-name').textContent = p.name;
   const g = S.game;
   if (!g) {
-    $('#me-money').textContent = fmtM(S.settings.startMoney);
+    $('#me-money').textContent = S.gameType === 'risiko' ? '🗺️ Risiko' : fmtM(S.settings.startMoney);
     $('#turn-name').textContent = '–';
     return;
   }
@@ -223,7 +235,7 @@ function renderWaiting() {
     <div class="waiting">
       <div class="big">⏳</div>
       <h2>Warte auf den Spielstart…</h2>
-      <p>Raum <b>${escapeHtml(S.code)}</b> · Start mit ${fmtM(S.settings.startMoney)}</p>
+      <p>Raum <b>${escapeHtml(S.code)}</b> · ${S.gameType === 'risiko' ? 'Risiko' : `Monopoly, Start mit ${fmtM(S.settings.startMoney)}`}</p>
     </div>
     <ul class="lobby-list">${S.lobby.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}">${p.figure} ${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</li>`).join('')}</ul>`);
 }
@@ -775,6 +787,8 @@ function attention() {
 
 function render() {
   if (!S || !me) return;
+  if (S.game && S.gameType === 'risiko') { renderRisiko(); return; }
+  $('#panel-risiko').classList.add('hidden');
   const hold = animHold();
   renderHeader(hold);
   if (!S.game) {

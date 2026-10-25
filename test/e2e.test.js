@@ -9,7 +9,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
+const { browserSkip, startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
 
 const SHOTS = process.env.E2E_SHOTS;
 // Bildschirm des Spielfelds: Standard Tablet 1024×768, per E2E_SCREEN=1920x1080 z. B. Fernseher
@@ -38,7 +38,7 @@ const toastText = async (page, re) => {
   return page.textContent('#toast');
 };
 
-test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Minispiele', { timeout: 240000 }, async () => {
+test('Spielabend: Lobby, Kauf, Miete, Versteigerung, Handel, Ablehnungen und Minispiele', { skip: browserSkip(), timeout: 240000 }, async () => {
   const srv = await startServer();
   const browser = await launch();
   const errors = [];

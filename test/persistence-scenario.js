@@ -31,9 +31,9 @@ async function persistenceScenario(store) {
   const ben = room.join({ name: 'Ben', color: COLORS[1], figure: FIGURES[1] });
   room.pendingDice.push([1, 2], [1, 2]);
   room.start();
-  room.game.roll(anna.id);           // → Turmstraße
+  room.game.engine.roll(anna.id);           // → Turmstraße
   room.act(anna.id, { type: 'buy' });
-  assert.equal(room.game.phase, 'end');
+  assert.equal(room.game.engine.phase, 'end');
 
   /* ---------- speichern und laden ---------- */
   ({ manager, room } = await saveAndRestart(manager, room, store));
@@ -42,7 +42,7 @@ async function persistenceScenario(store) {
   assert.equal(room.started, true);
   assert.deepEqual(room.players.map((p) => p.name), ['Anna', 'Ben']);
   assert.ok(room.players.every((p) => !p.connected), 'nach dem Neustart sind alle getrennt');
-  const g = room.game;
+  const g = room.game.engine;
   assert.equal(g.player(anna.id).money, 1440);
   assert.equal(g.props[3].owner, anna.id);
   assert.equal(g.phase, 'end');
@@ -53,17 +53,17 @@ async function persistenceScenario(store) {
   /* ---------- Partie fortsetzen ---------- */
   assert.equal(room.resume(anna.token).id, anna.id, 'Token aus dem Handy funktioniert weiter');
   room.act(anna.id, { type: 'endTurn' });
-  assert.equal(room.game.currentPlayer().id, ben.id);
-  room.game.roll(ben.id);            // → Turmstraße, Miete an Anna
-  assert.equal(room.game.player(ben.id).money, 1496);
+  assert.equal(room.game.engine.currentPlayer().id, ben.id);
+  room.game.engine.roll(ben.id);            // → Turmstraße, Miete an Anna
+  assert.equal(room.game.engine.player(ben.id).money, 1496);
 
   ({ manager, room } = await saveAndRestart(manager, room, store));
-  assert.equal(room.game.player(anna.id).money, 1444);
-  assert.equal(room.game.player(ben.id).money, 1496);
-  assert.equal(room.game.currentPlayer().id, ben.id);
-  assert.equal(room.game.phase, 'end');
+  assert.equal(room.game.engine.player(anna.id).money, 1444);
+  assert.equal(room.game.engine.player(ben.id).money, 1496);
+  assert.equal(room.game.engine.currentPlayer().id, ben.id);
+  assert.equal(room.game.engine.phase, 'end');
   room.act(ben.id, { type: 'endTurn' });
-  assert.equal(room.game.currentPlayer().id, anna.id, 'Spiel läuft nach dem zweiten Neustart weiter');
+  assert.equal(room.game.engine.currentPlayer().id, anna.id, 'Spiel läuft nach dem zweiten Neustart weiter');
 
   /* ---------- abgelaufene Räume verschwinden auch aus dem Speicher ---------- */
   room.lastActivity = 0;

@@ -22,7 +22,8 @@ function remember(code) {
 function createRoom() {
   socket.emit('board:create', {}, (res) => {
     if (res.ok) remember(res.code);
-    else toast(res.error, 'error');
+    // Grenze erreicht: zurück zur Startseite, dort steht die Meldung
+    else location.replace(`/?fehler=${encodeURIComponent(res.error)}`);
   });
 }
 
@@ -52,25 +53,94 @@ let qrFor = null;
 function renderLobby() {
   $('#lobby').classList.remove('hidden');
   $('#game').classList.add('hidden');
+  $('#risiko').classList.add('hidden');
+  const lobby = $('#lobby');
+  lobby.dataset.game = S.gameType;
+  lbBackground($('#lb-bg'), S.gameType);
   $('#room-code').textContent = S.code;
   if (qrFor !== S.code) {
     qrFor = S.code;
     $('#qr').src = `/api/qr.svg?room=${S.code}`;
-    fetch(`/api/join-url?room=${S.code}`).then((r) => r.json()).then((d) => { $('#join-url').textContent = d.url || ''; }).catch(() => {});
+    fetch(`/api/join-url?room=${S.code}`).then((r) => r.json())
+      .then((d) => { $('#join-url').textContent = (d.url || '').replace(/^https?:\/\//, ''); }).catch(() => {});
   }
+  const info = LB_GAMES[S.gameType] || { name: S.gameType };
+  $('#lb-game-name').textContent = info.name;
   const list = S.lobby;
-  $('#lobby-count').textContent = `${list.length} / ${S.maxPlayers}`;
-  patch($('#lobby-players'), list.length
-    ? list.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}"><span class="fig">${p.figure}</span>${escapeHtml(p.name)}${p.connected ? '' : ' <small>(getrennt)</small>'}</li>`).join('')
-    : '<li class="empty">Noch niemand da – scannt den QR-Code!</li>');
-  const input = $('#start-money');
-  if (document.activeElement !== input) input.value = S.settings.startMoney;
-  const enough = list.length >= S.minPlayers;
-  $('#btn-start').disabled = !enough;
-  $('#lobby-hint').textContent = enough
-    ? `Alle starten mit ${fmtM(S.settings.startMoney)}.`
-    : `Mindestens ${S.minPlayers} Spieler werden gebraucht.`;
+  $('#lobby-count').innerHTML = `<b>${list.length}</b> von ${S.maxPlayers}${list.length ? '' : ' · noch niemand da'}`;
+  renderLobbyPlayers(list, S.maxPlayers);
+  patch($('#game-choice'), (S.games || []).map((g) => {
+    const gi = LB_GAMES[g.id] || { name: g.name, desc: '', time: '' };
+    const sel = g.id === S.gameType;
+    return `<button type="button" id="game-${g.id}" data-game="${g.id}" class="lb-game ${sel ? 'sel' : ''}" aria-pressed="${sel}">
+      ${sel ? '<span class="lb-game-state">Gewählt</span>' : ''}
+      <span class="lb-game-name">${escapeHtml(gi.name)}</span>
+      <span class="lb-game-desc">${escapeHtml(gi.desc)}</span>
+      <span class="lb-game-meta">${g.minPlayers}–${g.maxPlayers} Spieler${gi.time ? ` · ${gi.time}` : ''}</span></button>`;
+  }).join(''));
+  const risiko = S.gameType === 'risiko';
+  $('#lb-settings-title').textContent = `Einstellungen für ${info.name}`;
+  $('#settings-monopoly').classList.toggle('hidden', risiko);
+  $('#settings-risiko').classList.toggle('hidden', !risiko);
+  if (risiko) {
+    ['cardValues', 'fortify', 'animation'].forEach((k) => {
+      const el = $(`#risiko-${k}`);
+      if (document.activeElement !== el) el.value = S.settings[k];
+    });
+  } else {
+    const input = $('#start-money');
+    if (document.activeElement !== input) input.value = S.settings.startMoney;
+  }
+  const missing = S.minPlayers - list.length;
+  const tooMany = list.length > S.maxPlayers;
+  $('#btn-start').disabled = missing > 0 || tooMany;
+  $('#lobby-hint').innerHTML = tooMany
+    ? `${escapeHtml(info.name)} ist für höchstens ${S.maxPlayers} Spieler – im Raum sind ${list.length}.`
+    : missing > 0
+      ? `Noch <b>${missing === 1 ? '1 Spieler' : `${missing} Spieler`}</b> ${missing === 1 ? 'fehlt' : 'fehlen'} – ${escapeHtml(info.name)} braucht mindestens ${S.minPlayers}.`
+      : `Bereit: ${escapeHtml(info.name)} mit ${list.length} Spielern. ${risiko ? 'Die Gebiete werden zufällig verteilt.' : `Alle starten mit ${fmtM(S.settings.startMoney)}.`}`;
 }
+
+/** Spielerkarten: neue werden sanft eingeblendet, freie Plätze bleiben als ruhige Umrisse sichtbar. */
+function renderLobbyPlayers(list, max) {
+  const ul = $('#lobby-players');
+  const want = list.map((p) => p.id);
+  [...ul.querySelectorAll('li[data-id]')].forEach((li) => { if (!want.includes(li.dataset.id)) li.remove(); });
+  ul.querySelectorAll('li.empty').forEach((li) => li.remove());
+  list.forEach((p, i) => {
+    let li = ul.querySelector(`li[data-id="${p.id}"]`);
+    if (!li) {
+      li = document.createElement('li');
+      li.dataset.id = p.id;
+      li.className = 'enter';
+    }
+    li.style.setProperty('--c', p.color);
+    li.style.setProperty('--ink-on', lbInkOn(p.color));
+    li.classList.toggle('off', !p.connected);
+    const html = `<span class="lb-pname">${escapeHtml(p.name)}</span>${p.connected ? '' : '<small>getrennt</small>'}`;
+    if (li._html !== html) { li.innerHTML = html; li._html = html; }
+    if (ul.children[i] !== li) ul.insertBefore(li, ul.children[i] || null);
+  });
+  for (let i = list.length; i < max; i++) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    ul.appendChild(li);
+  }
+}
+
+$('#game-choice').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-game]');
+  if (!b || b.dataset.game === S?.gameType) return;
+  socket.emit('board:game', { gameType: b.dataset.game }, (res) => { if (!res.ok) toast(res.error, 'error'); });
+});
+
+['cardValues', 'fortify', 'animation'].forEach((k) => {
+  $(`#risiko-${k}`).addEventListener('change', (e) => {
+    socket.emit('board:settings', { [k]: e.target.value }, (res) => {
+      if (!res.ok) { toast(res.error, 'error'); e.target.value = S.settings[k]; }
+    });
+  });
+});
 
 $('#start-money').addEventListener('change', (e) => {
   socket.emit('board:settings', { startMoney: Number(e.target.value) }, (res) => {
@@ -79,6 +149,8 @@ $('#start-money').addEventListener('change', (e) => {
 });
 
 $('#btn-start').addEventListener('click', () => {
+  // Ton für das Spiel freischalten (Browser erlauben ihn erst nach einer Bedienung)
+  if (typeof RkAudio !== 'undefined') RkAudio.unlock();
   socket.emit('board:start', {}, (res) => { if (!res.ok) toast(res.error, 'error'); });
 });
 
@@ -463,6 +535,7 @@ function flushDeferred() {
 
 function renderGame() {
   $('#lobby').classList.add('hidden');
+  $('#risiko').classList.add('hidden');
   $('#game').classList.remove('hidden');
   $('#side-code').textContent = S.code;
   if (!built) buildBoard();
@@ -841,5 +914,6 @@ STAGES.blackjack = (m, stage) => {
 function render() {
   if (!S) return;
   if (!S.started || !S.game) renderLobby();
+  else if (S.gameType === 'risiko') renderRisiko();
   else renderGame();
 }

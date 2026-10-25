@@ -9,7 +9,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { createServer } = require('../server');
-const { launch, openPage } = require('./helpers');
+const { browserSkip, launch, openPage } = require('./helpers');
 
 const WAKE_DIR = path.join(__dirname, '..', 'wake');
 const SHOTS = process.env.E2E_SHOTS;
@@ -47,7 +47,7 @@ async function startGame(port, wakeOrigin) {
 
 const shot = (page, name) => (SHOTS ? page.screenshot({ path: path.join(SHOTS, `wake-${name}.png`) }) : null);
 
-test('Weckseite: wartet auf den gestoppten Server und leitet erst danach weiter', { timeout: 90000 }, async () => {
+test('Weckseite: wartet auf den gestoppten Server und leitet erst danach weiter', { skip: browserSkip(), timeout: 90000 }, async () => {
   const port = await freePort();
   const gameUrl = `http://127.0.0.1:${port}`;
   const wake = await serveWake(gameUrl);
@@ -100,7 +100,7 @@ test('Weckseite: wartet auf den gestoppten Server und leitet erst danach weiter'
   }
 });
 
-test('Weckseite: laufender Server ist sofort bereit, Neues Spiel öffnet /board', { timeout: 60000 }, async () => {
+test('Weckseite: laufender Server ist sofort bereit, Neues Spiel öffnet /board', { skip: browserSkip(), timeout: 60000 }, async () => {
   const port = await freePort();
   const gameUrl = `http://127.0.0.1:${port}`;
   const wake = await serveWake(gameUrl);
@@ -129,7 +129,7 @@ test('Weckseite: laufender Server ist sofort bereit, Neues Spiel öffnet /board'
   }
 });
 
-test('Weckseite: ohne WAKE_ORIGIN greift der no-cors-Rückfall', { timeout: 60000 }, async () => {
+test('Weckseite: ohne WAKE_ORIGIN greift der no-cors-Rückfall', { skip: browserSkip(), timeout: 60000 }, async () => {
   const port = await freePort();
   const gameUrl = `http://127.0.0.1:${port}`;
   const wake = await serveWake(gameUrl);

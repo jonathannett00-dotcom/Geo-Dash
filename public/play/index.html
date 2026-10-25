@@ -4,34 +4,42 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f2a1d" />
-  <title>Monopoly-Abend – Handy</title>
+  <title>Spieleabend – Handy</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/shared/base.css" />
   <link rel="stylesheet" href="/play/play.css" />
+  <link rel="stylesheet" href="/play/risiko.css" />
+  <link rel="stylesheet" href="/shared/lobby.css" />
 </head>
 <body class="play-page">
   <!-- ============ BEITRETEN ============ -->
-  <section id="join" class="join-screen hidden">
-    <h1>🎲 Monopoly-Abend</h1>
-    <form id="join-form" class="card" autocomplete="off">
-      <label>Raum-Code
-        <input id="join-code" name="code" maxlength="4" inputmode="text" autocapitalize="characters" placeholder="ABCD" required />
-      </label>
-      <label>Dein Name
-        <input id="join-name" name="name" maxlength="16" placeholder="z. B. Anna" required />
-      </label>
-      <fieldset>
-        <legend>Spielfigur</legend>
-        <div id="join-figures" class="pick-grid"></div>
-      </fieldset>
-      <fieldset>
-        <legend>Farbe</legend>
-        <div id="join-colors" class="pick-grid colors"></div>
-      </fieldset>
-      <div id="join-rejoin" class="rejoin hidden"></div>
-      <button class="btn primary block" type="submit" id="btn-join">Beitreten</button>
-      <p id="join-msg" class="hint"></p>
-    </form>
+  <section id="join" class="join-screen lb-theme hidden">
+    <div id="join-bg" class="lb-bg" aria-hidden="true"></div>
+    <div class="jn-wrap">
+      <header class="jn-head">
+        <span class="lb-brand">Spieleabend</span>
+        <span id="join-game" class="lb-head-game"></span>
+      </header>
+      <form id="join-form" class="jn-form" autocomplete="off">
+        <label class="jn-field"><span class="lb-label">Raum-Code</span>
+          <input id="join-code" class="jn-code" name="code" maxlength="4" inputmode="text" autocapitalize="characters" placeholder="ABCD" required />
+        </label>
+        <label class="jn-field"><span class="lb-label">Dein Name</span>
+          <input id="join-name" name="name" maxlength="16" placeholder="z. B. Anna" required />
+        </label>
+        <fieldset id="join-figure-set" class="jn-field hidden">
+          <legend class="lb-label">Spielfigur</legend>
+          <div id="join-figures" class="pick-grid"></div>
+        </fieldset>
+        <fieldset class="jn-field">
+          <legend class="lb-label">Farbe</legend>
+          <div id="join-colors" class="pick-grid colors"></div>
+        </fieldset>
+        <div id="join-rejoin" class="rejoin hidden"></div>
+        <button class="jn-submit" type="submit" id="btn-join">Beitreten</button>
+        <p id="join-msg" class="jn-msg" aria-live="polite"></p>
+      </form>
+    </div>
   </section>
 
   <!-- ============ WARTEN / SPIEL ============ -->
@@ -56,6 +64,7 @@
       <div id="panel-props" class="panel hidden"></div>
       <div id="panel-trade" class="panel hidden"></div>
       <div id="panel-mini" class="panel hidden"></div>
+      <div id="panel-risiko" class="panel hidden"></div>
     </main>
 
     <nav id="tabs" class="tabs hidden">
@@ -68,6 +77,10 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/common.js"></script>
+  <script src="/shared/lobby.js"></script>
   <script src="/play/play.js"></script>
+  <script src="/risiko/map-paths.js"></script>
+  <script src="/shared/risiko-farben.js"></script>
+  <script src="/play/risiko.js"></script>
 </body>
 </html>

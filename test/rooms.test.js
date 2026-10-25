@@ -110,24 +110,24 @@ test('Im Spiel: getrennte Spieler bleiben drin – raus nur, wenn das Spiel 5 Mi
   const sockets = players.map((p, i) => { const s = fakeSocket(`s${i}`); room.attach(s, p); return s; });
   room.start();
   const [a, b] = players;
-  assert.equal(room.game.currentPlayer().id, a.id);
+  assert.equal(room.game.engine.currentPlayer().id, a.id);
 
   // a ist am Zug und trennt sich → Zug pausiert; b trennt sich, ist aber nicht dran
   room.detach(sockets[0]);
   room.detach(sockets[1]);
   assert.equal(room.isPaused(), true);
   t.mock.timers.tick(RECONNECT_GRACE_MS - 1000);
-  assert.equal(room.game.player(a.id).bankrupt, false, 'knapp 5 Minuten: noch im Spiel');
+  assert.equal(room.game.engine.player(a.id).bankrupt, false, 'knapp 5 Minuten: noch im Spiel');
   t.mock.timers.tick(2000);
-  assert.equal(room.game.player(a.id).bankrupt, true, 'a hat das Spiel 5 Minuten blockiert');
-  assert.equal(room.game.currentPlayer().id, b.id);
-  assert.equal(room.game.player(b.id).bankrupt, false, 'b war schon über 5 Minuten weg, blockiert aber erst jetzt');
+  assert.equal(room.game.engine.player(a.id).bankrupt, true, 'a hat das Spiel 5 Minuten blockiert');
+  assert.equal(room.game.engine.currentPlayer().id, b.id);
+  assert.equal(room.game.engine.player(b.id).bankrupt, false, 'b war schon über 5 Minuten weg, blockiert aber erst jetzt');
 
   // b kommt zurück, bevor die 5 Minuten seines Zuges um sind → bleibt im Spiel
   t.mock.timers.tick(RECONNECT_GRACE_MS - 1000);
   room.attach(fakeSocket('s1b'), room.resume(b.token));
   t.mock.timers.tick(RECONNECT_GRACE_MS * 2);
-  assert.equal(room.game.player(b.id).bankrupt, false);
+  assert.equal(room.game.engine.player(b.id).bankrupt, false);
   manager.shutdown();
 });
 
@@ -144,5 +144,16 @@ test('Wiedereinstieg ohne Token: nur getrennte Spieler können übernommen werde
   room.detach(sa);
   assert.equal(room.reclaim(a.id), a);
   assert.throws(() => room.reclaim('gibtsnicht'), /gibt es nicht/);
+  manager.shutdown();
+});
+
+test('Beitritt: Spielfigur nur bei Monopoly Pflicht, sonst wird die erste freie vergeben', () => {
+  const { manager, room } = setup();
+  assert.throws(() => room.join({ name: 'Anna', color: COLORS[0] }), /Spielfigur/);
+  room.setGameType('risiko');
+  const a = room.join({ name: 'Anna', color: COLORS[0] });
+  const b = room.join({ name: 'Ben', color: COLORS[1] });
+  assert.equal(a.figure, FIGURES[0]);
+  assert.equal(b.figure, FIGURES[1]);
   manager.shutdown();
 });

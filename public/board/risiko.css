@@ -1,0 +1,164 @@
+/* ================= Risiko: Karte =================
+ * Randloser Ozean im ganzen Fenster, die Karte ist eingepasst. Banner und
+ * Flächen liegen halbtransparent im Ozean, im gleichen Raster (--gap) und
+ * nie über Land. Striche bleiben unabhängig von der Größe gleich dick. */
+.risiko {
+  --rk-ocean: #1c3149; --rk-line: #17202a; --rk-text: #e9edf1; --rk-muted: #9daab8;
+  --rk-panel: rgba(13, 24, 37, .62); --rk-radius: 10px; --gap: 12px; --panel-scale: 1;
+  position: relative; height: 100%; overflow: hidden; background: var(--rk-ocean); color: var(--rk-text);
+}
+.rk-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.rk-ocean { fill: var(--rk-ocean); animation: rkTide 28s ease-in-out infinite alternate; }
+/* Ozean: ganz langsamer, kaum merklicher Farbwechsel; statisch bei „aus“ und reduzierter Bewegung */
+@keyframes rkTide { from { fill: #1c3149; } to { fill: #1d3550; } }
+.risiko.anim-off .rk-ocean { animation: none; }
+@media (prefers-reduced-motion: reduce) { .rk-ocean { animation: none; } }
+.rk-other-land { fill: #3a4656; stroke: var(--rk-line); stroke-width: .6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.rk-area {
+  fill: #b5b0a4; fill-rule: evenodd; stroke: var(--rk-line); stroke-width: .75px; stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke; transition: fill .6s ease;
+}
+.rk-lakes { fill: var(--rk-ocean); stroke: var(--rk-line); stroke-width: .6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.rk-continents path { fill: none; stroke: var(--rk-line); stroke-width: 1.7px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.rk-lanes path { fill: none; stroke: #a7b8ca; stroke-width: 1.3px; stroke-dasharray: 4 4; stroke-linecap: round; opacity: .7; vector-effect: non-scaling-stroke; }
+
+.rk-label {
+  fill: rgba(236, 240, 244, .86); font-family: var(--font-body); font-weight: 600; letter-spacing: .01em;
+  dominant-baseline: central; paint-order: stroke; stroke: rgba(16, 24, 33, .78); stroke-width: .3em; stroke-linejoin: round;
+  pointer-events: none;
+}
+.rk-territory .rk-disc { fill: #f6f4ef; stroke: var(--rk-line); stroke-width: 1.3px; vector-effect: non-scaling-stroke; transition: stroke-width .3s ease; }
+.rk-territory.active .rk-disc { stroke-width: 2.4px; }
+.rk-territory.attacking .rk-disc { stroke: #b3261e; stroke-width: 2.8px; }
+.rk-territory.defending .rk-disc { stroke: #1d1d1b; stroke-width: 2.8px; }
+.rk-armies { fill: #17202a; font: 700 8.2px var(--font-body); font-variant-numeric: tabular-nums; pointer-events: none; }
+.rk-territory.wide .rk-armies { font-size: 6.6px; }
+.rk-arrow-line { fill: none; stroke: #c0392b; stroke-width: 3px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.rk-arrow-head { fill: #c0392b; stroke: #c0392b; stroke-width: 1px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+/* ---------- Vorauswahl vom Handy ---------- */
+.rk-hl { fill: none; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; transition: opacity .3s ease; }
+.rk-hl.from, .rk-hl.to { fill: #fff; fill-opacity: .14; stroke: #fff; stroke-width: 2.2px; animation: rkGlow 2.4s ease-in-out infinite; }
+.rk-hl.to.attack { stroke: #f0b4ad; fill: #f0b4ad; }
+.rk-hl.target { stroke: rgba(255, 255, 255, .55); stroke-width: 1.2px; stroke-dasharray: 3 3; }
+.rk-preview-arrow .rk-arrow-line { stroke: #fff; stroke-width: 2px; stroke-dasharray: none; opacity: .95; }
+.rk-preview-arrow .rk-arrow-head { fill: #fff; stroke: #fff; }
+.rk-preview-arrow.attack .rk-arrow-line { stroke: #f0b4ad; }
+.rk-preview-arrow.attack .rk-arrow-head { fill: #f0b4ad; stroke: #f0b4ad; }
+@keyframes rkGlow { 50% { fill-opacity: .05; stroke-opacity: .7; } }
+
+/* ---------- Kampf mit Fokus ---------- */
+.rk-area, .rk-territory, .rk-label, .rk-other-land, .rk-lanes { transition: filter .45s ease, opacity .45s ease, fill .6s ease; }
+.risiko.focus .rk-area:not(.rk-focus), .risiko.focus .rk-other-land { filter: saturate(.3) brightness(.62); }
+.risiko.focus .rk-territory:not(.rk-focus), .risiko.focus .rk-label:not(.rk-focus), .risiko.focus .rk-lanes { opacity: .4; }
+.rk-die-inner { transform-box: fill-box; transform-origin: center; }
+.rk-armies { transform-box: fill-box; transform-origin: center; }
+.rk-die-g rect { transition: opacity .25s ease, stroke-width .25s ease; }
+.rk-die-g.win rect { stroke: #fff; stroke-width: 2.6px; }
+.rk-die-g.lose, .rk-die-g.idle { opacity: .38; transition: opacity .3s ease; }
+/* Erledigtes Paar tritt zurück, damit nur das aktuelle hervorgehoben ist */
+.rk-die-g.done { opacity: .5; }
+.rk-die-g.done.lose { opacity: .3; }
+.rk-die-g.done.win rect { stroke-width: 0; }
+
+/* ---------- Animationen ---------- */
+.rk-dice rect { stroke: var(--rk-line); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rk-die-g.att rect { fill: #b3261e; }
+.rk-die-g.def rect { fill: #f2f4f6; }
+.rk-die-g text { font-family: var(--font-body); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rk-die-g.att text { fill: #fff; }
+.rk-die-g.def text { fill: #17202a; }
+.rk-territory.hit .rk-disc { animation: rkHit .55s ease-in-out 2; }
+.rk-territory.hit .rk-armies { animation: rkHitText .55s ease-in-out 2; }
+@keyframes rkHit { 50% { fill: #d6453a; stroke: #7a1610; } }
+@keyframes rkHitText { 50% { fill: #fff; } }
+.rk-glow { fill: #fff; fill-opacity: 0; pointer-events: none; }
+.rk-moving .rk-disc { fill: #fff; stroke-width: 1.8px; }
+@media (prefers-reduced-motion: reduce) {
+  .rk-area, .rk-territory .rk-disc, .rk-territory, .rk-label { transition: none; }
+  .rk-territory.hit .rk-disc, .rk-territory.hit .rk-armies { animation: none; }
+  .rk-hl.from, .rk-hl.to { animation: none; }
+  .rk-banner { transition: none; }
+}
+
+/* ---------- Flächen im Ozean ---------- */
+.rk-panel { background: var(--rk-panel); border-radius: var(--rk-radius); backdrop-filter: blur(2px); }
+.rk-top {
+  position: absolute; top: var(--gap); left: var(--gap); right: var(--gap);
+  display: flex; align-items: center; gap: var(--gap); padding: calc(var(--gap) * .6) var(--gap);
+  font-size: calc(clamp(14px, 1.15vw + .5vh, 24px) * min(var(--panel-scale), 1.12));
+}
+.rk-banner { flex: 1; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .22s ease, transform .22s ease; }
+.rk-banner.fading { opacity: 0; transform: translateY(-3px); }
+.rk-detail { color: var(--rk-muted); font-weight: 500; margin-left: .75em; }
+.rk-who { color: var(--rk-text); box-shadow: inset 0 -.18em 0 var(--c); }
+.rk-paused { color: var(--gold); margin-left: .6em; font-weight: 700; }
+.rk-room { font-size: .75em; color: var(--rk-muted); white-space: nowrap; }
+.rk-room b { color: var(--rk-text); letter-spacing: .12em; }
+
+.rk-bottom {
+  position: absolute; left: var(--gap); right: var(--gap); bottom: var(--gap);
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: var(--gap); align-items: stretch;
+  font-size: calc(clamp(12px, .78vw + .45vh, 19px) * var(--panel-scale));
+}
+.rk-players {
+  --num: 4.2em;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(17em, 1fr)); column-gap: calc(var(--gap) * 1.5); row-gap: .1em;
+  padding: calc(var(--gap) * .6) var(--gap); align-content: start;
+}
+.rk-player { display: grid; grid-template-columns: .8em minmax(4em, 1fr) repeat(3, var(--num)); align-items: center; column-gap: .55em; padding: .12em .4em; }
+.rk-player.rk-head { color: var(--rk-muted); padding-bottom: .15em; }
+.rk-players.one-col .rk-head-2 { display: none; }
+.rk-player.rk-head .rk-num { font-size: .72em; letter-spacing: .04em; }
+.rk-swatch { width: .8em; height: .8em; border-radius: 50%; background: var(--c); }
+.rk-pname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-player { border-radius: 6px; transition: background-color .35s ease, box-shadow .35s ease; }
+.rk-player.current { background: rgba(255, 255, 255, .09); box-shadow: inset .22em 0 0 var(--c); }
+.rk-player.current .rk-pname { color: #fff; }
+.rk-player.out { opacity: .45; }
+.rk-num { text-align: right; font-variant-numeric: tabular-nums; }
+.rk-player:not(.rk-head) .rk-num { color: var(--rk-muted); }
+.rk-feed { display: flex; gap: var(--gap); padding: calc(var(--gap) * .6) var(--gap); min-width: 0; }
+.rk-battle { flex: none; display: grid; gap: .2em; align-content: start; font-size: .92em; }
+.rk-battle-row { display: flex; align-items: center; gap: .3em; }
+.rk-battle-row span:first-child { width: 7.5em; color: var(--rk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-die { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: .3em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rk-die.att { background: #b3261e; color: #fff; }
+.rk-die.def { background: #e9edf1; color: #17202a; }
+.rk-battle-foot { color: var(--rk-muted); font-size: .9em; }
+.rk-log { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; gap: .2em; align-content: start; color: var(--rk-muted); font-size: .9em; }
+.rk-log li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-log li:first-child { color: var(--rk-text); }
+
+/* Animationen „aus“: alles statisch */
+.risiko.anim-off .rk-hl, .risiko.anim-off .rk-territory.hit .rk-disc, .risiko.anim-off .rk-territory.hit .rk-armies { animation: none; }
+.risiko.anim-off .rk-area, .risiko.anim-off .rk-banner, .risiko.anim-off .rk-player { transition: none; }
+
+/* ---------- Zugwechsel ---------- */
+.rk-announce {
+  position: absolute; left: 50%; top: calc(var(--gap) * 2 + 3.2em); transform: translateX(-50%); z-index: 4;
+  display: flex; align-items: baseline; gap: .8em; padding: .55em 1.3em; border-radius: var(--rk-radius);
+  background: rgba(13, 24, 37, .86); pointer-events: none; white-space: nowrap;
+  font-size: calc(clamp(16px, 1.5vw + .6vh, 32px) * min(var(--panel-scale), 1.12));
+}
+.rk-ann-round { color: var(--rk-muted); font-size: .8em; font-weight: 600; letter-spacing: .04em; }
+.rk-ann-who b { box-shadow: inset 0 -.18em 0 var(--c); }
+
+/* ---------- Abschlussbild ---------- */
+.risiko.over .rk-map { opacity: .35; transition: opacity .8s ease; }
+.risiko.over .rk-bottom { visibility: hidden; }
+.rk-final { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: var(--gap); pointer-events: none; }
+.rk-final-card {
+  background: rgba(13, 24, 37, .97); border-radius: var(--rk-radius); padding: 1.4em 1.8em; max-width: 100%;
+  font-size: calc(clamp(14px, 1.1vw + .5vh, 24px) * min(var(--panel-scale), 1.12));
+}
+.rk-final-card h2 { margin: 0; font-size: 1.9em; font-weight: 700; }
+.rk-final-sub { margin: .2em 0 1em; color: var(--rk-muted); }
+.rk-final-table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rk-final-table th, .rk-final-table td { padding: .45em .8em; text-align: right; }
+.rk-final-table thead th { color: var(--rk-muted); font-weight: 600; font-size: .78em; vertical-align: bottom; max-width: 7.5em; }
+.rk-final-table tbody th { text-align: left; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: .6em; }
+.rk-final-table tbody th small { color: var(--rk-muted); font-weight: 500; font-size: .78em; margin-left: .3em; }
+.rk-final-table tbody tr { border-top: 1px solid rgba(255, 255, 255, .08); }
+.rk-final-table tr.winner { background: rgba(255, 255, 255, .06); box-shadow: inset .22em 0 0 var(--c); }
+.rk-final-note { margin: 1em 0 0; color: var(--rk-muted); font-size: .8em; }

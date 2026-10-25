@@ -1,0 +1,120 @@
+/* =========================================================
+ *  Lobby, Startseite und Beitritt: ruhig und flach. Die Farbwelt
+ *  folgt dem gewählten Spiel (data-game="monopoly" | "risiko").
+ * ========================================================= */
+
+.lb-theme {
+  --lb-bg: #14181d; --lb-bg-shape: #1b2027; --lb-panel: #1d232b; --lb-panel-2: #252c35;
+  --lb-line: rgba(255, 255, 255, .1); --lb-text: #eef1f3; --lb-muted: #9aa5b1;
+  --lb-accent: #e8c46a; --lb-accent-ink: #231b05;
+  --lb-mono: #1f5a3a; --lb-risk: #234567;
+  background: var(--lb-bg); color: var(--lb-text);
+  transition: background-color .6s ease;
+}
+.lb-theme[data-game="monopoly"] {
+  --lb-bg: #0f2a1d; --lb-bg-shape: #133222; --lb-panel: #143524; --lb-panel-2: #1a422d;
+  --lb-muted: #a8bcae; --lb-accent: #e8b923; --lb-accent-ink: #2a2200;
+}
+.lb-theme[data-game="risiko"] {
+  --lb-bg: #132235; --lb-bg-shape: #1a2d44; --lb-panel: #182a40; --lb-panel-2: #20354f;
+  --lb-muted: #9daab8; --lb-accent: #d9b26f; --lb-accent-ink: #241a08;
+}
+
+/* ---------- Hintergrund: Weltkarte bzw. flaches Muster ---------- */
+.lb-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.lb-bg svg { position: absolute; inset: -3% -3%; width: 106%; height: 106%; display: block; }
+.lb-bg .lb-land { fill: var(--lb-bg-shape); }
+.lb-bg .lb-grid-line { stroke: var(--lb-bg-shape); stroke-width: 2; fill: none; }
+.lb-bg svg.drift { animation: lbDrift 140s ease-in-out infinite alternate; }
+@keyframes lbDrift { from { transform: translate(-1.2%, 0); } to { transform: translate(1.2%, .6%); } }
+@media (prefers-reduced-motion: reduce) { .lb-bg svg.drift { animation: none; } }
+
+/* ---------- Host-Lobby ---------- */
+.lobby {
+  position: relative; height: 100%; overflow: hidden;
+  font-size: clamp(13px, min(1.2vw, 2.05vh), 26px);
+  display: grid; grid-template-rows: auto 1fr; padding: 1.4em 2.2em 1.8em; gap: 1.2em;
+}
+.lobby > :not(.lb-bg) { position: relative; z-index: 1; }
+.lb-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1em; }
+.lb-brand { font-weight: 700; font-size: 1.15em; letter-spacing: .02em; }
+.lb-head-game { color: var(--lb-muted); }
+.lb-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 2.4em; min-height: 0; align-items: center; padding-bottom: 1.5em; }
+.lb-join, .lb-setup { display: flex; flex-direction: column; min-height: 0; }
+.lb-label { margin: 0 0 .35em; color: var(--lb-muted); font-size: .9em; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+
+.lb-code {
+  font-family: var(--font-body); font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: 7em; line-height: .95; letter-spacing: .14em; margin: 0 0 .25em -.04em;
+}
+.lb-qrrow { display: flex; align-items: center; gap: 1.3em; margin-bottom: 1.6em; }
+.lb-qr { width: 11.5em; height: 11.5em; flex: none; background: #fff; border-radius: .6em; padding: .45em; display: block; }
+.lb-howto p { margin: 0 0 .4em; color: var(--lb-muted); line-height: 1.35; }
+.lb-url { font-weight: 700; font-size: 1.15em; overflow-wrap: anywhere; line-height: 1.3; }
+
+.lb-players-head { display: flex; align-items: baseline; gap: .8em; margin-bottom: .6em; }
+.lb-players-head h2 { margin: 0; font-size: 1.25em; }
+.lb-count { color: var(--lb-muted); }
+.lb-count b { color: var(--lb-text); }
+.lb-players { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(8.6em, 1fr)); gap: .55em; align-content: start; }
+.lb-players li {
+  height: 2.9em; border-radius: .6em; padding: 0 .9em; display: flex; align-items: center; gap: .5em; min-width: 0;
+  background: var(--c); color: var(--ink-on, #fff); font-weight: 700; font-size: 1.02em;
+}
+.lb-players li .lb-pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-players li small { margin-left: auto; font-weight: 600; font-size: .75em; opacity: .85; flex: none; }
+.lb-players li.off { opacity: .45; }
+.lb-players li.enter { animation: lbIn .5s ease-out both; }
+@keyframes lbIn { from { opacity: 0; transform: translateY(.4em); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lb-players li.enter { animation: lbFade .3s ease-out both; } }
+@keyframes lbFade { from { opacity: 0; } to { opacity: 1; } }
+.lb-players li.empty { background: transparent; box-shadow: inset 0 0 0 2px var(--lb-line); color: var(--lb-muted); font-weight: 500; font-size: .9em; }
+
+/* Spielauswahl: zwei gleichwertige Karten */
+.lb-games { display: grid; grid-template-columns: 1fr 1fr; gap: .9em; margin-bottom: 1.3em; }
+.lb-game {
+  font: inherit; color: var(--lb-text); text-align: left; cursor: pointer;
+  border: 0; border-radius: .8em; padding: 1em 1.1em 1.05em; background: var(--g); position: relative;
+  display: flex; flex-direction: column; gap: .4em; min-height: 9.4em;
+  box-shadow: inset 0 0 0 2px transparent; transition: box-shadow .25s ease, opacity .25s ease;
+}
+.lb-game[data-game="monopoly"] { --g: var(--lb-mono); }
+.lb-game[data-game="risiko"] { --g: var(--lb-risk); }
+.lb-game:not(.sel) { opacity: .72; }
+.lb-game:hover { opacity: 1; }
+.lb-game.sel { box-shadow: inset 0 0 0 3px var(--lb-accent); opacity: 1; }
+.lb-game:focus-visible { outline: 3px solid var(--lb-accent); outline-offset: 3px; }
+.lb-game-name { font-size: 1.6em; font-weight: 800; letter-spacing: .01em; }
+.lb-game-desc { color: rgba(255, 255, 255, .82); line-height: 1.35; font-size: .95em; }
+.lb-game-meta { margin-top: auto; color: rgba(255, 255, 255, .7); font-size: .88em; font-weight: 600; }
+.lb-game-state { position: absolute; top: 1em; right: 1.1em; font-size: .78em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--lb-accent); }
+
+.lb-settings { background: var(--lb-panel); border-radius: .8em; padding: .9em 1.1em 1em; margin-bottom: 1.3em; }
+.lb-settings h3 { margin: 0 0 .7em; font-size: 1em; color: var(--lb-muted); font-weight: 600; }
+.lb-fields { display: grid; gap: .55em; }
+.lb-field { display: grid; grid-template-columns: 10.5em minmax(0, 1fr); align-items: center; gap: 1em; font-weight: 600; }
+.lb-field select, .lb-field input {
+  font: inherit; font-weight: 500; color: var(--lb-text); background: var(--lb-panel-2); border: 2px solid transparent;
+  border-radius: .5em; padding: .45em .6em; min-height: 2.4em;
+}
+.lb-field select:focus, .lb-field input:focus { border-color: var(--lb-accent); }
+.lb-field option { color: #111; }
+.lb-field .money-input { display: flex; align-items: center; gap: .5em; }
+.lb-field .money-input input { width: 8em; }
+
+.lb-startrow { display: grid; gap: .55em; }
+.lb-start {
+  font: inherit; font-size: 1.45em; font-weight: 800; border: 0; border-radius: .55em; cursor: pointer;
+  padding: .75em 1em; background: var(--lb-accent); color: var(--lb-accent-ink); transition: opacity .2s ease, transform .1s ease;
+}
+.lb-start:active:not(:disabled) { transform: scale(.985); }
+.lb-start:focus-visible { outline: 3px solid var(--lb-text); outline-offset: 3px; }
+.lb-start:disabled { background: var(--lb-panel-2); color: var(--lb-muted); cursor: not-allowed; }
+.lb-hint { margin: 0; min-height: 1.4em; color: var(--lb-muted); font-size: 1em; }
+.lb-hint b { color: var(--lb-text); }
+
+/* Schmale Fenster (Hochformat-Tablet): untereinander, dann darf gescrollt werden */
+@media (max-aspect-ratio: 1/1) {
+  .lobby { height: auto; min-height: 100%; overflow: visible; font-size: clamp(13px, 2.2vw, 22px); }
+  .lb-grid { grid-template-columns: 1fr; }
+}

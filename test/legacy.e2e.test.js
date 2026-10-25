@@ -4,9 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
 const { pathToFileURL } = require('url');
-const { launch } = require('./helpers');
+const { browserSkip, launch } = require('./helpers');
 
-test('Alte Einzelversion (legacy/index.html, style.css, game.js) läuft weiterhin eigenständig', { timeout: 60000 }, async () => {
+test('Alte Einzelversion (legacy/index.html, style.css, game.js) läuft weiterhin eigenständig', { skip: browserSkip(), timeout: 60000 }, async () => {
   const browser = await launch();
   const errors = [];
   try {

@@ -11,7 +11,33 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Gefängnis, Pasch, je 16 Ereignis- und Gemeinschaftskarten
   - Handel, Schulden und Pleite, Aufgeben, „Zug beenden“ durch den Spieler
 - **Minispiele** in Monopoly, ausgelöst durch die Würfelsumme: Pferderennen (7), Roulette (8, 12), Blackjack (2, 6). Gesetzt wird mit dem Monopoly-Konto.
+- **Risiko** (Branch `feature/risiko`): in der Lobby wählbar; Host-Ansicht mit realistischer Weltkarte (siehe unten), Handy-Controller zum Setzen, Kartentausch, Angreifen, Verteidigen, Nachrücken und Verschieben. Regel-Engine nach den klassischen Standardregeln unter `server/games/risiko/`, 2–6 Spieler.
+  - Karte als Daten mit eigener schematischer Grafik: 42 Gebiete, 6 Kontinente, 83 Grenzen, Kontinentboni 5/2/5/3/7/2.
+  - Aufbau: Gebiete werden zufällig verteilt (je 1 Armee), danach setzen alle gleichzeitig ihre restlichen Startarmeen (35/30/25/20; bei 2 Spielern je 40 plus neutrale Armee mit 40).
+  - Verstärkung: Gebiete / 3 (mindestens 3) plus Kontinentboni.
+  - Kartentausch: Infanterie, Kavallerie, Artillerie, 2 Joker; steigende Werte 4, 6, 8, 10, 12, 15, dann +5 (Einstellung `fest`: 4/6/8/10). +2 auf ein eigenes abgebildetes Gebiet. Pflicht ab 5 Karten, nach dem Ausschalten eines Gegners ab 6 sofort.
+  - Angriff mit bis zu 3 Würfeln. Der Verteidiger wählt auf seinem Handy 1 oder 2 Würfel (höchstens so viele wie Armeen im Gebiet), vorausgewählt ist die Höchstzahl; der Server würfelt erst danach. Gleichstand gewinnt der Verteidiger. Nachrücken mindestens mit so vielen Armeen wie Würfeln.
+  - Einmal Verschieben pro Zug ins Nachbargebiet (Einstellung `verbunden`: über eigene Gebiete). Eine Karte pro Zug mit Eroberung.
+  - Keine Missionen; 2010er-Variante und Hauptstadt-Modus folgen später.
+  - Weltkarte der Host-Ansicht: aus Natural Earth 1:50m (gemeinfrei, Paket `sane-topojson`) mit `scripts/build-map.js` erzeugt, Miller-Projektion, Naht im Pazifik bei 169,5° W. Küsten leicht vereinfacht und geglättet, große Seen als Wasser.
+    - Länder werden zu den 42 Gebieten zusammengefasst. Kanada, USA und Australien sind entlang ihrer Provinz- bzw. Staatsgrenzen geteilt (z. B. Ontario = Saskatchewan, Manitoba, Ontario; Weststaaten = Staaten bis Nord-/Süd-Dakota, Nebraska, Kansas, Colorado, New Mexico; Westaustralien = Western Australia und Northern Territory).
+    - Für Russland gibt es in 1:50m keine Verwaltungsgrenzen (auch kein npm-Paket mit admin-1 für Russland); dort folgen die Grenzen natürlichen Linien: Uralkamm, Jenissei mit Westsajan und Altai, Lena, Aldan, Stanowoi- und Jablonowygebirge.
+    - Die Linien sind so gewählt, dass nur Gebiete aneinandergrenzen, die laut `map.js` Nachbarn sind (59 Landgrenzen); die übrigen 24 Nachbarschaften sind gestrichelte, geschwungene Seewege. Das Skript prüft das bei jedem Bau.
+    - Dafür gehört der Süden Russlands am Amur (bis Wladiwostok) zum Gebiet Mongolei und die Zentralafrikanische Republik zu Nordafrika; Neuseeland, Hawaii, Pazifikinseln und andere kleine Gebiete außerhalb der 42 sind graues, unbespieltes Land.
+    - Gestaltung: Ozean randlos im ganzen Fenster, die Karte füllt die Breite bzw. Höhe. Banner oben sowie Spielerliste und Kampf/Ticker unten liegen als halbtransparente Flächen im Ozean, im gleichen Raster und nie über Land; auf 4:3 wachsen sie mit dem freien Platz. Flache Flächen, gleichmäßige dunkle Konturen mit runden Verbindungen (Kontinente und Küsten etwas stärker), runde Zahlen-Marker, kleine Gebietsnamen mit Halo, automatisch und überlappungsfrei platziert (geprüft für Tablet bis großen TV). Feste, gedämpfte Kartenfarbe je Spielerfarbe aus der Lobby. Bildschirmfotos: `docs/screenshots/`.
+    - Animationen auf dem Fernseher, abgeleitet aus der Engine: Nach jeder Aktion vergleicht das Spielmodul (`server/games/risiko/index.js`) den Zustand vorher und nachher und erzeugt Ereignisse mit Startzeit und Dauer: Verstärkung (Marker poppt, Zahl zählt hoch), Kampf (geschwungener Pfeil, rollende Würfel mit den Augen vom Server, Verluste blinken rot und zählen herunter), Eroberung (Welle in der neuen Farbe von der Mitte aus, ca. 1,5 s) sowie Nachrücken und Verschieben (Marker gleitet ins Ziel). Daraus ergibt sich `animUntil`; die Handys warten wie bei Monopoly, bis der Fernseher fertig ist (außer beim gleichzeitigen Setzen der Startarmeen). Alle Animationen laufen strikt nacheinander in einer Warteschlange, auch Zugwechsel und Kartentausch; im Aufbau ebenfalls, aber ohne die Handys aufzuhalten (bei Rückstau kürzer). Einstellung „Animationen: normal / kurz / aus“ in der Lobby, Standard „normal“: „kurz“ hat die früheren Zeiten (Kampf 2,6 s), „normal“ ist etwa anderthalbmal so lang, der Kampf mehr (Würfel rollen 2,5 s, jedes Vergleichspaar steht 1,2 s; Kampfabschnitte gibt der Server in `steps` mit). `prefers-reduced-motion` wird beachtet. Ablauf als Bildfolge: `docs/screenshots/risiko-animation-ablauf.png`.
+    - Vorauswahl: Von/Nach am Handy schickt das Handy als reine Anzeige-Aktion (`preview`); der Server prüft sie (Zug, Phase, eigenes Gebiet, Nachbar bzw. erreichbar) und gibt sie nur an die Host-Ansicht weiter. Dort: ruhige Umrandung von Von und Nach, dünner geschwungener Pfeil, angreifbare bzw. erreichbare Nachbarn dezent markiert. Sie verfällt bei Abwahl, Zugende, Trennen oder wenn sie ungültig wird; sie wird nicht gespeichert. In der Aufbauphase gibt es keine Vorauswahl.
+    - Kopfzeile mit Phasentext („Anna greift an“, „Ben verteidigt“) und kurzem, ruhigem Zugwechsel „Runde 4 · Cem ist am Zug“; Spieler am Zug in der Liste hervorgehoben.
+    - Kampf: Rest der Karte tritt zurück (entsättigt und abgedunkelt, ohne Unschärfe), Würfel rollen mit Abbremsen aus, Vergleichspaare nacheinander mit Sieger und Verlierer. Ein Zoom auf den Kampf wurde ausprobiert und verworfen, weil die Flächen unten sonst Land verdecken.
+    - Handy: zoombare Tippkarte (gleiche Pfade wie der Fernseher, Zwei-Finger-Zoom, Verschieben, „Ganze Karte“), große Phasenanzeige, Vibration (abschaltbar in den Einstellungen), Bestätigung für Angriff beenden, Zug beenden und Verschieben.
+    - Ton (nur Host-Ansicht, `public/board/risiko-audio.js`): kurze, leise, synthetisierte Töne für Würfel, Verstärkung, Eroberung, Rundenwechsel, Spielerwechsel und Kartentausch; keine Musik, keine Schleifen. Immer an mit fester Lautstärke, ohne Bedienelemente; freigeschaltet beim Klick auf „Spiel starten“, nach einem Neuladen beim ersten Klick auf der Seite.
+    - Abschlussbild nach Spielende: Sieger und je Spieler Eroberungen, besiegte und verlorene Armeen, gewonnene Würfelvergleiche und meiste Gebiete. Die Engine zählt das nur zur Anzeige mit (`stats` je Spieler, Spielstand-Format 2); ältere Spielstände bekommen die Zähler beim Laden nachgetragen und zählen ab der aktuellen Runde, das Abschlussbild sagt das dazu. Runden zählen ab dem Startspieler.
+    - Bildschirmfotos: `risiko-vorauswahl-*`, `risiko-kampf-*`, `risiko-zugwechsel-1920x1080`, `risiko-abschluss-*`, `risiko-handy-390x844` in `docs/screenshots/`.
+    - `x`/`y`/`label` in `map.js` gehören zur alten schematischen Karte und werden von der Host-Ansicht nicht mehr benutzt.
+- **Startseite** (`/`, `public/start/`): „Neues Spiel starten“ legt über `POST /api/rooms` einen Raum an und öffnet die Host-Lobby; „Spiel beitreten“ prüft den Code (`GET /api/rooms/:code`) und führt zu `/play`. Keine Anmeldung. Dauert eine Anfrage länger als 3 s, erscheint „Der Server startet, das dauert bis zu einer Minute.“
+- **Lobby und Beitritt** (`public/shared/lobby.css`, `lobby.js`): großer Raumcode mit QR-Code und Adresse, Spieler als Karten in ihrer Farbe („4 von 6“), Spielauswahl als zwei gleichwertige Karten, Einstellungen darunter, Start erst mit genug Spielern. Hintergrund bei Risiko die abgedunkelte Weltkarte, bei Monopoly ein flaches Feldraster. Spielfigur wählt man nur bei Monopoly, sonst vergibt der Server die erste freie. Bildschirmfotos: `startseite-*`, `lobby-*`, `handy-beitritt-*` in `docs/screenshots/`.
 - **Räume:**
+  - Grenzen gegen Missbrauch: höchstens 20 Räume gleichzeitig, höchstens 5 neue pro Minute und IP. Leere Räume (keine Host-Ansicht, keine Spieler) verschwinden nach 30 Minuten, bei erreichtem Limit schon nach 2 Minuten; laufende Spiele nach 6 h ohne Aktivität. Gelöschte Räume werden auch aus der Datenbank entfernt, beim Start werden höchstens 20 geladen.
   - 4-Buchstaben-Code mit QR-Beitritt
   - Wiederverbindung per Token; getrennte Spieler können ihren Platz zurückholen
   - Pause, solange der Spieler am Zug getrennt ist; Ausscheiden erst nach 5 Minuten Blockade
@@ -21,7 +47,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Vanilla-JS-Clients ohne Build-Schritt
   - Zustand im Arbeitsspeicher; mit `DATABASE_URL` zusätzlich in Postgres (Neon), siehe Betrieb
 - **Deployment:** `render.yaml` als Web Service im Free-Plan; Build mit `npm install --omit=dev`, Start mit `npm start`, Healthcheck `/healthz`.
-- **Tests:** 68 Tests (`npm test`): Regel- und Minispiel-Tests, Playwright-Durchläufe mit 1 Host-Ansicht und 3 Handys, Tests der Weckseite sowie 2 Datenbank-Tests, die nur mit `DATABASE_URL` laufen.
+- **Tests:** `npm test` führt nur die Unit-Tests aus (131: Regeln von Monopoly, Risiko und Minispielen, Spiel-Schnittstelle, Spielauswahl, Neustart-Tests mit gespeicherten Räumen in Version 1 und 2, Prüfung der erzeugten Weltkarte, Animations-Ereignisse, Risiko-Anzeigedaten wie Vorauswahl, Phasentexte und Statistik samt altem Spielstand ohne Statistik, Animationsdauern, Raumlimit, Rate-Limit und Aufräumen leerer Räume, Startseite per HTTP, CORS-Freigabe von `/healthz` für die Weckseite, Wächter für die Testskripte). Lokal kommen dazu `npm run test:browser` (Playwright-Durchläufe: Monopoly mit 1 Host-Ansicht und 3 Handys, Lobby, alte Einzelversion, Risiko mit 2 Handys inkl. Vorauswahl auf dem Fernseher, Startseite mit Raum anlegen und Beitritt per Code, Weckseite; braucht `CHROMIUM_PATH`) und `npm run test:db` (2 Datenbank-Tests, braucht `DATABASE_URL`). Fehlt die Umgebung, werden diese Tests mit Grund übersprungen. Zeitlimit 60 s pro Testdatei.
 - **Aufräumarbeiten:** `package-lock.json` liegt im Repo. Die alte Pferderennen-Einzelversion liegt in `legacy/`.
 
 ## Entscheidungen
@@ -30,17 +56,19 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 2. **Reihenfolge:** zuerst Monopoly (fertig), dann Risiko, dann Poker.
 3. **Server ist die einzige Instanz** für Spielzustand und Zufall. Clients zeigen nur Snapshots, versteckte Information wird pro Spieler gefiltert (siehe `CLAUDE.md`).
 4. **Gleiche Grundlage für alle Spiele:** Räume, Beitritt, QR-Code und Wiederverbindung werden geteilt; Hosting auf Render bleibt.
+5. **Risiko: Neutrale Armee bei 2 Spielern bleibt.** Es spielt eine neutrale Armee mit 40 Armeen mit (klassische Zwei-Personen-Regel). Sie hat kein Handy und verteidigt immer mit der Höchstzahl an Würfeln.
+6. **Risiko: Gebiete von Ausgeschiedenen werden neutral.** Wer aufgibt oder zu lange getrennt ist, scheidet aus; die Gebiete werden neutral, die Armeen bleiben stehen, die Karten kommen auf den Ablagestapel.
 
 ## Offene Punkte
 
 > Hinweis: Die Projektwissensdatei lag beim Anlegen dieses Dokuments nicht vor. Die Punkte stammen aus der Projektanalyse vom Oktober 2026 – bitte mit der Projektwissensdatei abgleichen.
 
 ### Architektur
-- `server/rooms.js` ist fest an Monopoly gekoppelt: `Room.game` ist ein `MonopolyGame`, `act()` ist ein Monopoly-`switch`, und Animations-Timing, Auto-Würfeln und Pause hängen an Monopoly-Phasen. Für weitere Spiele braucht es eine gemeinsame Schnittstelle für Spielmodule, zum Beispiel `create`, `handleAction`, `view(spieler)`, Timer und Ende.
-- Snapshots gehen heute an alle Handys gleich, gefiltert wird nur nach Rolle. Für Poker (Handkarten) und Risiko (verdeckte Karten) muss es einen eigenen Snapshot pro Spieler bzw. Socket geben.
+- Erledigt: Gemeinsame Spiel-Schnittstelle in `server/games/index.js` (`createGame`, `handleAction`, `view(role, playerId)`, `tick`, `isOver`, dazu `waitingFor`, `removePlayer`, `toJSON`). Monopoly ist die erste Implementierung (`server/monopoly/index.js`); Animations-Timing, Auto-Würfeln, Auktions-Timer und Minispiele liegen dort, `server/rooms.js` ist spielunabhängig.
+- Erledigt: Jedes Handy bekommt einen eigenen Snapshot (`view('player', playerId)`). Spielstände werden als Version 2 mit `gameType` gespeichert; Version 1 lässt sich weiter laden.
 - Die Frontends `public/board/board.js` und `public/play/play.js` sind große Einzeldateien mit Monopoly- und Minispiel-Ansichten. Für mehrere Spiele sollten sie pro Spiel aufgeteilt werden; dazu kommt eine gemeinsame Hülle für Lobby, Kopfzeile und Verbindung.
 - Animationszeiten sind zwischen Server (`TIMING`, Konstanten der Minispiele) und Clients verteilt.
-- Es braucht eine Spielauswahl in der Lobby der Host-Ansicht.
+- Erledigt: Spielauswahl in der Lobby der Host-Ansicht (`board:game`); Risiko-Ansichten liegen in eigenen Dateien (`public/board/risiko.js`, `public/play/risiko.js`).
 
 ### Betrieb
 - Persistenz (Branch `feature/persistenz`) ist implementiert: Mit `DATABASE_URL` werden Räume in Postgres (Neon) gespeichert und beim Start geladen.
@@ -50,7 +78,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Offen: Ein unterbrochenes Minispiel startet nach einem Neustart neu.
 - Weckseite (`wake/`) für den Link an Freunde, siehe unten.
 - Nur eine Server-Instanz möglich, weil Socket.IO keinen gemeinsamen Adapter (z. B. Redis) nutzt.
-- Keine Authentifizierung: Wer den Raumcode kennt, kann die Host-Ansicht öffnen und starten. Getrennte Plätze lassen sich übernehmen.
+- Keine Authentifizierung: Wer den Raumcode kennt, kann die Host-Ansicht öffnen und starten. Getrennte Plätze lassen sich übernehmen. Jeder mit dem Link kann über die Startseite Räume anlegen (begrenzt, siehe Räume). Die IP für das Rate-Limit kommt aus `X-Forwarded-For` (erster Eintrag); wer sie fälscht, umgeht nur die 5 pro Minute, nicht das Raumlimit.
 
 ### Weckseite auf Netlify veröffentlichen
 Render legt den kostenlosen Dienst nach etwa 15 Minuten schlafen. Die statische Weckseite in `wake/` weckt ihn auf und leitet weiter, sobald `/healthz` mit `ok: true` antwortet. Sie ist der Link, den man an Freunde schickt.
@@ -66,7 +94,7 @@ Render legt den kostenlosen Dienst nach etwa 15 Minuten schlafen. Die statische 
 - Wird `main` künftig der Branch, den Render beobachtet?
 - Verhalten auf echten Handys (iOS Safari, Android) über längere Zeit, z. B. Displaysperre und Netzwechsel. Getestet ist nur headless Chromium.
 - Last mit 10 Spielern auf dem Free-Plan.
-- Regeln und Umfang für Risiko und Poker: Varianten, Spielerzahl, Spieldauer, Minispiele ja oder nein.
+- Regeln und Umfang für Poker: Varianten, Spielerzahl, Spieldauer, Minispiele ja oder nein.
 
 ### Bekannte Regelvereinfachungen in Monopoly
 - Keine 10 % Zinsen auf übernommene Hypotheken.

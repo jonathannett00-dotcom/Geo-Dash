@@ -80,3 +80,35 @@ test('Raum: unbekanntes Spiel wird abgelehnt', () => {
   assert.throws(() => manager.create('halma'), /gibt es nicht/);
   manager.shutdown();
 });
+
+test('Lobby: Spielauswahl wechselt Spiel und Einstellungen, nur vor dem Start', () => {
+  const manager = new RoomManager({ testMode: true, seed: 'wahl', timeScale: 0.01 });
+  const room = manager.create();
+  assert.equal(room.gameType, 'monopoly');
+  assert.deepEqual(room.snapshot().games.map((g) => g.id), ['monopoly', 'risiko']);
+  room.setGameType('risiko');
+  assert.equal(room.gameType, 'risiko');
+  assert.deepEqual(room.settings, { cardValues: 'steigend', fortify: 'benachbart' });
+  assert.equal(room.snapshot().maxPlayers, 6);
+  room.updateSettings({ cardValues: 'fest' });
+  assert.equal(room.settings.cardValues, 'fest');
+  assert.throws(() => room.updateSettings({ fortify: 'überall' }), /benachbart/);
+  assert.throws(() => room.setGameType('halma'), /gibt es nicht/);
+  room.setGameType('monopoly');
+  assert.deepEqual(room.settings, { startMoney: 1500 });
+
+  // Zu viele Spieler für Risiko
+  for (let i = 0; i < 7; i++) room.join({ name: `S${i}`, color: COLORS[i], figure: FIGURES[i] });
+  assert.throws(() => room.setGameType('risiko'), /höchstens 6 Spieler – im Raum sind schon 7/);
+  manager.shutdown();
+
+  const m2 = new RoomManager({ testMode: true, seed: 'wahl2', timeScale: 0.01 });
+  const r2 = m2.create();
+  r2.setGameType('risiko');
+  for (let i = 0; i < 6; i++) r2.join({ name: `S${i}`, color: COLORS[i], figure: FIGURES[i] });
+  assert.throws(() => r2.join({ name: 'S6', color: COLORS[6], figure: FIGURES[6] }), /voll \(maximal 6/);
+  r2.start();
+  assert.equal(r2.game.phase, 'setup');
+  assert.throws(() => r2.setGameType('monopoly'), /läuft bereits/);
+  m2.shutdown();
+});

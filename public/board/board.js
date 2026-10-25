@@ -52,6 +52,7 @@ let qrFor = null;
 function renderLobby() {
   $('#lobby').classList.remove('hidden');
   $('#game').classList.add('hidden');
+  $('#risiko').classList.add('hidden');
   $('#room-code').textContent = S.code;
   if (qrFor !== S.code) {
     qrFor = S.code;
@@ -63,14 +64,42 @@ function renderLobby() {
   patch($('#lobby-players'), list.length
     ? list.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}"><span class="fig">${p.figure}</span>${escapeHtml(p.name)}${p.connected ? '' : ' <small>(getrennt)</small>'}</li>`).join('')
     : '<li class="empty">Noch niemand da – scannt den QR-Code!</li>');
-  const input = $('#start-money');
-  if (document.activeElement !== input) input.value = S.settings.startMoney;
+  patch($('#game-choice'), (S.games || []).map((g) => `<button type="button" id="game-${g.id}" data-game="${g.id}" class="btn ${g.id === S.gameType ? 'primary' : 'ghost'}" aria-pressed="${g.id === S.gameType}">${GAME_ICONS[g.id] || '🎲'} ${escapeHtml(g.name)}<small>${g.minPlayers}–${g.maxPlayers} Spieler</small></button>`).join(''));
+  const risiko = S.gameType === 'risiko';
+  $('#settings-monopoly').classList.toggle('hidden', risiko);
+  $('#settings-risiko').classList.toggle('hidden', !risiko);
+  if (risiko) {
+    ['cardValues', 'fortify'].forEach((k) => {
+      const el = $(`#risiko-${k}`);
+      if (document.activeElement !== el) el.value = S.settings[k];
+    });
+  } else {
+    const input = $('#start-money');
+    if (document.activeElement !== input) input.value = S.settings.startMoney;
+  }
   const enough = list.length >= S.minPlayers;
-  $('#btn-start').disabled = !enough;
-  $('#lobby-hint').textContent = enough
-    ? `Alle starten mit ${fmtM(S.settings.startMoney)}.`
-    : `Mindestens ${S.minPlayers} Spieler werden gebraucht.`;
+  const tooMany = list.length > S.maxPlayers;
+  $('#btn-start').disabled = !enough || tooMany;
+  $('#lobby-hint').textContent = !enough
+    ? `Mindestens ${S.minPlayers} Spieler werden gebraucht.`
+    : (risiko ? 'Die Gebiete werden zufällig verteilt.' : `Alle starten mit ${fmtM(S.settings.startMoney)}.`);
 }
+
+const GAME_ICONS = { monopoly: '🎩', risiko: '🗺️' };
+
+$('#game-choice').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-game]');
+  if (!b || b.dataset.game === S?.gameType) return;
+  socket.emit('board:game', { gameType: b.dataset.game }, (res) => { if (!res.ok) toast(res.error, 'error'); });
+});
+
+['cardValues', 'fortify'].forEach((k) => {
+  $(`#risiko-${k}`).addEventListener('change', (e) => {
+    socket.emit('board:settings', { [k]: e.target.value }, (res) => {
+      if (!res.ok) { toast(res.error, 'error'); e.target.value = S.settings[k]; }
+    });
+  });
+});
 
 $('#start-money').addEventListener('change', (e) => {
   socket.emit('board:settings', { startMoney: Number(e.target.value) }, (res) => {
@@ -463,6 +492,7 @@ function flushDeferred() {
 
 function renderGame() {
   $('#lobby').classList.add('hidden');
+  $('#risiko').classList.add('hidden');
   $('#game').classList.remove('hidden');
   $('#side-code').textContent = S.code;
   if (!built) buildBoard();
@@ -841,5 +871,6 @@ STAGES.blackjack = (m, stage) => {
 function render() {
   if (!S) return;
   if (!S.started || !S.game) renderLobby();
+  else if (S.gameType === 'risiko') renderRisiko();
   else renderGame();
 }

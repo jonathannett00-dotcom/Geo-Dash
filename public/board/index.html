@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/shared/base.css" />
   <link rel="stylesheet" href="/shared/racetrack.css" />
   <link rel="stylesheet" href="/board/board.css" />
+  <link rel="stylesheet" href="/board/risiko.css" />
 </head>
 <body class="board-page">
   <!-- ============ LOBBY ============ -->
@@ -25,9 +26,26 @@
         <div class="lobby-side">
           <h2>Spieler <span id="lobby-count" class="count"></span></h2>
           <ul id="lobby-players" class="lobby-players"></ul>
-          <label class="start-money">Startbetrag für alle
-            <span class="money-input"><input id="start-money" type="number" min="100" max="100000" step="50" value="1500" /><b>M</b></span>
-          </label>
+          <div class="game-choice" id="game-choice" role="group" aria-label="Spiel auswählen"></div>
+          <div id="settings-monopoly">
+            <label class="start-money">Startbetrag für alle
+              <span class="money-input"><input id="start-money" type="number" min="100" max="100000" step="50" value="1500" /><b>M</b></span>
+            </label>
+          </div>
+          <div id="settings-risiko" class="risiko-settings hidden">
+            <label>Kartentausch
+              <select id="risiko-cardValues">
+                <option value="steigend">steigend (4, 6, 8, 10, 12, 15, …)</option>
+                <option value="fest">fest (4 / 6 / 8 / 10)</option>
+              </select>
+            </label>
+            <label>Verschieben
+              <select id="risiko-fortify">
+                <option value="benachbart">ins Nachbargebiet</option>
+                <option value="verbunden">über eigene Gebiete</option>
+              </select>
+            </label>
+          </div>
           <button id="btn-start" class="btn primary big" disabled>Spiel starten</button>
           <p id="lobby-hint" class="hint"></p>
         </div>
@@ -57,9 +75,27 @@
     <div id="stage" class="stage hidden"></div>
   </section>
 
+  <!-- ============ RISIKO ============ -->
+  <section id="risiko" class="risiko hidden">
+    <div class="rk-map-wrap">
+      <div id="rk-banner" class="rk-banner"></div>
+      <svg id="rk-map" class="rk-map" role="img" aria-label="Risiko-Weltkarte"></svg>
+    </div>
+    <aside class="sidebar rk-side">
+      <div class="side-head">
+        <span class="brand">🗺️ Risiko</span>
+        <span>Raum <b id="rk-code"></b></span>
+      </div>
+      <div id="rk-players" class="rk-players"></div>
+      <div id="rk-battle" class="rk-battle hidden"></div>
+      <ol id="rk-log" class="rk-log"></ol>
+    </aside>
+  </section>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/common.js"></script>
   <script src="/shared/racetrack.js"></script>
   <script src="/board/board.js"></script>
+  <script src="/board/risiko.js"></script>
 </body>
 </html>

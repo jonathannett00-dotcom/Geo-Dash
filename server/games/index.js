@@ -30,7 +30,7 @@
 const monopoly = require('../monopoly');
 const risiko = require('./risiko');
 
-/* Risiko hat noch keine Oberfläche; Räume dafür entstehen nur per manager.create('risiko'). */
+/* Ausgewählt wird in der Lobby der Host-Ansicht (board:game). */
 const GAMES = {
   [monopoly.id]: monopoly,
   [risiko.id]: risiko,

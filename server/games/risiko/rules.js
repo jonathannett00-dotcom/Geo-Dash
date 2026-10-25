@@ -596,6 +596,7 @@ class RisikoGame {
     return {
       phase: this.phase,
       currentId: this.phase === 'setup' || this.phase === 'gameover' ? null : this.currentPlayer().id,
+      startPlayerId: this.phase === 'setup' ? this.currentPlayer().id : null,
       round: this.round,
       settings: { ...this.settings },
       neutral: this.neutral ? { ...this.neutral } : null,

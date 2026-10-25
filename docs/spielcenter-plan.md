@@ -11,7 +11,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Gefängnis, Pasch, je 16 Ereignis- und Gemeinschaftskarten
   - Handel, Schulden und Pleite, Aufgeben, „Zug beenden“ durch den Spieler
 - **Minispiele** in Monopoly, ausgelöst durch die Würfelsumme: Pferderennen (7), Roulette (8, 12), Blackjack (2, 6). Gesetzt wird mit dem Monopoly-Konto.
-- **Risiko** (Branch `feature/risiko`, noch ohne Oberfläche): Regel-Engine nach den klassischen Standardregeln unter `server/games/risiko/`, 2–6 Spieler.
+- **Risiko** (Branch `feature/risiko`): in der Lobby wählbar; Host-Ansicht mit eigener SVG-Karte (Besitzfarben, Armeezahlen, Angriffspfeil, Würfel), Handy-Controller zum Setzen, Kartentausch, Angreifen, Verteidigen, Nachrücken und Verschieben. Regel-Engine nach den klassischen Standardregeln unter `server/games/risiko/`, 2–6 Spieler.
   - Karte als Daten mit eigener schematischer Grafik: 42 Gebiete, 6 Kontinente, 83 Grenzen, Kontinentboni 5/2/5/3/7/2.
   - Aufbau: Gebiete werden zufällig verteilt (je 1 Armee), danach setzen alle gleichzeitig ihre restlichen Startarmeen (35/30/25/20; bei 2 Spielern je 40 plus neutrale Armee mit 40).
   - Verstärkung: Gebiete / 3 (mindestens 3) plus Kontinentboni.
@@ -29,7 +29,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Vanilla-JS-Clients ohne Build-Schritt
   - Zustand im Arbeitsspeicher; mit `DATABASE_URL` zusätzlich in Postgres (Neon), siehe Betrieb
 - **Deployment:** `render.yaml` als Web Service im Free-Plan; Build mit `npm install --omit=dev`, Start mit `npm start`, Healthcheck `/healthz`.
-- **Tests:** 101 Tests (`npm test`): Regel- und Minispiel-Tests (Monopoly, Risiko), Tests der Spiel-Schnittstelle, Playwright-Durchläufe mit 1 Host-Ansicht und 3 Handys sowie 2 Datenbank-Tests, die nur mit `DATABASE_URL` laufen.
+- **Tests:** 108 Tests (`npm test`): Regel- und Minispiel-Tests (Monopoly, Risiko), Tests der Spiel-Schnittstelle und Spielauswahl, Neustart-Tests mit gespeicherten Räumen (Version 1 und 2), Playwright-Durchläufe (Monopoly mit 1 Host-Ansicht und 3 Handys, Risiko mit 2 Handys) sowie 2 Datenbank-Tests, die nur mit `DATABASE_URL` laufen.
 - **Aufräumarbeiten:** `package-lock.json` liegt im Repo. Die alte Pferderennen-Einzelversion liegt in `legacy/`.
 
 ## Entscheidungen
@@ -48,7 +48,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 - Erledigt: Jedes Handy bekommt einen eigenen Snapshot (`view('player', playerId)`). Spielstände werden als Version 2 mit `gameType` gespeichert; Version 1 lässt sich weiter laden.
 - Die Frontends `public/board/board.js` und `public/play/play.js` sind große Einzeldateien mit Monopoly- und Minispiel-Ansichten. Für mehrere Spiele sollten sie pro Spiel aufgeteilt werden; dazu kommt eine gemeinsame Hülle für Lobby, Kopfzeile und Verbindung.
 - Animationszeiten sind zwischen Server (`TIMING`, Konstanten der Minispiele) und Clients verteilt.
-- Es braucht eine Spielauswahl in der Lobby der Host-Ansicht.
+- Erledigt: Spielauswahl in der Lobby der Host-Ansicht (`board:game`); Risiko-Ansichten liegen in eigenen Dateien (`public/board/risiko.js`, `public/play/risiko.js`).
 
 ### Betrieb
 - Persistenz (Branch `feature/persistenz`) ist implementiert: Mit `DATABASE_URL` werden Räume in Postgres (Neon) gespeichert und beim Start geladen.
@@ -65,7 +65,6 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 - Verhalten auf echten Handys (iOS Safari, Android) über längere Zeit, z. B. Displaysperre und Netzwechsel. Getestet ist nur headless Chromium.
 - Last mit 10 Spielern auf dem Free-Plan.
 - Regeln und Umfang für Poker: Varianten, Spielerzahl, Spieldauer, Minispiele ja oder nein.
-- Risiko: Oberfläche für Tablet und Handy, Spielauswahl in der Lobby.
 
 ### Offene Entscheidungen Risiko
 Beide Regeln sind umgesetzt und im Code mit „OFFENE ENTSCHEIDUNG“ markiert (`server/games/risiko/rules.js`); geändert wird erst nach einer Vorgabe.

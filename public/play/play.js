@@ -202,7 +202,7 @@ function renderHeader(hold = false) {
   $('#me-name').textContent = p.name;
   const g = S.game;
   if (!g) {
-    $('#me-money').textContent = fmtM(S.settings.startMoney);
+    $('#me-money').textContent = S.gameType === 'risiko' ? '🗺️ Risiko' : fmtM(S.settings.startMoney);
     $('#turn-name').textContent = '–';
     return;
   }
@@ -223,7 +223,7 @@ function renderWaiting() {
     <div class="waiting">
       <div class="big">⏳</div>
       <h2>Warte auf den Spielstart…</h2>
-      <p>Raum <b>${escapeHtml(S.code)}</b> · Start mit ${fmtM(S.settings.startMoney)}</p>
+      <p>Raum <b>${escapeHtml(S.code)}</b> · ${S.gameType === 'risiko' ? 'Risiko' : `Monopoly, Start mit ${fmtM(S.settings.startMoney)}`}</p>
     </div>
     <ul class="lobby-list">${S.lobby.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}">${p.figure} ${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</li>`).join('')}</ul>`);
 }
@@ -775,6 +775,8 @@ function attention() {
 
 function render() {
   if (!S || !me) return;
+  if (S.game && S.gameType === 'risiko') { renderRisiko(); return; }
+  $('#panel-risiko').classList.add('hidden');
   const hold = animHold();
   renderHeader(hold);
   if (!S.game) {

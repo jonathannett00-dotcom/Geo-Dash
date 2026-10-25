@@ -85,6 +85,18 @@ class Room {
     return player;
   }
 
+  /** Spielauswahl in der Lobby; die Einstellungen beginnen beim Standard des Spiels. */
+  setGameType(gameType) {
+    if (this.started) fail('Das Spiel läuft bereits.');
+    const mod = GAMES[gameType];
+    if (!mod) fail('Dieses Spiel gibt es nicht.');
+    if (this.players.length > mod.maxPlayers) fail(`${mod.name} ist für höchstens ${mod.maxPlayers} Spieler – im Raum sind schon ${this.players.length}.`);
+    if (gameType === this.gameType) return;
+    this.gameType = gameType;
+    this.module = mod;
+    this.settings = mod.defaultSettings();
+  }
+
   updateSettings(patch) {
     if (this.started) fail('Das Spiel läuft bereits.');
     this.settings = this.module.applySettings(this.settings, patch);
@@ -243,6 +255,7 @@ class Room {
       code: this.code,
       now: Date.now(),
       gameType: this.gameType,
+      games: Object.values(GAMES).map(({ id, name, minPlayers, maxPlayers }) => ({ id, name, minPlayers, maxPlayers })),
       started: this.started,
       settings: this.settings,
       minPlayers: this.minPlayers,
@@ -476,10 +489,17 @@ class RoomManager {
       return { code: room.code };
     });
 
-    handle('board:settings', ({ startMoney }, use) => {
+    handle('board:settings', (patch, use) => {
       const room = ownRoom();
       if (socket.data.role !== 'board') fail('Nur das Tablet kann das Spiel einstellen.');
-      room.updateSettings({ startMoney });
+      room.updateSettings(patch);
+      use(room);
+    });
+
+    handle('board:game', ({ gameType }, use) => {
+      const room = ownRoom();
+      if (socket.data.role !== 'board') fail('Nur das Tablet kann das Spiel auswählen.');
+      room.setGameType(String(gameType || ''));
       use(room);
     });
 
@@ -493,7 +513,7 @@ class RoomManager {
     handle('room:info', ({ code }) => {
       const room = this.requireRoom(code);
       const snap = room.snapshot();
-      return { started: snap.started, lobby: snap.lobby, colors: COLORS, figures: FIGURES, full: snap.lobby.length >= room.maxPlayers };
+      return { started: snap.started, gameType: room.gameType, lobby: snap.lobby, colors: COLORS, figures: FIGURES, full: snap.lobby.length >= room.maxPlayers };
     });
 
     handle('player:join', ({ code, name, color, figure }, use) => {

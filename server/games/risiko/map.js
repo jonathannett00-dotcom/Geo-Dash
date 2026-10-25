@@ -3,16 +3,17 @@
 /* =========================================================
  *  Risiko-Weltkarte als Daten: 42 Gebiete, 6 Kontinente, Grenzen
  *  und Kontinentboni. x/y sind Mittelpunkte auf einer eigenen,
- *  schematischen Karte (Zeichenfläche 1000 × 560).
+ *  schematischen Karte (Zeichenfläche 1000 × 560), label die Lage der
+ *  Kontinentnamen.
  * ========================================================= */
 
 const CONTINENTS = [
-  { id: 'nordamerika', name: 'Nordamerika', bonus: 5, color: '#e9b949' },
-  { id: 'suedamerika', name: 'Südamerika', bonus: 2, color: '#e07a5f' },
-  { id: 'europa', name: 'Europa', bonus: 5, color: '#5b8bd9' },
-  { id: 'afrika', name: 'Afrika', bonus: 3, color: '#c98b4f' },
-  { id: 'asien', name: 'Asien', bonus: 7, color: '#6fb26f' },
-  { id: 'australien', name: 'Australien', bonus: 2, color: '#a57fc9' },
+  { id: 'nordamerika', name: 'Nordamerika', bonus: 5, color: '#e9b949', label: { x: 190, y: 40 } },
+  { id: 'suedamerika', name: 'Südamerika', bonus: 2, color: '#e07a5f', label: { x: 170, y: 405 } },
+  { id: 'europa', name: 'Europa', bonus: 5, color: '#5b8bd9', label: { x: 465, y: 52 } },
+  { id: 'afrika', name: 'Afrika', bonus: 3, color: '#c98b4f', label: { x: 445, y: 470 } },
+  { id: 'asien', name: 'Asien', bonus: 7, color: '#6fb26f', label: { x: 760, y: 40 } },
+  { id: 'australien', name: 'Australien', bonus: 2, color: '#a57fc9', label: { x: 935, y: 372 } },
 ];
 
 const TERRITORIES = [

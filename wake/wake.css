@@ -1,79 +1,88 @@
-/* Weckseite – Farben und Schrift wie die Lobby der Host-Ansicht (public/shared/base.css, public/board/board.css) */
+/* Weckseite – Kopie des Aussehens der Startseite (public/start/start.css, public/shared/lobby.css).
+ * Bewusst kopiert, nicht verlinkt: Die Seite liegt auf Netlify und lädt nichts vom Server. */
 :root {
-  --bg: #0f2a1d;
-  --bg-2: #163a28;
-  --panel: #fffaf0;
-  --panel-2: #f3ecdc;
-  --ink: #1d1d1b;
-  --muted: #6b6b63;
-  --line: #e2d9c4;
-  --gold: #e8b923;
-  --red: #c8332b;
-  --green: #2e9a4f;
-  --font-display: "Alfa Slab One", Rockwell, "Roboto Slab", Georgia, serif;
+  --lb-bg: #14181d; --lb-bg-shape: #1b2027; --lb-panel: #1d232b;
+  --lb-text: #eef1f3; --lb-muted: #9aa5b1;
+  --lb-accent: #e8c46a; --lb-accent-ink: #231b05;
+  --lb-mono: #1f5a3a; --lb-risk: #234567;
+  --lb-error: #f0c4be;
   --font-body: Barlow, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --radius: 14px;
-  --shadow: 0 8px 24px rgba(0, 0, 0, .25);
 }
 
 * { box-sizing: border-box; }
-html { background: var(--bg); }
+html { min-height: 100%; background: var(--lb-bg); }
 body {
-  margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 16px;
-  font-family: var(--font-body); color: var(--ink); background: var(--bg);
+  margin: 0; position: relative; overflow-x: hidden; min-height: 100%;
+  font-family: var(--font-body); color: var(--lb-text); background: var(--lb-bg);
+  font-size: clamp(15px, min(1.15vw, 2vh), 24px);
 }
 .hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.card { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.6rem 2rem; width: min(820px, 100%); }
-h1 { font-family: var(--font-display); font-weight: 400; letter-spacing: .02em; font-size: 2.2rem; margin: 0 0 .2rem; text-wrap: balance; }
-h2 { font-size: 1.15rem; margin: 0 0 .3rem; }
-.sub { color: var(--muted); margin: 0 0 1.4rem; }
+/* ---------- Hintergrund: flaches Raster, ohne Bewegung (wie die Startseite) ---------- */
+.bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.bg svg { position: absolute; inset: -3% -3%; width: 106%; height: 106%; display: block; }
+.bg .grid-line { stroke: var(--lb-bg-shape); stroke-width: 2; fill: none; }
 
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.action { display: flex; flex-direction: column; gap: .5rem; margin: 0; padding: 1.1rem 1.2rem; background: #fff; border: 2px solid var(--line); border-radius: 12px; }
-.action .btn { margin-top: auto; }
-.hint { color: var(--muted); font-size: .9rem; margin: 0 0 .4rem; }
-.field { font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-input {
-  font: inherit; font-size: 1.6rem; font-weight: 700; letter-spacing: .3em; text-transform: uppercase;
-  padding: .45rem .7rem; border: 2px solid #d8d0bd; border-radius: 10px; background: #fff; color: var(--ink); width: 100%; min-width: 0;
+.wrap {
+  position: relative; z-index: 1; min-height: 100vh; min-height: 100dvh; max-width: 64em; margin: 0 auto;
+  padding: 3em 2em; display: flex; flex-direction: column; justify-content: center; gap: 2.2em;
 }
-input::placeholder { color: #cfc6b2; }
-input:focus { outline: none; border-color: var(--gold); }
-input[aria-invalid="true"] { border-color: var(--red); }
-.msg { min-height: 1.2em; margin: 0; font-size: .9rem; color: var(--red); font-weight: 600; }
+.title { font-family: var(--font-body); font-weight: 800; font-size: 3.6em; letter-spacing: -.01em; margin: 0 0 .25em; line-height: 1; }
+.sub { margin: 0; color: var(--lb-muted); font-size: 1.2em; line-height: 1.45; max-width: 34em; }
+
+/* ---------- Karten ---------- */
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2em; }
+.card { background: var(--lb-panel); border-radius: .9em; padding: 1.6em 1.7em 1.7em; display: flex; flex-direction: column; gap: .7em; }
+.card-new { background: var(--lb-mono); }
+.card-join { background: var(--lb-risk); }
+.card h2 { margin: 0; font-size: 1.7em; font-weight: 800; }
+.card p { margin: 0 0 .6em; color: rgba(255, 255, 255, .8); line-height: 1.45; }
 
 .btn {
-  border: 0; border-radius: 999px; padding: .65rem 1.2rem; font: inherit; font-weight: 700;
-  cursor: pointer; transition: transform .1s, filter .15s; color: var(--ink); background: #e9e1cf;
+  font: inherit; font-weight: 800; font-size: 1.2em; border: 0; border-radius: .55em; cursor: pointer; min-height: 2.9em;
+  padding: .6em 1.2em; background: rgba(255, 255, 255, .14); color: var(--lb-text); margin-top: auto;
 }
-.btn:hover { filter: brightness(1.06); }
-.btn:active { transform: scale(.97); }
-.btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.btn.big { padding: .9rem 1.6rem; font-size: 1.15rem; width: 100%; }
-.btn.primary { background: var(--gold); color: #2a2200; }
-.btn.go { background: var(--green); color: #fff; }
-.btn.ghost { background: transparent; border: 2px solid currentColor; }
-.btn.chosen { box-shadow: 0 0 0 3px var(--panel), 0 0 0 6px var(--ink); }
+.btn.primary { background: var(--lb-accent); color: var(--lb-accent-ink); }
+.btn:focus-visible { outline: 3px solid var(--lb-text); outline-offset: 3px; }
+/* Gewählte Aktion, solange der Server noch startet */
+.btn.chosen { box-shadow: 0 0 0 3px var(--lb-text); }
 
-.status { margin-top: 1.4rem; padding-top: 1.1rem; border-top: 2px solid var(--line); display: flex; flex-direction: column; gap: .6rem; }
-.status-text { margin: 0; font-weight: 600; }
-.bar { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
-.bar-fill { height: 100%; width: 0; background: var(--gold); border-radius: inherit; transition: width .6s ease-out, background .3s; }
-.status[data-state="ready"] .bar-fill { background: var(--green); }
-.status[data-state="failed"] .bar-fill { background: var(--red); }
-.status[data-state="failed"] .status-text { color: var(--red); }
-.pending { margin: 0; color: var(--muted); }
-#btn-retry { align-self: flex-start; }
-
-@media (max-width: 640px) {
-  .card { padding: 1.2rem 1.1rem; }
-  h1 { font-size: 1.8rem; }
-  .actions { grid-template-columns: 1fr; }
-  /* Am Handy steht das Beitreten oben */
-  #join-form { order: -1; }
+.join-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6em; margin-top: auto; }
+.join-form .btn { margin-top: 0; }
+.code {
+  font: inherit; font-weight: 800; font-size: 1.5em; letter-spacing: .3em; text-align: center; text-transform: uppercase;
+  min-height: 1.95em; border-radius: .37em; border: 2px solid transparent; background: rgba(0, 0, 0, .25); color: var(--lb-text);
+  padding: 0 .4em; width: 100%; min-width: 0;
 }
+.code::placeholder { color: rgba(255, 255, 255, .35); }
+.code:focus { border-color: var(--lb-accent); outline: none; }
+.code[aria-invalid="true"] { border-color: var(--lb-error); }
+.card .msg { margin: 0; font-weight: 600; color: var(--lb-error); }
+.card .msg:empty { display: none; }
+
+/* ---------- Status: Ladestreifen wie auf der Startseite ---------- */
+.status { min-height: 3.2em; display: grid; gap: .6em; align-content: start; justify-items: start; }
+.wait { display: flex; align-items: center; gap: .9em; color: var(--lb-muted); }
+.status-text { margin: 0; }
+.bar { position: relative; width: 6em; height: .3em; border-radius: 1em; background: rgba(255, 255, 255, .12); overflow: hidden; flex: none; }
+.bar-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0; border-radius: 1em; background: var(--lb-text); opacity: .7; transition: width .6s ease-out; }
+.status[data-state="ready"] .status-text { color: var(--lb-text); font-weight: 700; }
+.status[data-state="ready"] .bar-fill { opacity: 1; }
+.status[data-state="failed"] .status-text { color: var(--lb-error); font-weight: 600; }
+.status[data-state="failed"] .bar-fill { background: var(--lb-error); }
+.pending { margin: 0; font-weight: 600; }
+.btn.retry { margin-top: 0; font-size: 1em; min-height: 2.6em; }
 
 @media (prefers-reduced-motion: reduce) {
-  .bar-fill, .btn { transition: none; }
+  .bar-fill { transition: none; }
+}
+
+@media (max-width: 720px) {
+  body { font-size: 16px; }
+  .wrap { padding: 1.5em 16px; justify-content: flex-start; gap: 1.2em; }
+  .title { font-size: 2.6em; }
+  .actions { grid-template-columns: 1fr; }
+  /* Am Handy will man meist beitreten: das zuerst */
+  .card-join { order: -1; }
 }

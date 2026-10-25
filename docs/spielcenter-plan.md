@@ -82,12 +82,15 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 
 ### Weckseite auf Netlify veröffentlichen
 Render legt den kostenlosen Dienst nach etwa 15 Minuten schlafen. Die statische Weckseite in `wake/` weckt ihn auf und leitet weiter, sobald `/healthz` mit `ok: true` antwortet. Sie ist der Link, den man an Freunde schickt.
-1. Auf [app.netlify.com/drop](https://app.netlify.com/drop) den Ordner `wake/` hineinziehen. Das legt eine **neue Seite** an. Nicht in das bestehende Projekt `poolgames69` hochladen.
+1. Einmalig (erledigt, die Seite heißt `rundestarten`, Adresse `https://rundestarten.netlify.app`): Auf [app.netlify.com/drop](https://app.netlify.com/drop) den Ordner `wake/` hineinziehen. Das legt eine **neue Seite** an. Nicht in das bestehende Projekt `poolgames69` hochladen.
 2. Die Adresse der neuen Seite notieren, z. B. `https://name.netlify.app`. Unter *Site configuration* lässt sich der Name ändern.
 3. Bei Render im Dienst `monopoly-abend` unter *Environment* die Variable `WAKE_ORIGIN` auf genau diese Adresse setzen: mit `https://`, ohne Pfad und ohne Schrägstrich am Ende. Danach neu deployen.
    - Erst damit darf die Weckseite den Status von `/healthz` lesen. Der Server erlaubt nur genau diese Origin, ohne Stern.
    - Ohne `WAKE_ORIGIN` funktioniert die Seite trotzdem über einen ungenauen Rückfall (Anfrage im no-cors-Modus). Sie leitet dann schon weiter, sobald Render irgendetwas antwortet, notfalls auf Renders eigene Warteseite.
-4. Ändert sich die Render-Adresse, nur die Konstante `SERVER` oben in `wake/wake.js` anpassen und den Ordner erneut hochladen (bei Netlify unter *Deploys* per Drag-and-drop).
+4. Ändert sich die Render-Adresse, nur die Konstante `SERVER` oben in `wake/wake.js` anpassen und den Ordner erneut hochladen (siehe 5).
+5. **Nach jeder Änderung an `wake/` (z. B. nach dem Merge des neuen Designs):** den Ordner erneut hochladen, und zwar in die **bestehende** Seite, nicht über Netlify Drop. Bei Netlify das Projekt `rundestarten` öffnen, Tab *Deploys*, den Ordner `wake/` in das Feld zum Hochladen ziehen. So bleibt die Adresse `https://rundestarten.netlify.app` erhalten und `WAKE_ORIGIN` bei Render bleibt unverändert gültig. Eine neue Seite hätte eine andere Adresse, dann dürfte die Weckseite `/healthz` nicht mehr lesen.
+
+Die Weckseite sieht aus wie die Startseite (`public/start/`): Titel „Spieleabend“, grüne Karte „Neues Spiel starten“, blaue Karte „Spiel beitreten“, Ladestreifen darunter. Farben und Maße sind aus `public/start/start.css` und `public/shared/lobby.css` nach `wake/wake.css` **kopiert**, weil die Seite eigenständig auf Netlify liegt und außer `/healthz` nichts vom Server lädt. Ändert sich das Design der Startseite, `wake/` von Hand nachziehen.
 
 ### Noch zu klären
 - Render: Welcher Branch ist verbunden, ist `PUBLIC_URL` gesetzt, welche Node-Version läuft, bleibt es beim Free-Plan?

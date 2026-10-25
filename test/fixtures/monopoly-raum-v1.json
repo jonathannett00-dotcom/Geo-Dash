@@ -1,0 +1,339 @@
+{
+ "version": 1,
+ "code": "SVTF",
+ "settings": {
+  "startMoney": 1500
+ },
+ "started": true,
+ "lastActivity": 0,
+ "players": [
+  {
+   "id": "p14f2616a",
+   "token": "11974c01893c2e8d5d47d66171039b5e",
+   "name": "Anna",
+   "color": "#e63946",
+   "figure": "🎩"
+  },
+  {
+   "id": "p40139ea5",
+   "token": "35c2cabd5e546f1125089e1c5d6fd1c4",
+   "name": "Ben",
+   "color": "#1d72d8",
+   "figure": "🚗"
+  }
+ ],
+ "game": {
+  "startMoney": 1500,
+  "players": [
+   {
+    "id": "p14f2616a",
+    "name": "Anna",
+    "color": "#e63946",
+    "figure": "🎩",
+    "money": 1440,
+    "position": 3,
+    "inJail": false,
+    "jailRolls": 0,
+    "jailCards": [],
+    "bankrupt": false
+   },
+   {
+    "id": "p40139ea5",
+    "name": "Ben",
+    "color": "#1d72d8",
+    "figure": "🚗",
+    "money": 1500,
+    "position": 0,
+    "inJail": false,
+    "jailRolls": 0,
+    "jailCards": [],
+    "bankrupt": false
+   }
+  ],
+  "props": [
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": "p14f2616a",
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   },
+   null,
+   {
+    "owner": null,
+    "houses": 0,
+    "mortgaged": false
+   }
+  ],
+  "bank": {
+   "houses": 32,
+   "hotels": 12
+  },
+  "decks": {
+   "chance": [
+    14,
+    1,
+    4,
+    5,
+    3,
+    11,
+    8,
+    10,
+    6,
+    12,
+    2,
+    7,
+    9,
+    13,
+    0,
+    15
+   ],
+   "community": [
+    11,
+    7,
+    8,
+    12,
+    1,
+    14,
+    10,
+    0,
+    6,
+    2,
+    3,
+    13,
+    5,
+    15,
+    9,
+    4
+   ]
+  },
+  "seq": 7,
+  "log": [
+   {
+    "seq": 1,
+    "text": "Das Spiel beginnt! Alle starten mit 1.500 M.",
+    "kind": "info",
+    "time": 1792936253905
+   },
+   {
+    "seq": 2,
+    "text": "Anna ist am Zug.",
+    "kind": "turn",
+    "time": 1792936253905
+   },
+   {
+    "seq": 4,
+    "text": "Anna würfelt 1 + 2 = 3",
+    "kind": "dice",
+    "time": 1792936253906
+   },
+   {
+    "seq": 6,
+    "text": "Anna landet auf Turmstraße – zu kaufen für 60 M.",
+    "kind": "land",
+    "time": 1792936253907
+   },
+   {
+    "seq": 7,
+    "text": "Anna kauft Turmstraße für 60 M.",
+    "kind": "buy",
+    "time": 1792936253907
+   }
+  ],
+  "moves": [
+   {
+    "seq": 5,
+    "playerId": "p14f2616a",
+    "from": 0,
+    "to": 3,
+    "steps": 3,
+    "mode": "walk"
+   }
+  ],
+  "lastRoll": {
+   "seq": 3,
+   "playerId": "p14f2616a",
+   "dice": [
+    1,
+    2
+   ],
+   "sum": 3,
+   "doubles": false
+  },
+  "lastCard": null,
+  "auction": null,
+  "auctionQueue": [],
+  "debts": [],
+  "trades": [],
+  "minigame": null,
+  "winner": null,
+  "forcedDice": [
+   [
+    1,
+    2
+   ]
+  ],
+  "currentIndex": 0,
+  "phase": "end",
+  "turn": {
+   "playerId": "p14f2616a",
+   "doubles": 0,
+   "rolled": true,
+   "rollAgain": false,
+   "buyOffer": null,
+   "pendingMove": null,
+   "minigame": null,
+   "minigameDone": false,
+   "dice": [
+    1,
+    2
+   ]
+  }
+ },
+ "shoe": {
+  "cards": [
+   3,
+   7,
+   11
+  ]
+ }
+}

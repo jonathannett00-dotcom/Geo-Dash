@@ -1,0 +1,6 @@
+node_modules/
+.neon
+# Zugangsdaten (z. B. DATABASE_URL von Neon) – niemals committen
+.env
+.env.local
+.env.*.local

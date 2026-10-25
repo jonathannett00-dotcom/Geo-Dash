@@ -19,9 +19,9 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 - **Technik:**
   - Node.js ≥ 20, Express 5, Socket.IO 4, qrcode
   - Vanilla-JS-Clients ohne Build-Schritt
-  - Zustand nur im Arbeitsspeicher
+  - Zustand im Arbeitsspeicher; mit `DATABASE_URL` zusätzlich in Postgres (Neon), siehe Betrieb
 - **Deployment:** `render.yaml` als Web Service im Free-Plan; Build mit `npm install --omit=dev`, Start mit `npm start`, Healthcheck `/healthz`.
-- **Tests:** 57 grüne Tests (`npm test`): Regel- und Minispiel-Tests sowie Playwright-Durchläufe mit 1 Host-Ansicht und 3 Handys.
+- **Tests:** 63 Tests (`npm test`): Regel- und Minispiel-Tests, Playwright-Durchläufe mit 1 Host-Ansicht und 3 Handys sowie 2 Datenbank-Tests, die nur mit `DATABASE_URL` laufen.
 - **Aufräumarbeiten:** `package-lock.json` liegt im Repo. Die alte Pferderennen-Einzelversion liegt in `legacy/`.
 
 ## Entscheidungen
@@ -43,7 +43,11 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 - Es braucht eine Spielauswahl in der Lobby der Host-Ansicht.
 
 ### Betrieb
-- Ohne Persistenz: Ein Neustart, ein Deploy oder das Einschlafen des Render-Free-Plans löscht laufende Spiele.
+- Persistenz (Branch `feature/persistenz`) ist implementiert: Mit `DATABASE_URL` werden Räume in Postgres (Neon) gespeichert und beim Start geladen.
+  - Neon ist angebunden: `neon deploy` legt `DATABASE_URL` in `.env.local` ab.
+  - Die Datenbank-Tests (`test/db.test.js`) sind lokal gegen den Neon-Branch `test` grün: 2 bestanden, 0 fehlgeschlagen, 0 übersprungen.
+  - Die Browser-Tests (`e2e`, `lobby.e2e`, `legacy.e2e`) wurden dabei nicht ausgeführt.
+  - Offen: Ein unterbrochenes Minispiel startet nach einem Neustart neu.
 - Nur eine Server-Instanz möglich, weil Socket.IO keinen gemeinsamen Adapter (z. B. Redis) nutzt.
 - Keine Authentifizierung: Wer den Raumcode kennt, kann die Host-Ansicht öffnen und starten. Getrennte Plätze lassen sich übernehmen.
 

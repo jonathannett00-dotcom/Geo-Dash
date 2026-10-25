@@ -41,8 +41,8 @@ Das Repository enthält eine `render.yaml` (Blueprint):
 
 Hinweise zum kostenlosen Plan:
 
-- Der Spielstand liegt nur im Arbeitsspeicher.
-- Render legt kostenlose Dienste nach etwa 15 Minuten ohne eingehende Anfragen schlafen. Dabei geht der Spielstand verloren, und der erste Aufruf danach dauert einen Moment.
+- Ohne Datenbank liegt der Spielstand nur im Arbeitsspeicher.
+- Render legt kostenlose Dienste nach etwa 15 Minuten ohne eingehende Anfragen schlafen. Ohne Datenbank geht der Spielstand dabei verloren, und der erste Aufruf danach dauert einen Moment.
 - Unabhängig davon wird ein Raum nach 6 Stunden ohne Aktivität gelöscht.
 
 ## Spielanleitung
@@ -142,6 +142,14 @@ Für alle Minispiele gilt:
 - 20 Sekunden pro Entscheidung, danach automatisch Stand.
 - Der Dealer steht auf Soft 17. Blackjack zahlt 3:2, eine Versicherung gibt es nicht.
 
+## Spielstände speichern (Postgres / Neon)
+
+Ist die Umgebungsvariable `DATABASE_URL` gesetzt, speichert der Server jeden Raum nach Änderungen in Postgres und lädt beim Start alle Räume der letzten 6 Stunden wieder. Ein Neustart, ein Deploy oder das Einschlafen auf Render beendet dann kein Spiel mehr: Tablet und Handys verbinden sich neu und es geht an derselben Stelle weiter. Ein Minispiel, das gerade lief, beginnt von vorn.
+
+- **Render:** Im Dienst unter *Environment* die Variable `DATABASE_URL` mit der Verbindungs-URL von Neon setzen (die `render.yaml` fragt sie beim Blueprint ab).
+- **Lokal:** Die URL in `.env.local` eintragen (steht in `.gitignore`) und mit `node --env-file=.env.local server/index.js` starten.
+- Ohne `DATABASE_URL` läuft alles wie bisher nur im Arbeitsspeicher.
+
 ## Tests
 
 ```bash
@@ -155,13 +163,16 @@ npm test
 - Die Browser-Tests (Playwright) spielen mit 1 Tablet und 3 Handys mehrere Runden: Lobby, Kauf, Miete, Versteigerung, Handel, Neuladen, abgelehnte Aktionen und je ein erzwungenes Pferderennen, Roulette und Blackjack.
   - Die Würfel werden dabei nur im Testmodus (`MONOPOLY_TEST=1`) vorgegeben.
   - Chromium muss installiert sein. Der Pfad lässt sich mit `CHROMIUM_PATH` setzen, Standard ist `/opt/pw-browsers/chromium`.
+- Die Persistenz-Tests speichern, laden und setzen eine Partie fort. Gegen eine echte Datenbank laufen sie nur mit `DATABASE_URL` (eigene Wegwerf-Tabelle), sonst werden sie übersprungen:
+  `node --env-file=.env.local --test --test-concurrency=1 test/*.test.js`
 
 ## Projektstruktur
 
 ```
 server/
   index.js            Express + Socket.IO, QR-Code, Seiten
-  rooms.js            Räume, Beitritt, Wiederverbindung, Timer, Minispiel-Steuerung
+  rooms.js            Räume, Beitritt, Wiederverbindung, Timer, Minispiel-Steuerung, Speichern/Laden
+  db.js               Postgres-Speicher für Räume (nur mit DATABASE_URL)
   rng.js              Zufallsgenerator des Servers
   monopoly/           board.js (Felder), cards.js (Karten), rules.js (Regel-Engine)
   games/              horserace.js, blackjack.js, roulette.js

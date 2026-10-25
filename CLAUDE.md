@@ -14,7 +14,7 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
   - `server/rooms.js`: Räume, Beitritt, Wiederverbindung, Timer, Ablauf
   - `server/monopoly/`: Regel-Engine und Spieldaten
   - `server/games/`: Minispiele mit `wallet`-Interface
-  - Spielzustand liegt nur im Arbeitsspeicher.
+  - `server/db.js`: Postgres-Speicher (Neon). Mit `DATABASE_URL` wird jeder Raum nach Änderungen als JSONB gespeichert und beim Start wieder geladen; ohne `DATABASE_URL` liegt alles nur im Arbeitsspeicher. Während eines Minispiels wird nicht gespeichert.
 
 ## Regeln für Änderungen
 
@@ -22,8 +22,8 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
 - **`npm test` muss vor jedem Commit grün sein.**
 - **Ein Feature pro Branch.**
 - **Keine neuen Abhängigkeiten ohne Rückfrage.**
-  - Laufzeit: nur `express`, `socket.io`, `qrcode`.
-  - Entwicklung: nur `playwright`.
+  - Laufzeit: nur `express`, `socket.io`, `qrcode`, `pg`.
+  - Entwicklung: nur `playwright` sowie `@neon/config` und `@neon/env` (für die Neon-CLI und `neon.ts`).
   - `package-lock.json` liegt im Repo und wird mit `npm install` aktualisiert.
 - `legacy/` enthält die alte Pferderennen-Einzelversion. Sie bleibt unverändert; neuer Code verweist nicht darauf.
 
@@ -34,3 +34,5 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
   - Chromium kommt aus `CHROMIUM_PATH`, Standard `/opt/pw-browsers/chromium`.
   - `E2E_SCREEN=1920x1080` prüft den Durchlauf in TV-Auflösung.
   - `E2E_SHOTS=<ordner>` speichert Bildschirmfotos.
+  - Mit `DATABASE_URL` laufen zusätzlich die Datenbank-Tests (`test/db.test.js`, eigene Wegwerf-Tabelle), ohne werden sie übersprungen: `node --env-file=.env.local --test --test-concurrency=1 test/*.test.js`.
+- Zugangsdaten stehen nur in `.env` / `.env.local` (in `.gitignore`). Die Verbindungs-URL nie ausgeben, loggen oder committen.

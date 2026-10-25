@@ -897,6 +897,23 @@ class MonopolyGame {
     }
   }
 
+  /* ---------------- Speichern & Wiederherstellen ---------------- */
+
+  /** Vollständiger Spielzustand als reine Daten (ohne Zufallsgenerator und Uhr). */
+  toJSON() {
+    const { rng, now, ...data } = this;
+    return JSON.parse(JSON.stringify(data));
+  }
+
+  /** Stellt ein gespeichertes Spiel wieder her; der Zufall läuft mit einem neuen Generator weiter. */
+  static fromJSON(data, { rng = createRng(), now = Date.now } = {}) {
+    const g = Object.create(MonopolyGame.prototype);
+    Object.assign(g, JSON.parse(JSON.stringify(data)));
+    g.rng = rng;
+    g.now = now;
+    return g;
+  }
+
   /* ---------------- Zustand für die Clients ---------------- */
 
   publicState() {

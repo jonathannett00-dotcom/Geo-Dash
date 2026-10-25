@@ -64,6 +64,10 @@
 .rk-die-g rect { transition: opacity .25s ease, stroke-width .25s ease; }
 .rk-die-g.win rect { stroke: #fff; stroke-width: 2.6px; }
 .rk-die-g.lose, .rk-die-g.idle { opacity: .38; transition: opacity .3s ease; }
+/* Erledigtes Paar tritt zurück, damit nur das aktuelle hervorgehoben ist */
+.rk-die-g.done { opacity: .5; }
+.rk-die-g.done.lose { opacity: .3; }
+.rk-die-g.done.win rect { stroke-width: 0; }
 
 /* ---------- Animationen ---------- */
 .rk-dice rect { stroke: var(--rk-line); stroke-width: 1px; vector-effect: non-scaling-stroke; }

@@ -22,17 +22,43 @@ const SETTING_ERRORS = {
 const VIEW_OPTIONS = { animation: ['normal', 'kurz', 'aus'] };
 const OPTIONS = { ...SETTING_OPTIONS, ...VIEW_OPTIONS };
 
-/** Dauer der Animationen in ms bei „normal“. */
-const ANIM_MS = { place: 700, battle: 2600, conquer: 1500, move: 900, trade: 600, turn: 1600 };
-/** Nur Anzeige (Ton, Banner): laufen nach den übrigen Animationen, ohne die Handys aufzuhalten. */
-const AFTER = new Set(['trade', 'turn']);
-const ANIM_FACTOR = { normal: 1, kurz: 0.45, aus: 0 };
+/**
+ * Dauer der Animationen in ms. „kurz“ hat die früheren Zeiten, „normal“ ist ruhiger
+ * (etwa das Anderthalbfache, beim Kampf mehr), „aus“ zeigt nur das Ergebnis.
+ */
+const ANIM_MS = {
+  normal: { place: 1050, conquer: 2200, move: 1350, trade: 900, turn: 2000 },
+  kurz: { place: 700, conquer: 1500, move: 900, trade: 600, turn: 1600 },
+};
+/**
+ * Abschnitte eines Kampfes in ms: Pause, Pfeil, Würfel rollen aus, je Vergleichspaar,
+ * Nachklang, Ausblenden. „kurz“ entspricht den früheren 2,6 s für jeden Kampf.
+ */
+const BATTLE_STEPS = {
+  normal: { wait: 200, arrow: 600, roll: 2500, pair: 1200, settle: 400, fade: 400 },
+  kurz: { wait: 156, arrow: 468, roll: 780, pairs: 780, settle: 208, fade: 208 },
+};
+/** Im Aufbau setzen alle gleichzeitig: Stehen zu viele Verstärkungen an, laufen sie kürzer. */
+const SETUP_BACKLOG_MS = 2500;
+const SETUP_QUICK_MS = 250;
+
+/** Kampfabschnitte für eine Einstellung; Dauer je Paar hängt bei „kurz“ von der Anzahl ab. */
+function battleSteps(mode, pairs, scale) {
+  const base = BATTLE_STEPS[mode];
+  if (!base) return null;
+  const pair = base.pair ?? base.pairs / Math.max(1, pairs);
+  const steps = { wait: base.wait, arrow: base.arrow, roll: base.roll, pair, settle: base.settle, fade: base.fade };
+  for (const k of Object.keys(steps)) steps[k] = Math.round(steps[k] * scale);
+  return steps;
+}
+const battleTotal = (st, pairs) => st.wait + st.arrow + st.roll + st.pair * pairs + st.settle + st.fade;
+
 const ANIM_KEEP = 30;
 
 /** Partie mit Snapshots pro Rolle und Spieler und Ereignissen für die Animationen. */
 class RisikoSession extends RisikoGame {
   get animState() {
-    if (!this._anim) Object.defineProperty(this, '_anim', { value: { seq: 0, until: 0, events: [] }, writable: true, enumerable: false });
+    if (!this._anim) Object.defineProperty(this, '_anim', { value: { seq: 0, until: 0, shownUntil: 0, events: [] }, writable: true, enumerable: false });
     return this._anim;
   }
 
@@ -198,18 +224,28 @@ class RisikoSession extends RisikoGame {
     if (!events.length) return;
 
     const anim = this.animState;
-    const factor = (ANIM_FACTOR[this.settings.animation] ?? 1) * (this.timeScale ?? 1);
-    // Im Aufbau setzen alle gleichzeitig: Das läuft parallel und hält niemanden auf
+    const mode = this.settings.animation in ANIM_MS ? this.settings.animation : null;
+    const scale = this.timeScale ?? 1;
+    // Strikt nacheinander: jede Animation beginnt erst, wenn die vorige fertig ist.
+    // Im Aufbau setzen alle gleichzeitig – das läuft in derselben Warteschlange, hält aber die Handys nicht auf.
     const blocking = before.phase !== 'setup';
-    let cursor = Math.max(now, anim.until);
+    let cursor = Math.max(now, anim.until, anim.shownUntil || 0);
     for (const e of events) {
-      const dur = Math.round(ANIM_MS[e.type] * factor);
       anim.seq += 1;
-      const after = AFTER.has(e.type);
-      const start = after ? Math.max(now, cursor) : blocking ? cursor : now;
-      anim.events.push({ ...e, seq: anim.seq, at: start, dur });
-      if (blocking && !after) cursor = start + dur;
+      let dur = 0;
+      const ev = { ...e, seq: anim.seq };
+      if (mode && e.type === 'battle') {
+        const pairs = Math.min(e.attack.length, e.defend.length);
+        ev.steps = battleSteps(mode, pairs, scale);
+        dur = battleTotal(ev.steps, pairs);
+      } else if (mode) {
+        dur = Math.round(ANIM_MS[mode][e.type] * scale);
+        if (!blocking && cursor - now > SETUP_BACKLOG_MS * scale) dur = Math.round(SETUP_QUICK_MS * scale);
+      }
+      anim.events.push({ ...ev, at: cursor, dur });
+      cursor += dur;
     }
+    anim.shownUntil = cursor;
     if (blocking) anim.until = cursor;
     if (anim.events.length > ANIM_KEEP) anim.events.splice(0, anim.events.length - ANIM_KEEP);
   }
@@ -272,4 +308,5 @@ module.exports = {
 
   RisikoSession,
   ANIM_MS,
+  BATTLE_STEPS,
 };

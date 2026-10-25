@@ -73,7 +73,7 @@ test('Animation: Jede Eroberung liefert ein Ereignis für die Hervorhebung', () 
       assert.ok(e, `Eroberung von ${id} ohne Ereignis`);
       assert.equal(e.owner, t.owner, 'neue Farbe = neuer Besitzer');
       assert.equal(e.previous, owners[id]);
-      assert.ok(e.dur >= 1000 && e.dur <= 2000, 'Hervorhebung etwa 1,5 Sekunden');
+      assert.equal(e.dur, risiko.ANIM_MS.normal.conquer, 'Hervorhebung etwas über 2 Sekunden');
       assert.ok(e.at + e.dur <= g.view('board').animUntil, 'animUntil wartet auf die Hervorhebung');
       const battle = events.find((x) => x.type === 'battle' && x.to === id);
       assert.ok(battle && battle.conquered && battle.at + battle.dur <= e.at, 'erst der Kampf, dann die Hervorhebung');
@@ -118,9 +118,9 @@ test('Animation: Kampf, Verluste und Nachrücken als Ereignisse mit Zahlen vom S
     g.handleAction(a, { type: 'fortify', from: src, to: dst, count: 1 });
     assert.deepEqual(g.eventsSince(s3).filter((e) => e.type === 'move').map((e) => [e.from, e.to, e.count]), [[src, dst, 1]]);
   }
-  // Ereignisse laufen nacheinander
-  const evs = g.eventsSince(0).filter((e) => !['place', 'turn', 'trade'].includes(e.type));
-  for (let i = 1; i < evs.length; i++) assert.ok(evs[i].at >= evs[i - 1].at + evs[i - 1].dur);
+  // Alle Ereignisse laufen strikt nacheinander, nie gleichzeitig (auch Zugwechsel und Aufbau)
+  const evs = g.eventsSince(0);
+  for (let i = 1; i < evs.length; i++) assert.ok(evs[i].at >= evs[i - 1].at + evs[i - 1].dur, `${evs[i - 1].type} vor ${evs[i].type}`);
 });
 
 test('Animation: kürzen und abschalten über die Einstellungen; Aufbau hält niemanden auf', () => {
@@ -137,7 +137,7 @@ test('Animation: kürzen und abschalten über die Einstellungen; Aufbau hält ni
     g.handleAction(a, { type: 'place', territory: g.territoriesOf(a)[0], count: g.turn.reinforcements });
   }
   const dur = (g) => g.eventsSince(0).filter((e) => e.type === 'place').pop().dur;
-  assert.ok(dur(kurz) > 0 && dur(kurz) < risiko.ANIM_MS.place);
+  assert.equal(dur(kurz), 700, 'kurz = die früheren Zeiten');
   assert.equal(dur(aus), 0);
   assert.ok(aus.view('board').animUntil <= Date.now(), 'ohne Animation wartet niemand');
 });
@@ -150,4 +150,68 @@ test('Animation: Ereignisse gehören nicht zum gespeicherten Spielstand', () => 
   const copy = risiko.restoreGame(data, { rng: createRng('weiter'), timeScale: 1 });
   assert.deepEqual(copy.view('board').anim.events, []);
   assert.deepEqual(copy.view('board').game, g.view('board').game);
+});
+
+test('Animation: Dauern je Einstellung – normal ruhiger, kurz wie früher, animUntil wartet auf alles', () => {
+  const run = (animation) => {
+    const g = session({ animation }, 'dauer');
+    finishSetup(g);
+    const a = g.currentPlayer().id;
+    const from = g.territoriesOf(a).find((id) => NEIGHBORS[id].some((n) => g.territories[n].owner !== a));
+    const to = NEIGHBORS[from].find((n) => g.territories[n].owner !== a);
+    g.handleAction(a, { type: 'place', territory: from, count: g.turn.reinforcements });
+    g.territories[from].armies = 10;
+    g.territories[to].armies = 1;
+    // 6-6-6 gegen 1: ein Vergleichspaar, Eroberung, Nachrücken
+    g.forcedDice.push(6, 6, 6, 1);
+    const seq = g.animState.seq;
+    g.handleAction(a, { type: 'attack', from, to });
+    if (g.phase === 'defend') g.handleAction(g.waitingFor(), { type: 'defend' });
+    g.handleAction(a, { type: 'occupy', count: g.turn.occupy.max });
+    const evs = g.eventsSince(seq);
+    return { g, evs, byType: (t) => evs.find((e) => e.type === t) };
+  };
+
+  const kurz = run('kurz');
+  assert.equal(kurz.byType('battle').dur, 2600, 'kurz: Kampf wie früher 2,6 s');
+  assert.equal(kurz.byType('conquer').dur, 1500);
+  assert.equal(kurz.byType('move').dur, 900);
+
+  const normal = run('normal');
+  const battle = normal.byType('battle');
+  assert.deepEqual(battle.steps, risiko.BATTLE_STEPS.normal);
+  assert.equal(battle.steps.roll, 2500, 'Würfel rollen rund 2,5 s');
+  assert.equal(battle.steps.pair, 1200, 'jedes Vergleichspaar steht rund 1,2 s');
+  const st = battle.steps;
+  assert.equal(battle.dur, st.wait + st.arrow + st.roll + st.pair + st.settle + st.fade);
+  for (const t of ['conquer', 'move']) {
+    const ratio = normal.byType(t).dur / kurz.byType(t).dur;
+    assert.ok(ratio >= 1.4 && ratio <= 1.6, `${t} etwa anderthalbmal so lang (${ratio})`);
+  }
+  assert.ok(battle.dur / kurz.byType('battle').dur > 1.6, 'beim Kampf deutlich mehr');
+  // Zwei Paare: jedes weitere Paar verlängert den Kampf um seine Standzeit
+  const g2 = session({ animation: 'normal' }, 'dauer2');
+  finishSetup(g2);
+  const a2 = g2.currentPlayer().id;
+  const f2 = g2.territoriesOf(a2).find((id) => NEIGHBORS[id].some((n) => g2.territories[n].owner !== a2));
+  const t2 = NEIGHBORS[f2].find((n) => g2.territories[n].owner !== a2);
+  g2.handleAction(a2, { type: 'place', territory: f2, count: g2.turn.reinforcements });
+  g2.territories[f2].armies = 10;
+  g2.territories[t2].armies = 5;
+  g2.forcedDice.push(6, 5, 4, 3, 2);
+  const s2 = g2.animState.seq;
+  g2.handleAction(a2, { type: 'attack', from: f2, to: t2 });
+  g2.handleAction(g2.waitingFor(), { type: 'defend', dice: 2 });
+  assert.equal(g2.eventsSince(s2).find((e) => e.type === 'battle').dur, battle.dur + 1200);
+
+  // Die Handys warten, bis die letzte Animation des Fernsehers vorbei ist
+  const last = normal.evs[normal.evs.length - 1];
+  assert.equal(normal.g.view('player', normal.g.currentPlayer().id).animUntil, last.at + last.dur);
+  assert.ok(normal.g.view('board').animUntil - kurz.g.view('board').animUntil > 2000, 'normal hält die Handys länger auf');
+});
+
+test('Animation: Standard ist „normal“', () => {
+  assert.equal(risiko.defaultSettings().animation, 'normal');
+  const g = risiko.createGame({ players: PLAYERS, settings: risiko.defaultSettings(), rng: createRng('std') });
+  assert.equal(g.settings.animation, 'normal');
 });

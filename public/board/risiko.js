@@ -382,7 +382,8 @@ function rkSchedule(e) {
   }, delay);
   // Ton zum passenden Zeitpunkt (Würfel erst, wenn der Pfeil steht und die Würfel rollen)
   const sound = RK_SOUNDS[e.type] && RK_SOUNDS[e.type](e);
-  if (sound) setTimeout(() => RkAudio.play(sound), delay + (e.type === 'battle' ? dur * 0.24 : 0));
+  const soundAt = e.type === 'battle' ? (e.steps ? (e.steps.wait + e.steps.arrow) * (dur / (e.dur || 1)) : dur * 0.24) : 0;
+  if (sound) setTimeout(() => RkAudio.play(sound), delay + soundAt);
   // Danach den echten Stand übernehmen (falls keine weitere Animation das Gebiet hält)
   setTimeout(() => {
     if (e.type === 'battle') rkBattleRunning--;
@@ -530,13 +531,19 @@ const RK_ANIMATIONS = {
       return;
     }
     const top = $('#rk-top-fx');
+    const pairs = Math.min(e.attack.length, e.defend.length);
+    // Abschnitte vom Server (ältere Ereignisse ohne Angabe: feste Anteile der Gesamtdauer)
+    const k = dur / (e.dur || dur);
+    const st = e.steps
+      ? Object.fromEntries(Object.entries(e.steps).map(([key, v]) => [key, v * k]))
+      : { wait: dur * 0.06, arrow: dur * 0.18, roll: dur * 0.3, pair: (dur * 0.3) / Math.max(1, pairs), settle: dur * 0.08, fade: dur * 0.12 };
     rkFocus([e.from, e.to], true);
     const arrow = rkArrow($('#rk-fx'));
     document.getElementById(`rk-t-${e.from}`).classList.add('attacking');
     document.getElementById(`rk-t-${e.to}`).classList.add('defending');
-    await rkWait(dur * 0.06);
+    await rkWait(st.wait);
     let geom = rkSetArrow(arrow, e.from, e.to, 0);
-    await rkTween(dur * 0.18, (t) => { geom = rkSetArrow(arrow, e.from, e.to, t); });
+    await rkTween(st.arrow, (t) => { geom = rkSetArrow(arrow, e.from, e.to, t); });
 
     // Würfel neben der Mitte des Bogens, auf der Außenseite
     const size = rkSizes(rkK).r * 1.55;
@@ -552,6 +559,9 @@ const RK_ANIMATIONS = {
     const spot = spots.find((p) => clear(p) > size * 2.6) || spots.reduce((best, p) => (clear(p) > clear(best) ? p : best));
     const dice = svgEl('g', { class: 'rk-dice', transform: `translate(${spot[0]} ${spot[1]})` }, top);
     const dieEls = { att: [], def: [] };
+    // Jeder Würfel startet etwas später und kommt trotzdem vor dem ersten Vergleich zur Ruhe
+    const stagger = Math.min(st.roll * 0.04, 90);
+    const rollMs = st.roll * 0.92 - 2 * stagger;
     const row = (values, y, cls) => values.forEach((v, i) => {
       const x = (i - (values.length - 1) / 2) * size * 1.25;
       const d = svgEl('g', { class: `rk-die-g ${cls}`, transform: `translate(${x} ${y})` }, dice);
@@ -563,20 +573,21 @@ const RK_ANIMATIONS = {
         { transform: 'rotate(-760deg) scale(.35)', opacity: 0 },
         { transform: 'rotate(-180deg) scale(1.08)', opacity: 1, offset: 0.45 },
         { transform: 'rotate(0deg) scale(1)', opacity: 1 },
-      ], { duration: dur * 0.24, delay: i * dur * 0.025, easing: 'cubic-bezier(.12, .72, .22, 1)', fill: 'backwards' });
+      ], { duration: rollMs, delay: i * stagger, easing: 'cubic-bezier(.12, .72, .22, 1)', fill: 'backwards' });
       dieEls[cls].push(d);
     });
     row(e.attack, -size * 0.7, 'att');
     row(e.defend, size * 0.7, 'def');
-    await rkWait(dur * 0.3);
+    await rkWait(st.roll);
 
-    // Vergleichspaare nacheinander: höchster gegen höchsten, zweithöchster gegen zweithöchsten
-    const pairs = Math.min(e.attack.length, e.defend.length);
+    // Vergleichspaare nacheinander: höchster gegen höchsten, zweithöchster gegen zweithöchsten.
+    // Es hebt sich immer nur das aktuelle Paar hervor; das vorige tritt zurück.
     const shown = { [e.from]: e.attackerArmies, [e.to]: e.defenderArmies };
-    const step = (dur * 0.3) / Math.max(1, pairs);
+    const step = st.pair;
     for (let i = 0; i < pairs; i++) {
       const attackerWins = e.attack[i] > e.defend[i];
       const [win, lose] = attackerWins ? [dieEls.att[i], dieEls.def[i]] : [dieEls.def[i], dieEls.att[i]];
+      if (i > 0) [dieEls.att[i - 1], dieEls.def[i - 1]].forEach((d) => d.classList.add('done'));
       win.classList.add('win');
       lose.classList.add('lose');
       lose.firstChild.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6%)' }, { transform: 'translateX(5%)' }, { transform: 'translateX(0)' }],
@@ -588,11 +599,11 @@ const RK_ANIMATIONS = {
     }
     // Übrige Würfel ohne Gegenüber treten zurück
     [...dieEls.att.slice(pairs), ...dieEls.def.slice(pairs)].forEach((d) => d.classList.add('idle'));
-    await rkWait(dur * 0.08);
-    dice.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.06, fill: 'forwards' });
-    arrow.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.06, fill: 'forwards' });
+    await rkWait(st.settle);
+    dice.animate([{ opacity: 1 }, { opacity: 0 }], { duration: st.fade * 0.5, fill: 'forwards' });
+    arrow.animate([{ opacity: 1 }, { opacity: 0 }], { duration: st.fade * 0.5, fill: 'forwards' });
     rkFocus([], false);
-    await rkWait(dur * 0.06);
+    await rkWait(st.fade * 0.5);
     dice.remove();
     arrow.remove();
     ['hit', 'attacking', 'defending'].forEach((c) => $$(`.rk-territory.${c}`).forEach((n) => n.classList.remove(c)));

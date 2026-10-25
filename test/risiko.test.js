@@ -36,6 +36,15 @@ function placeAll(g, territory) {
   assert.equal(g.phase, 'attack');
 }
 
+/**
+ * Angriff ansagen und den Verteidiger antworten lassen (ohne Angabe mit der
+ * vorausgewählten Höchstzahl). Die neutrale Armee verteidigt von selbst.
+ */
+function fight(g, from, to, dice, defendDice) {
+  g.attack(g.currentPlayer().id, from, to, dice);
+  if (g.phase === 'defend') g.defend(g.turn.pendingAttack.defenderId, defendDice);
+}
+
 /** Alle Gebiete eines Kontinents für einen Spieler. */
 const continent = (id, owner, armies = 1) => Object.fromEntries(CONTINENT_TERRITORIES[id].map((t) => [t, [owner, armies]]));
 
@@ -181,7 +190,7 @@ test('Kampf: höchste Würfel werden verglichen, Gleichstand gewinnt der Verteid
   placeAll(g, 'alaska');
   const before = g.territories.alaska.armies;
   g.forcedDice.push(4, 6, 5, 5, 5); // Angreifer 6-5-4, Verteidiger 5-5
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   assert.deepEqual(g.lastBattle.attack, [6, 5, 4]);
   assert.deepEqual(g.lastBattle.defend, [5, 5]);
   assert.equal(g.lastBattle.defenderLosses, 1, '6 schlägt 5');
@@ -190,12 +199,12 @@ test('Kampf: höchste Würfel werden verglichen, Gleichstand gewinnt der Verteid
   assert.equal(g.territories.kamtschatka.armies, 4);
 
   g.forcedDice.push(3, 3, 3, 3, 3);
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   assert.equal(g.lastBattle.attackerLosses, 2, 'nur Gleichstände → Angreifer verliert 2');
   assert.equal(g.lastBattle.defenderLosses, 0);
 
   g.forcedDice.push(6, 6, 1, 1);
-  g.attack('a', 'alaska', 'kamtschatka', 2);
+  fight(g, 'alaska', 'kamtschatka', 2);
   assert.equal(g.lastBattle.defenderLosses, 2);
   assert.equal(g.territories.kamtschatka.armies, 2);
 });
@@ -210,31 +219,94 @@ test('Kampf: Würfelzahl hängt von den Armeen ab', () => {
   assert.throws(() => g.attack('a', 'kamtschatka', 'alaska'), /gehört dir nicht/);
   assert.throws(() => g.attack('b', 'kamtschatka', 'alaska'), /nicht am Zug/);
 
-  // Verteidiger mit 1 Armee würfelt nur einmal; ohne Angabe würfelt der Angreifer mit dem Maximum
+  // Verteidiger mit 1 Armee hat nur 1 Würfel; ohne Angabe würfelt der Angreifer mit dem Maximum
   g.forcedDice.push(1, 1, 6);
-  g.attack('a', 'alaska', 'kamtschatka');
+  fight(g, 'alaska', 'kamtschatka');
   assert.equal(g.lastBattle.attack.length, 2);
   assert.equal(g.lastBattle.defend.length, 1);
   assert.equal(g.lastBattle.attackerLosses, 1);
   assert.equal(g.territories.alaska.armies, 2);
 
   g.forcedDice.push(2, 6);
-  g.attack('a', 'alaska', 'kamtschatka');
+  fight(g, 'alaska', 'kamtschatka');
   assert.equal(g.lastBattle.attack.length, 1, 'mit 2 Armeen nur 1 Würfel');
   assert.equal(g.territories.alaska.armies, 1);
   assert.throws(() => g.attack('a', 'alaska', 'kamtschatka'), /mindestens 2 Armeen/);
 
-  // Verteidiger mit 4 Armeen würfelt höchstens zweimal
+  // Verteidiger mit 4 Armeen hat höchstens 2 Würfel (vorausgewählt)
   g.forcedDice.push(6, 6, 6, 1, 1);
-  g.attack('a', 'alberta', 'nordwest-territorium', 3);
+  fight(g, 'alberta', 'nordwest-territorium', 3);
   assert.equal(g.lastBattle.defend.length, 2);
+});
+
+test('Verteidigung: Der Verteidiger wählt seine Würfel auf dem Handy, nichts wird automatisch gewürfelt', () => {
+  const g = arrange(newGame(3), { own: { alaska: ['a', 10], kamtschatka: ['b', 5], japan: ['c', 1] } });
+  placeAll(g, 'alaska');
+  g.forcedDice.push(6, 5, 4, 3, 3);
+  g.attack('a', 'alaska', 'kamtschatka', 3);
+  assert.equal(g.phase, 'defend');
+  assert.deepEqual(g.turn.pendingAttack, { from: 'alaska', to: 'kamtschatka', dice: 3, defenderId: 'b', maxDefend: 2 });
+  assert.equal(g.lastBattle, null, 'noch nicht gewürfelt');
+  assert.equal(g.forcedDice.length, 5, 'keine Würfel verbraucht');
+  assert.equal(g.tick(), null, 'kein Timer würfelt für den Verteidiger');
+  assert.equal(g.waitingFor(), 'b', 'das Spiel wartet auf den Verteidiger');
+  assert.equal(g.publicState('b').turn.pendingAttack.maxDefend, 2, 'Handy kennt die Höchstzahl zur Vorauswahl');
+
+  assert.throws(() => g.attack('a', 'alaska', 'kamtschatka', 3), /Verteidiger seine Würfel/);
+  assert.throws(() => g.endTurn('a'), /Verteidiger seine Würfel/);
+  assert.throws(() => g.defend('a', 2), /verteidigt B, nicht du/);
+  assert.throws(() => g.defend('c', 2), /verteidigt B, nicht du/);
+  assert.throws(() => g.defend('b', 3), /1 oder 2 Würfeln/);
+  assert.throws(() => g.defend('b', 0), /1 oder 2 Würfeln/);
+
+  g.defend('b', 1);
+  assert.equal(g.phase, 'attack');
+  assert.deepEqual(g.lastBattle.attack, [6, 5, 4]);
+  assert.deepEqual(g.lastBattle.defend, [3], 'nur ein Würfel für den Verteidiger');
+  assert.equal(g.lastBattle.defenderLosses, 1);
+  assert.equal(g.lastBattle.attackerLosses, 0);
+  assert.equal(g.forcedDice.length, 1);
+  assert.throws(() => g.defend('b', 1), /nicht angegriffen/);
+});
+
+test('Verteidigung: mit 1 Armee höchstens 1 Würfel, ohne Angabe die Höchstzahl', () => {
+  const g = arrange(newGame(3), { own: { alaska: ['a', 10], kamtschatka: ['b', 1], japan: ['b', 4] } });
+  placeAll(g, 'alaska');
+  g.attack('a', 'alaska', 'kamtschatka', 3);
+  assert.equal(g.turn.pendingAttack.maxDefend, 1);
+  assert.throws(() => g.defend('b', 2), /genau 1 Würfel/);
+  g.forcedDice.push(1, 1, 1, 6);
+  g.handleAction('b', { type: 'defend' });
+  assert.deepEqual(g.lastBattle.defend, [6]);
+});
+
+test('Verteidigung: Die neutrale Armee verteidigt automatisch mit der Höchstzahl (offene Entscheidung)', () => {
+  const g = arrange(newGame(2), { own: { alaska: ['a', 10], kamtschatka: [NEUTRAL, 5] } });
+  placeAll(g, 'alaska');
+  g.forcedDice.push(6, 6, 6, 1, 1);
+  g.attack('a', 'alaska', 'kamtschatka', 3);
+  assert.equal(g.phase, 'attack');
+  assert.equal(g.lastBattle.defend.length, 2);
+  assert.equal(g.territories.kamtschatka.armies, 3);
+});
+
+test('Verteidigung: Scheidet der Verteidiger aus, wird der Angriff gegen das neutrale Gebiet aufgelöst', () => {
+  const g = arrange(newGame(3), { own: { alaska: ['a', 10], kamtschatka: ['b', 3] } });
+  placeAll(g, 'alaska');
+  g.forcedDice.push(6, 6, 6, 1, 1);
+  g.attack('a', 'alaska', 'kamtschatka', 3);
+  g.removePlayer('b');
+  assert.equal(g.phase, 'attack');
+  assert.equal(g.lastBattle.defenderId, NEUTRAL);
+  assert.equal(g.territories.kamtschatka.owner, NEUTRAL);
+  assert.equal(g.territories.kamtschatka.armies, 1);
 });
 
 test('Kampf: Eroberung mit Nachrücken (mindestens so viele Armeen wie Würfel)', () => {
   const g = arrange(newGame(3), { own: { alaska: ['a', 7], kamtschatka: ['b', 1] } });
   placeAll(g, 'alaska'); // Alaska: 10
   g.forcedDice.push(6, 5, 4, 1);
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   assert.equal(g.lastBattle.conquered, true);
   assert.equal(g.territories.kamtschatka.owner, 'a');
   assert.equal(g.phase, 'occupy');
@@ -254,7 +326,7 @@ test('Kampf: ohne Wahlmöglichkeit wird automatisch nachgerückt', () => {
   const g = arrange(newGame(3), { own: { alaska: ['a', 1], kamtschatka: ['b', 1] } });
   placeAll(g, 'alaska'); // 4 Armeen → 3 Würfel, nachrücken genau 3
   g.forcedDice.push(6, 6, 6, 1);
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   assert.equal(g.phase, 'attack');
   assert.equal(g.territories.kamtschatka.armies, 3);
   assert.equal(g.territories.alaska.armies, 1);
@@ -268,7 +340,7 @@ test('Kampf: Ausgeschalteter Gegner gibt seine Karten ab, ab 6 Karten wird sofor
   // Symbole: Karten zyklisch infanterie/kavallerie/artillerie nach Kartenreihenfolge
   placeAll(g, 'alaska');
   g.forcedDice.push(6, 6, 6, 1);
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   const c = g.player('c');
   assert.equal(c.eliminated, true);
   assert.equal(c.cards.length, 0);
@@ -295,7 +367,7 @@ test('Kampf: Wer den letzten Gegner ausschaltet, gewinnt', () => {
   const g = arrange(newGame(2), { rest: 'a', own: { kamtschatka: ['b', 1], japan: [NEUTRAL, 3] } });
   placeAll(g, 'alaska');
   g.forcedDice.push(6, 6, 6, 1);
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   assert.equal(g.phase, 'gameover');
   assert.equal(g.winner, 'a');
   assert.ok(g.isOver());
@@ -309,7 +381,7 @@ test('Kampf: Würfel kommen ohne Vorgabe aus dem Zufallsgenerator des Servers', 
     const g = arrange(newGame(3, {}, seed), { own: { alaska: ['a', 30], kamtschatka: ['b', 30] } });
     placeAll(g, 'alaska');
     const rolls = [];
-    for (let i = 0; i < 5; i++) { g.attack('a', 'alaska', 'kamtschatka', 3); rolls.push(g.lastBattle.attack, g.lastBattle.defend); }
+    for (let i = 0; i < 5; i++) { fight(g, 'alaska', 'kamtschatka', 3); rolls.push(g.lastBattle.attack, g.lastBattle.defend); }
     return rolls;
   };
   const a = run('w1');
@@ -423,9 +495,9 @@ test('Karten: nur wer im Zug erobert hat, zieht am Zugende eine Karte', () => {
 
   placeAll(g, 'alaska');
   g.forcedDice.push(6, 6, 6, 1, 6, 6, 1);
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   g.occupy('a', 3);
-  g.attack('a', 'kamtschatka', 'mongolei', 2);
+  fight(g, 'kamtschatka', 'mongolei', 2);
   assert.equal(g.territories.mongolei.owner, 'a');
   g.endTurn('a');
   assert.equal(g.player('a').cards.length, 1, 'zwei Eroberungen → trotzdem nur eine Karte');
@@ -438,7 +510,7 @@ test('Karten: leerer Stapel wird aus dem Ablagestapel neu gemischt', () => {
   g.deck = [];
   placeAll(g, 'alaska');
   g.forcedDice.push(6, 6, 6, 1);
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   g.occupy('a', 3);
   g.endTurn('a');
   assert.equal(g.player('a').cards.length, 1);
@@ -537,7 +609,7 @@ test('Speichern: Zustand übersteht toJSON/fromJSON vollständig', () => {
     { own: { alaska: ['a', 5], kamtschatka: ['b', 1] }, cards: { a: ['japan'] } });
   placeAll(g, 'alaska');
   g.forcedDice.push(6, 6, 6, 1);
-  g.attack('a', 'alaska', 'kamtschatka', 3);
+  fight(g, 'alaska', 'kamtschatka', 3);
   const copy = risiko.restoreGame(JSON.parse(JSON.stringify(g.toJSON())), { rng: createRng('weiter') });
   assert.deepEqual(copy.view('player', 'a'), g.view('player', 'a'));
   assert.ok(!('rng' in g.toJSON()));

@@ -7,7 +7,8 @@
  *  sonst RuleError mit einer deutschen Meldung.
  *
  *  Ablauf eines Zuges: Verstärken (Karten tauschen, Armeen setzen) →
- *  Angreifen (beliebig oft, nach Eroberung nachrücken) → einmal Verschieben.
+ *  Angreifen (beliebig oft; der Verteidiger wählt seine Würfel, nach einer
+ *  Eroberung wird nachgerückt) → einmal Verschieben.
  * ========================================================= */
 
 const { TERRITORY_IDS, TERRITORY, CONTINENTS, CONTINENT_TERRITORIES, NEIGHBORS, isNeighbor } = require('./map');
@@ -91,6 +92,8 @@ class RisikoGame {
       eliminated: false,
       quit: false,
     }));
+    // OFFENE ENTSCHEIDUNG (siehe docs/spielcenter-plan.md): Bei 2 Spielern spielt eine
+    // neutrale Armee mit (Regel der klassischen Ausgabe). Eine Vorgabe dazu fehlt noch.
     this.neutral = players.length === 2 ? { id: NEUTRAL, name: 'Neutral', color: NEUTRAL_COLOR } : null;
     this.territories = Object.fromEntries(TERRITORY_IDS.map((id) => [id, { owner: null, armies: 0 }]));
     this.deck = rng.shuffle(CARDS.map((c) => c.id));
@@ -229,7 +232,7 @@ class RisikoGame {
     const p = this.currentPlayer();
     if (this.currentIndex === this.firstActiveIndex()) this.round += 1;
     const reinforcements = this.reinforcementsFor(p.id);
-    this.turn = { playerId: p.id, reinforcements, conquered: false, fortified: false, occupy: null, returnTo: null };
+    this.turn = { playerId: p.id, reinforcements, conquered: false, fortified: false, occupy: null, returnTo: null, pendingAttack: null };
     this.phase = 'reinforce';
     const bonus = this.continentsOf(p.id).map((c) => `${c.name} +${c.bonus}`);
     this.event(`${p.name} ist am Zug und erhält ${armies(reinforcements)}${bonus.length ? ` (${bonus.join(', ')})` : ''}.`, 'turn');
@@ -306,6 +309,10 @@ class RisikoGame {
 
   /* ---------------- Angreifen ---------------- */
 
+  /**
+   * Angriff ansagen. Der Verteidiger wählt danach auf seinem Handy, mit wie vielen
+   * Würfeln er verteidigt (defend); erst dann würfelt der Server beide Seiten.
+   */
   attack(pid, from, to, dice) {
     const p = this.assertTurn(pid, 'attack');
     const src = this.assertOwn(pid, from, 'Das angreifende Gebiet');
@@ -317,7 +324,38 @@ class RisikoGame {
     const nAtt = dice === undefined || dice === null ? maxDice : Number(dice);
     if (!Number.isInteger(nAtt) || nAtt < 1) fail('Bitte mit 1 bis 3 Würfeln angreifen.');
     if (nAtt > maxDice) fail(`Mit ${armies(src.armies)} kannst du höchstens mit ${plural(maxDice, 'Würfel', 'Würfeln')} angreifen.`);
-    const nDef = Math.min(MAX_DEFEND_DICE, dst.armies);
+
+    const defenderId = dst.owner;
+    this.turn.pendingAttack = { from, to, dice: nAtt, defenderId, maxDefend: Math.min(MAX_DEFEND_DICE, dst.armies) };
+    this.phase = 'defend';
+    this.event(`⚔️ ${p.name} greift mit ${plural(nAtt, 'Würfel', 'Würfeln')} von ${tname(from)} ${tname(to)} an – ${this.nameOf(defenderId)} verteidigt.`, 'battle');
+    // OFFENE ENTSCHEIDUNG (siehe docs/spielcenter-plan.md): Die neutrale Armee hat kein Handy
+    // und verteidigt deshalb immer mit der höchstmöglichen Würfelzahl.
+    if (defenderId === NEUTRAL) this.resolveBattle(this.turn.pendingAttack.maxDefend);
+  }
+
+  /** Der Verteidiger wählt 1 bis 2 Würfel (höchstens so viele wie Armeen im Gebiet). */
+  defend(pid, dice) {
+    const p = this.player(pid);
+    this.assertActive(p);
+    if (this.phase !== 'defend' || !this.turn || !this.turn.pendingAttack) fail('Gerade wirst du nicht angegriffen.');
+    const pending = this.turn.pendingAttack;
+    if (pending.defenderId !== pid) fail(`Gerade verteidigt ${this.nameOf(pending.defenderId)}, nicht du.`);
+    const n = dice === undefined || dice === null ? pending.maxDefend : Number(dice);
+    if (!Number.isInteger(n) || n < 1 || n > pending.maxDefend) {
+      fail(pending.maxDefend === 1 ? 'Mit 1 Armee verteidigst du mit genau 1 Würfel.' : 'Bitte mit 1 oder 2 Würfeln verteidigen.');
+    }
+    this.resolveBattle(n);
+  }
+
+  /** Beide Seiten würfeln; die höchsten Würfel werden paarweise verglichen. */
+  resolveBattle(nDef) {
+    const { from, to, dice: nAtt, defenderId } = this.turn.pendingAttack;
+    const p = this.currentPlayer();
+    const src = this.territories[from];
+    const dst = this.territories[to];
+    this.turn.pendingAttack = null;
+    this.phase = 'attack';
 
     const att = this.rollDice(nAtt);
     const def = this.rollDice(nDef);
@@ -330,13 +368,12 @@ class RisikoGame {
     }
     src.armies -= attackerLosses;
     dst.armies -= defenderLosses;
-    const defenderId = dst.owner;
     const conquered = dst.armies === 0;
     this.lastBattle = {
-      seq: this.nextSeq(), attackerId: pid, defenderId, from, to,
+      seq: this.nextSeq(), attackerId: p.id, defenderId, from, to,
       attack: att, defend: def, attackerLosses, defenderLosses, conquered,
     };
-    this.event(`⚔️ ${p.name} greift von ${tname(from)} ${tname(to)} an (${this.nameOf(defenderId)}): ${att.join('-')} gegen ${def.join('-')} – Verluste ${attackerLosses}:${defenderLosses}.`, 'battle');
+    this.event(`🎲 ${tname(from)} gegen ${tname(to)}: ${att.join('-')} gegen ${def.join('-')} – Verluste ${attackerLosses}:${defenderLosses}.`, 'battle');
     if (conquered) this.conquer(p, from, to, defenderId, nAtt);
   }
 
@@ -457,7 +494,11 @@ class RisikoGame {
     this.removePlayer(pid, 'quit');
   }
 
-  /** Spieler scheidet aus (aufgegeben oder zu lange getrennt): Gebiete werden neutral, Karten kommen auf den Ablagestapel. */
+  /**
+   * Spieler scheidet aus (aufgegeben oder zu lange getrennt): Gebiete werden neutral,
+   * Karten kommen auf den Ablagestapel.
+   * OFFENE ENTSCHEIDUNG (siehe docs/spielcenter-plan.md): Verbleib der Gebiete beim Ausscheiden.
+   */
   removePlayer(pid, reason = 'timeout') {
     const p = this.player(pid);
     if (p.eliminated || this.phase === 'gameover') return;
@@ -475,6 +516,11 @@ class RisikoGame {
     if (this.checkGameOver()) return;
     if (this.phase === 'setup') this.checkSetupDone();
     else if (wasCurrent) this.nextPlayer();
+    else if (this.phase === 'defend' && this.turn.pendingAttack.defenderId === pid) {
+      // Das Gebiet ist jetzt neutral und verteidigt wie die neutrale Armee
+      this.turn.pendingAttack.defenderId = NEUTRAL;
+      this.resolveBattle(this.turn.pendingAttack.maxDefend);
+    }
   }
 
   /* ---------------- Aktionen der Clients ---------------- */
@@ -484,6 +530,7 @@ class RisikoGame {
       case 'place': this.place(pid, action.territory, action.count); break;
       case 'trade': this.trade(pid, action.cards); break;
       case 'attack': this.attack(pid, action.from, action.to, action.dice); break;
+      case 'defend': this.defend(pid, action.dice); break;
       case 'occupy': this.occupy(pid, action.count); break;
       case 'endAttack': this.endAttack(pid); break;
       case 'fortify': this.fortify(pid, action.from, action.to, action.count); break;
@@ -511,6 +558,7 @@ class RisikoGame {
       }
       return null;
     }
+    if (this.phase === 'defend') return this.turn.pendingAttack.defenderId;
     return this.currentPlayer().id;
   }
 
@@ -565,7 +613,11 @@ class RisikoGame {
         quit: p.quit,
       })),
       territories: Object.fromEntries(TERRITORY_IDS.map((id) => [id, { ...this.territories[id] }])),
-      turn: this.turn ? { ...this.turn, occupy: this.turn.occupy ? { ...this.turn.occupy } : null } : null,
+      turn: this.turn ? {
+        ...this.turn,
+        occupy: this.turn.occupy ? { ...this.turn.occupy } : null,
+        pendingAttack: this.turn.pendingAttack ? { ...this.turn.pendingAttack } : null,
+      } : null,
       lastBattle: this.lastBattle,
       lastTrade: this.lastTrade,
       deckCount: this.deck.length,
@@ -582,6 +634,7 @@ const PHASE_HINTS = {
   setup: 'Erst müssen alle ihre Startarmeen setzen.',
   reinforce: 'Setze zuerst alle Verstärkungen.',
   attack: 'Gerade ist die Angriffsphase.',
+  defend: 'Warte, bis der Verteidiger seine Würfel gewählt hat.',
   occupy: 'Ziehe zuerst Armeen in das eroberte Gebiet nach.',
   fortify: 'Die Angriffe sind vorbei – du kannst nur noch verschieben oder den Zug beenden.',
   gameover: 'Das Spiel ist vorbei.',

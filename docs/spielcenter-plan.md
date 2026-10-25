@@ -16,7 +16,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Aufbau: Gebiete werden zufällig verteilt (je 1 Armee), danach setzen alle gleichzeitig ihre restlichen Startarmeen (35/30/25/20; bei 2 Spielern je 40 plus neutrale Armee mit 40).
   - Verstärkung: Gebiete / 3 (mindestens 3) plus Kontinentboni.
   - Kartentausch: Infanterie, Kavallerie, Artillerie, 2 Joker; steigende Werte 4, 6, 8, 10, 12, 15, dann +5 (Einstellung `fest`: 4/6/8/10). +2 auf ein eigenes abgebildetes Gebiet. Pflicht ab 5 Karten, nach dem Ausschalten eines Gegners ab 6 sofort.
-  - Angriff mit bis zu 3 Würfeln, Verteidigung automatisch mit bis zu 2; Gleichstand gewinnt der Verteidiger. Nachrücken mindestens mit so vielen Armeen wie Würfeln.
+  - Angriff mit bis zu 3 Würfeln. Der Verteidiger wählt auf seinem Handy 1 oder 2 Würfel (höchstens so viele wie Armeen im Gebiet), vorausgewählt ist die Höchstzahl; der Server würfelt erst danach. Gleichstand gewinnt der Verteidiger. Nachrücken mindestens mit so vielen Armeen wie Würfeln.
   - Einmal Verschieben pro Zug ins Nachbargebiet (Einstellung `verbunden`: über eigene Gebiete). Eine Karte pro Zug mit Eroberung.
   - Keine Missionen; 2010er-Variante und Hauptstadt-Modus folgen später.
 - **Räume:**
@@ -66,6 +66,11 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 - Last mit 10 Spielern auf dem Free-Plan.
 - Regeln und Umfang für Poker: Varianten, Spielerzahl, Spieldauer, Minispiele ja oder nein.
 - Risiko: Oberfläche für Tablet und Handy, Spielauswahl in der Lobby.
+
+### Offene Entscheidungen Risiko
+Beide Regeln sind umgesetzt und im Code mit „OFFENE ENTSCHEIDUNG“ markiert (`server/games/risiko/rules.js`); geändert wird erst nach einer Vorgabe.
+- **Neutrale Armee bei 2 Spielern:** Heute spielt eine neutrale Armee mit 40 Armeen mit (klassische Zwei-Personen-Regel). Sie hat kein Handy und verteidigt deshalb immer mit der Höchstzahl an Würfeln. Diese Datei enthielt dazu keine Vorgabe. Offen: beibehalten oder entfernen (dann z. B. 2 Spieler ohne Neutral, Startarmeen festlegen).
+- **Ausscheiden (aufgegeben oder zu lange getrennt):** Die Gebiete werden neutral, die Armeen bleiben stehen, die Karten kommen auf den Ablagestapel. Offen: so lassen oder z. B. Gebiete an andere Spieler verteilen.
 
 ### Bekannte Regelvereinfachungen in Monopoly
 - Keine 10 % Zinsen auf übernommene Hypotheken.

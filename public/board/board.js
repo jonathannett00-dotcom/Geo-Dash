@@ -54,6 +54,7 @@ function renderLobby() {
   $('#lobby').classList.remove('hidden');
   $('#game').classList.add('hidden');
   $('#risiko').classList.add('hidden');
+  $('#poker').classList.add('hidden');
   const lobby = $('#lobby');
   lobby.dataset.game = S.gameType;
   lbBackground($('#lb-bg'), S.gameType);
@@ -151,6 +152,7 @@ $('#start-money').addEventListener('change', (e) => {
 $('#btn-start').addEventListener('click', () => {
   // Ton für das Spiel freischalten (Browser erlauben ihn erst nach einer Bedienung)
   if (typeof RkAudio !== 'undefined') RkAudio.unlock();
+  if (typeof PkAudio !== 'undefined') PkAudio.unlock();
   socket.emit('board:start', {}, (res) => { if (!res.ok) toast(res.error, 'error'); });
 });
 
@@ -915,5 +917,6 @@ function render() {
   if (!S) return;
   if (!S.started || !S.game) renderLobby();
   else if (S.gameType === 'risiko') renderRisiko();
+  else if (S.gameType === 'poker') renderPoker();
   else renderGame();
 }

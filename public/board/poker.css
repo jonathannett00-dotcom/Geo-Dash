@@ -1,0 +1,125 @@
+/* =========================================================
+ *  Poker: Tisch für Fernseher und Tablet. Ruhig und flach: ovaler Tisch in
+ *  Grün, Plätze auf dem Rand, Mitte mit Karten und Pot, Liste am Rand.
+ *  Größen hängen an --u (aus der Tischfläche berechnet, siehe poker.js).
+ * ========================================================= */
+
+.poker {
+  --pk-bg: #0f241b; --pk-panel: #143327; --pk-panel-2: #1a3f30; --pk-text: #eef3ef; --pk-muted: #a3bcae;
+  --pk-felt: #1f6a48; --pk-rail: #164e35; --pk-gold: #f2c94c;
+  --side: clamp(210px, 21vw, 400px); --pad: clamp(8px, 1.1vmin, 18px);
+  position: relative; height: 100%; overflow: hidden; background: var(--pk-bg); color: var(--pk-text);
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--side); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "top side" "table side"; gap: var(--pad); padding: var(--pad);
+  font-size: clamp(12px, min(1.05vw, 1.9vh), 24px);
+}
+
+/* ---------- Kopfzeile ---------- */
+.pkt-top { grid-area: top; display: flex; align-items: center; gap: 1em; background: var(--pk-panel); border-radius: 10px; padding: .55em 1em; min-height: 3.2em; }
+.pkt-banner { flex: 1; min-width: 0; display: flex; align-items: center; gap: .7em; flex-wrap: wrap; font-size: 1.25em; }
+.pkt-banner .pk-seat { font-size: .8em; vertical-align: middle; }
+.pkt-street { font-size: .72em; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--pk-gold); }
+.pkt-phase { font-weight: 600; }
+.pkt-detail { color: var(--pk-muted); font-size: .85em; }
+.pkt-timer { font-weight: 800; font-variant-numeric: tabular-nums; background: var(--pk-panel-2); border-radius: 999px; padding: .05em .55em; font-size: .85em; }
+.pkt-timer.urgent { background: #8a2a20; }
+.pkt-paused { font-size: .75em; font-weight: 700; color: #ffd0c8; }
+.pkt-meta { display: flex; gap: 1em; color: var(--pk-muted); white-space: nowrap; }
+.pkt-meta b { color: var(--pk-text); }
+
+/* ---------- Tisch ---------- */
+.pkt-table { grid-area: table; position: relative; min-height: 0; font-size: var(--u, 14px); }
+.pkt-felt { position: absolute; border-radius: 50%; background: var(--pk-felt); box-shadow: inset 0 0 0 1.1em var(--pk-rail); }
+.pkt-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: .55em; z-index: 1; }
+.pkt-board { display: flex; gap: .4em; perspective: 40em; }
+.pkt-board .pk-card { --cw: 4.3em; }
+.pkt-pot { font-size: 1.35em; font-weight: 600; min-height: 1.3em; display: flex; align-items: baseline; gap: .45em; }
+.pkt-pot b { font-variant-numeric: tabular-nums; }
+.pkt-pot small { font-size: .62em; color: rgba(238, 243, 239, .75); }
+.pkt-msg { min-height: 2.6em; display: grid; justify-items: center; gap: .1em; text-align: center; max-width: 30em; }
+.pkt-win { font-size: 1.15em; font-weight: 700; }
+.pkt-label { font-size: 1.15em; font-weight: 800; color: var(--pk-gold); }
+
+.pkt-seat {
+  position: absolute; transform: translate(-50%, -50%); width: 10em; display: grid; justify-items: center; z-index: 2;
+  transition: opacity .4s ease;
+}
+.pkt-cards { display: flex; justify-content: center; gap: .25em; height: 3.64em; margin-bottom: -.9em; position: relative; z-index: 1; perspective: 30em; }
+.pkt-cards .pk-card { --cw: 2.6em; }
+.pkt-cards .pk-card.deal { animation: pkDeal .42s cubic-bezier(.2, .7, .3, 1) both; animation-delay: var(--delay, 0ms); }
+@keyframes pkDeal { from { transform: translate(var(--dx), var(--dy)) scale(.5); opacity: 0; } 30% { opacity: 1; } to { transform: none; opacity: 1; } }
+.pkt-plate {
+  width: 100%; background: #0e261c; border-radius: .6em; padding: 1.05em .55em .4em; text-align: center;
+  box-shadow: inset 0 .28em 0 var(--c), inset 0 0 0 1px rgba(255, 255, 255, .08); transition: box-shadow .3s ease, background-color .3s ease;
+}
+.pkt-name { display: flex; align-items: center; justify-content: center; gap: .35em; font-weight: 700; font-size: 1.02em; min-width: 0; }
+.pkt-name span:not(.pk-seat) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pkt-name .pk-seat { font-size: .82em; }
+.pkt-name i { font-style: normal; font-size: .62em; font-weight: 800; padding: .1em .35em; border-radius: 999px; background: rgba(255, 255, 255, .14); }
+.pkt-stack { font-size: 1.1em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pkt-act { font-size: .82em; color: var(--pk-muted); font-weight: 700; min-height: 1.2em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pkt-act.allin { color: #fff; background: #b23b2e; border-radius: 999px; padding: 0 .5em; display: inline-block; }
+.pkt-seat.active .pkt-plate { box-shadow: inset 0 .28em 0 var(--c), 0 0 0 .2em var(--pk-gold); background: #173a2b; }
+.pkt-seat.winner .pkt-plate { box-shadow: inset 0 .28em 0 var(--c), 0 0 0 .2em var(--pk-gold); background: #3d3412; }
+.pkt-seat.winner .pkt-act { color: var(--pk-gold); }
+.pkt-seat.folded { opacity: .45; }
+.pkt-seat.out { opacity: .35; }
+
+.pkt-bet {
+  position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: .35em; z-index: 1;
+  font-weight: 700; font-variant-numeric: tabular-nums; background: rgba(0, 0, 0, .28); border-radius: 999px; padding: .15em .6em .15em .2em; white-space: nowrap;
+}
+.pkt-chip { display: inline-block; width: 1.1em; height: 1.1em; border-radius: 50%; background: #e8b923; box-shadow: inset 0 0 0 .2em #f6e7b0, inset 0 0 0 .32em #e8b923; flex: none; }
+.pkt-chip.flying { position: absolute; width: 1.3em; height: 1.3em; z-index: 4; pointer-events: none; }
+.pkt-fx { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.pkt-dealer {
+  position: absolute; transform: translate(-50%, -50%); width: 1.8em; height: 1.8em; border-radius: 50%; z-index: 2;
+  display: grid; place-items: center; background: #f6f4ef; color: #17202a; font-weight: 800; font-size: .95em;
+  transition: left .6s ease, top .6s ease;
+}
+
+/* Ab 9 Spielern: kleinere Plätze und Karten, ein Ring */
+.poker.many .pkt-seat { width: 8.6em; }
+.poker.many .pkt-cards { height: 3.08em; margin-bottom: -.8em; }
+.poker.many .pkt-cards .pk-card { --cw: 2.2em; }
+.poker.many .pkt-plate { padding: .95em .45em .35em; }
+.poker.many .pkt-name { font-size: .95em; }
+.poker.many .pkt-stack { font-size: 1em; }
+.poker.many .pkt-board .pk-card { --cw: 3.7em; }
+
+/* ---------- Spielerliste und Ticker ---------- */
+.pkt-side { grid-area: side; display: flex; flex-direction: column; gap: var(--pad); min-height: 0; }
+.pkt-side-head { background: var(--pk-panel); border-radius: 10px; padding: .55em .9em; color: var(--pk-muted); min-height: 3.2em; display: flex; align-items: center; }
+.pkt-side-head b { color: var(--pk-text); margin-left: .3em; letter-spacing: .08em; }
+.pkt-list { list-style: none; margin: 0; padding: .4em; background: var(--pk-panel); border-radius: 10px; display: grid; gap: .2em; overflow: hidden; flex: 1; align-content: start; }
+.pkt-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "seat name stack" "seat sub sub"; column-gap: .5em; align-items: center; padding: .25em .4em; border-radius: 8px; }
+.pkt-list li .pk-seat { grid-area: seat; }
+.pkt-l-name { grid-area: name; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pkt-l-stack { grid-area: stack; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pkt-list small { grid-area: sub; color: var(--pk-muted); font-size: .78em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pkt-list li.cur { background: var(--pk-panel-2); box-shadow: inset .22em 0 0 var(--pk-gold); }
+.pkt-list li.dim { opacity: .55; }
+.poker.many .pkt-list { gap: 0; font-size: .9em; }
+.pkt-log { list-style: none; margin: 0; padding: .5em .8em; background: var(--pk-panel); border-radius: 10px; display: grid; gap: .25em; font-size: .85em; color: var(--pk-muted); flex: none; }
+.pkt-log li:first-child { color: var(--pk-text); }
+
+/* ---------- Endstand ---------- */
+.pkt-final { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(9, 22, 16, .82); }
+.pkt-final-box { background: var(--pk-panel); border-radius: 14px; padding: 1.4em 2em; min-width: 24em; max-height: 90%; overflow: hidden; }
+.pkt-final-box h2 { margin: 0; font-size: 2em; }
+.pkt-final-box p { margin: .2em 0 1em; color: var(--pk-muted); }
+.pkt-final-box ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .35em; }
+.pkt-final-box li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: .6em; align-items: center; font-size: 1.1em; }
+.pkt-final-box li small { grid-column: 2 / 4; color: var(--pk-muted); font-size: .75em; }
+
+.poker.anim-off .pkt-seat, .poker.anim-off .pkt-dealer, .poker.anim-off .pkt-plate { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .pkt-seat, .pkt-dealer, .pkt-plate { transition: none; }
+  .pkt-cards .pk-card.deal { animation: none; }
+}
+
+/* Schmale Fenster (4:3): Liste schmaler */
+@media (max-aspect-ratio: 4/3) {
+  .poker { --side: clamp(190px, 22vw, 300px); font-size: clamp(11px, 1.35vw, 20px); }
+  .pkt-meta span { display: none; }
+}

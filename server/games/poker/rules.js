@@ -430,8 +430,9 @@ class PokerGame {
       this.emit('return', { playerId: p.id, amount: back.amount });
     }
     const collected = this.players.reduce((s, p) => s + p.bet, 0);
+    const bets = Object.fromEntries(this.players.filter((p) => p.bet > 0).map((p) => [p.id, p.bet]));
     for (const p of this.players) p.bet = 0;
-    if (collected) this.emit('collect', { amount: collected, pot: this.pot() });
+    if (collected) this.emit('collect', { amount: collected, pot: this.pot(), bets });
     this.currentBet = 0;
     if (this.livePlayers().length === 1) { this.winByFold(); return; }
 

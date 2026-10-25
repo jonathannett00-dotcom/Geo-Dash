@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/shared/racetrack.css" />
   <link rel="stylesheet" href="/board/board.css" />
   <link rel="stylesheet" href="/board/risiko.css" />
+  <link rel="stylesheet" href="/shared/poker-karten.css" />
+  <link rel="stylesheet" href="/board/poker.css" />
   <link rel="stylesheet" href="/shared/lobby.css" />
 </head>
 <body class="board-page">
@@ -117,6 +119,21 @@
     </footer>
   </section>
 
+  <!-- ============ POKER ============ -->
+  <section id="poker" class="poker hidden">
+    <header class="pkt-top">
+      <div id="pkt-banner" class="pkt-banner" aria-live="polite"></div>
+      <div id="pkt-meta" class="pkt-meta"></div>
+    </header>
+    <div id="pkt-table" class="pkt-table" role="img" aria-label="Pokertisch"></div>
+    <aside class="pkt-side">
+      <div class="pkt-side-head">Poker · Raum <b id="pkt-code"></b></div>
+      <ol id="pkt-list" class="pkt-list"></ol>
+      <ol id="pkt-log" class="pkt-log"></ol>
+    </aside>
+    <div id="pkt-final" class="pkt-final hidden"></div>
+  </section>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/common.js"></script>
   <script src="/shared/racetrack.js"></script>
@@ -126,5 +143,8 @@
   <script src="/shared/risiko-farben.js"></script>
   <script src="/board/risiko-audio.js"></script>
   <script src="/board/risiko.js"></script>
+  <script src="/shared/poker-karten.js"></script>
+  <script src="/board/poker-audio.js"></script>
+  <script src="/board/poker.js"></script>
 </body>
 </html>

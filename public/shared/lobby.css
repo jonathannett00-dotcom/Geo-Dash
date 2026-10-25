@@ -7,13 +7,17 @@
   --lb-bg: #14181d; --lb-bg-shape: #1b2027; --lb-panel: #1d232b; --lb-panel-2: #252c35;
   --lb-line: rgba(255, 255, 255, .1); --lb-text: #eef1f3; --lb-muted: #9aa5b1;
   --lb-accent: #e8c46a; --lb-accent-ink: #231b05;
-  --lb-mono: #1f5a3a; --lb-risk: #234567;
+  --lb-mono: #1f5a3a; --lb-risk: #234567; --lb-poker: #1b5e4f;
   background: var(--lb-bg); color: var(--lb-text);
   transition: background-color .6s ease;
 }
 .lb-theme[data-game="monopoly"] {
   --lb-bg: #0f2a1d; --lb-bg-shape: #133222; --lb-panel: #143524; --lb-panel-2: #1a422d;
   --lb-muted: #a8bcae; --lb-accent: #e8b923; --lb-accent-ink: #2a2200;
+}
+.lb-theme[data-game="poker"] {
+  --lb-bg: #0c2a24; --lb-bg-shape: #11352d; --lb-panel: #123a31; --lb-panel-2: #18483d;
+  --lb-muted: #9fbab1; --lb-accent: #e8c46a; --lb-accent-ink: #231b05;
 }
 .lb-theme[data-game="risiko"] {
   --lb-bg: #132235; --lb-bg-shape: #1a2d44; --lb-panel: #182a40; --lb-panel-2: #20354f;
@@ -25,6 +29,7 @@
 .lb-bg svg { position: absolute; inset: -3% -3%; width: 106%; height: 106%; display: block; }
 .lb-bg .lb-land { fill: var(--lb-bg-shape); }
 .lb-bg .lb-grid-line { stroke: var(--lb-bg-shape); stroke-width: 2; fill: none; }
+.lb-bg .lb-grid-line.thin { stroke-width: 3; }
 .lb-bg svg.drift { animation: lbDrift 140s ease-in-out infinite alternate; }
 @keyframes lbDrift { from { transform: translate(-1.2%, 0); } to { transform: translate(1.2%, .6%); } }
 @media (prefers-reduced-motion: reduce) { .lb-bg svg.drift { animation: none; } }
@@ -70,8 +75,8 @@
 @keyframes lbFade { from { opacity: 0; } to { opacity: 1; } }
 .lb-players li.empty { background: transparent; box-shadow: inset 0 0 0 2px var(--lb-line); color: var(--lb-muted); font-weight: 500; font-size: .9em; }
 
-/* Spielauswahl: zwei gleichwertige Karten */
-.lb-games { display: grid; grid-template-columns: 1fr 1fr; gap: .9em; margin-bottom: 1.3em; }
+/* Spielauswahl: gleichwertige Karten nebeneinander */
+.lb-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: .8em; margin-bottom: 1.3em; }
 .lb-game {
   font: inherit; color: var(--lb-text); text-align: left; cursor: pointer;
   border: 0; border-radius: .8em; padding: 1em 1.1em 1.05em; background: var(--g); position: relative;
@@ -80,11 +85,12 @@
 }
 .lb-game[data-game="monopoly"] { --g: var(--lb-mono); }
 .lb-game[data-game="risiko"] { --g: var(--lb-risk); }
+.lb-game[data-game="poker"] { --g: var(--lb-poker); }
 .lb-game:not(.sel) { opacity: .72; }
 .lb-game:hover { opacity: 1; }
 .lb-game.sel { box-shadow: inset 0 0 0 3px var(--lb-accent); opacity: 1; }
 .lb-game:focus-visible { outline: 3px solid var(--lb-accent); outline-offset: 3px; }
-.lb-game-name { font-size: 1.6em; font-weight: 800; letter-spacing: .01em; }
+.lb-game-name { font-size: 1.5em; font-weight: 800; letter-spacing: .01em; }
 .lb-game-desc { color: rgba(255, 255, 255, .82); line-height: 1.35; font-size: .95em; }
 .lb-game-meta { margin-top: auto; color: rgba(255, 255, 255, .7); font-size: .88em; font-weight: 600; }
 .lb-game-state { position: absolute; top: 1em; right: 1.1em; font-size: .78em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--lb-accent); }
@@ -101,6 +107,10 @@
 .lb-field option { color: #111; }
 .lb-field .money-input { display: flex; align-items: center; gap: .5em; }
 .lb-field .money-input input { width: 8em; }
+.lb-fields.two-col { grid-template-columns: 1fr 1fr; column-gap: 1.4em; }
+.lb-fields.two-col .lb-field { grid-template-columns: 7.2em minmax(0, 1fr); }
+.lb-fields.two-col .lb-field .money-input input { width: 100%; min-width: 0; }
+.lb-note { margin: .2em 0 0; color: var(--lb-muted); font-size: .9em; grid-column: 1 / -1; }
 
 .lb-startrow { display: grid; gap: .55em; }
 .lb-start {

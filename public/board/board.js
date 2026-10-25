@@ -54,6 +54,7 @@ function renderLobby() {
   $('#lobby').classList.remove('hidden');
   $('#game').classList.add('hidden');
   $('#risiko').classList.add('hidden');
+  $('#poker').classList.add('hidden');
   const lobby = $('#lobby');
   lobby.dataset.game = S.gameType;
   lbBackground($('#lb-bg'), S.gameType);
@@ -76,13 +77,22 @@ function renderLobby() {
       ${sel ? '<span class="lb-game-state">Gewählt</span>' : ''}
       <span class="lb-game-name">${escapeHtml(gi.name)}</span>
       <span class="lb-game-desc">${escapeHtml(gi.desc)}</span>
-      <span class="lb-game-meta">${g.minPlayers}–${g.maxPlayers} Spieler${gi.time ? ` · ${gi.time}` : ''}</span></button>`;
+      <span class="lb-game-meta">${g.minPlayers} bis ${g.maxPlayers} Spieler${gi.time ? ` · ${gi.time}` : ''}</span></button>`;
   }).join(''));
   const risiko = S.gameType === 'risiko';
+  const poker = S.gameType === 'poker';
   $('#lb-settings-title').textContent = `Einstellungen für ${info.name}`;
-  $('#settings-monopoly').classList.toggle('hidden', risiko);
+  $('#settings-monopoly').classList.toggle('hidden', risiko || poker);
   $('#settings-risiko').classList.toggle('hidden', !risiko);
-  if (risiko) {
+  $('#settings-poker').classList.toggle('hidden', !poker);
+  if (poker) {
+    const shown = { startMoney: pkEuroPlain(S.settings.startMoney), smallBlind: pkEuroPlain(S.settings.smallBlind), bigBlind: pkEuroPlain(S.settings.bigBlind),
+      rebuy: S.settings.rebuy ? 'an' : 'aus', turnTime: String(S.settings.turnTime), animation: S.settings.animation };
+    for (const [k, v] of Object.entries(shown)) {
+      const el = $(`#poker-${k}`);
+      if (document.activeElement !== el) el.value = v;
+    }
+  } else if (risiko) {
     ['cardValues', 'fortify', 'animation'].forEach((k) => {
       const el = $(`#risiko-${k}`);
       if (document.activeElement !== el) el.value = S.settings[k];
@@ -98,7 +108,9 @@ function renderLobby() {
     ? `${escapeHtml(info.name)} ist für höchstens ${S.maxPlayers} Spieler – im Raum sind ${list.length}.`
     : missing > 0
       ? `Noch <b>${missing === 1 ? '1 Spieler' : `${missing} Spieler`}</b> ${missing === 1 ? 'fehlt' : 'fehlen'} – ${escapeHtml(info.name)} braucht mindestens ${S.minPlayers}.`
-      : `Bereit: ${escapeHtml(info.name)} mit ${list.length} Spielern. ${risiko ? 'Die Gebiete werden zufällig verteilt.' : `Alle starten mit ${fmtM(S.settings.startMoney)}.`}`;
+      : `Bereit: ${escapeHtml(info.name)} mit ${list.length} Spielern. ${risiko ? 'Die Gebiete werden zufällig verteilt.'
+        : poker ? `Alle starten mit ${pkEuro(S.settings.startMoney)}, Blinds ${pkEuroPlain(S.settings.smallBlind)} / ${pkEuro(S.settings.bigBlind)}.`
+          : `Alle starten mit ${fmtM(S.settings.startMoney)}.`}`;
 }
 
 /** Spielerkarten: neue werden sanft eingeblendet, freie Plätze bleiben als ruhige Umrisse sichtbar. */
@@ -142,6 +154,18 @@ $('#game-choice').addEventListener('click', (e) => {
   });
 });
 
+// Poker: Beträge gehen als Text an den Server (Komma oder Punkt); er prüft und rechnet in Cent
+['startMoney', 'smallBlind', 'bigBlind', 'rebuy', 'turnTime', 'animation'].forEach((k) => {
+  $(`#poker-${k}`).addEventListener('change', (e) => {
+    socket.emit('board:settings', { [k]: e.target.value }, (res) => {
+      if (res.ok) return;
+      toast(res.error, 'error');
+      const v = S.settings[k];
+      e.target.value = ['startMoney', 'smallBlind', 'bigBlind'].includes(k) ? pkEuroPlain(v) : k === 'rebuy' ? (v ? 'an' : 'aus') : String(v);
+    });
+  });
+});
+
 $('#start-money').addEventListener('change', (e) => {
   socket.emit('board:settings', { startMoney: Number(e.target.value) }, (res) => {
     if (!res.ok) { toast(res.error, 'error'); e.target.value = S.settings.startMoney; }
@@ -151,6 +175,7 @@ $('#start-money').addEventListener('change', (e) => {
 $('#btn-start').addEventListener('click', () => {
   // Ton für das Spiel freischalten (Browser erlauben ihn erst nach einer Bedienung)
   if (typeof RkAudio !== 'undefined') RkAudio.unlock();
+  if (typeof PkAudio !== 'undefined') PkAudio.unlock();
   socket.emit('board:start', {}, (res) => { if (!res.ok) toast(res.error, 'error'); });
 });
 
@@ -915,5 +940,6 @@ function render() {
   if (!S) return;
   if (!S.started || !S.game) renderLobby();
   else if (S.gameType === 'risiko') renderRisiko();
+  else if (S.gameType === 'poker') renderPoker();
   else renderGame();
 }

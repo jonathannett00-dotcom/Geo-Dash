@@ -9,6 +9,7 @@
  *    applySettings(settings, patch)     → geprüfte neue Einstellungen (wirft RuleError)
  *    createGame({ players, settings, rng, timeScale, onChange })
  *    restoreGame(data, { rng, timeScale, onChange })
+ *    colors                             optional: eigene Spielerfarben für die Lobby
  *
  *  Eine Partie (Rückgabe von createGame) bietet:
  *    handleAction(playerId, action)     Absicht eines Spielers prüfen und ausführen
@@ -30,11 +31,13 @@
 
 const monopoly = require('../monopoly');
 const risiko = require('./risiko');
+const poker = require('./poker');
 
 /* Ausgewählt wird in der Lobby der Host-Ansicht (board:game). */
 const GAMES = {
   [monopoly.id]: monopoly,
   [risiko.id]: risiko,
+  [poker.id]: poker,
 };
 
 const DEFAULT_GAME = monopoly.id;

@@ -1,12 +1,13 @@
 # CLAUDE.md
 
-Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt das Spiel, jeder Spieler steuert per Handy. Heute laufen Monopoly (mit den Minispielen Pferderennen, Roulette und Blackjack) und Risiko; das Spiel wird in der Lobby der Host-Ansicht gewählt. Poker folgt (siehe `docs/spielcenter-plan.md`).
+Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt das Spiel, jeder Spieler steuert per Handy. Heute laufen Monopoly (mit den Minispielen Pferderennen, Roulette und Blackjack), Risiko und Poker (Texas Hold'em, Cash-Game); das Spiel wird in der Lobby der Host-Ansicht gewählt (siehe `docs/spielcenter-plan.md`).
 
 ## Architektur
 
 - **Der Server ist die einzige Instanz für Spielzustand und Zufall.** Würfel, Karten, Mischen, Rennsimulation, Roulette-Zahl: alles entsteht auf dem Server (`server/rng.js`). Clients senden nur Absichten (`act` mit `{ type, … }`). Der Server prüft jede Aktion (Zug, Phase, Geld) und lehnt mit einer verständlichen deutschen Meldung ab.
 - **Clients zeigen nur Snapshots.** Der Server schickt nach jeder Änderung den vollständigen Zustand (`state`-Event). Host-Ansicht (`public/board/`) und Handy (`public/play/`) berechnen keine Ergebnisse, sie stellen nur dar und animieren.
-- **Versteckte Information wird pro Spieler gefiltert.** Was ein Spieler nicht sehen darf (z. B. die verdeckte Dealerkarte, später Pokerhände oder Risiko-Handkarten), verlässt den Server nicht. Die Filterung passiert beim Erzeugen des Snapshots, nicht im Client.
+- **Versteckte Information wird pro Spieler gefiltert.** Was ein Spieler nicht sehen darf (z. B. die verdeckte Dealerkarte, Risiko-Handkarten, Pokerhände), verlässt den Server nicht. Die Filterung passiert beim Erzeugen des Snapshots, nicht im Client.
+  - Poker: Das Handy bekommt nur die eigenen zwei Karten, der Fernseher nur Gemeinschaftskarten und am Showdown aufgedeckte Hände. Kartenstapel, gefoldete und verdeckt weggeworfene Karten bleiben auf dem Server (der Stapel wird mit gespeichert).
   - Jede Partie liefert `view(role, playerId)`; der Raum schickt jedem Handy einen eigenen Snapshot.
 - **Aufbau:**
   - `server/index.js`: HTTP und Socket.IO
@@ -14,9 +15,12 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
   - `server/games/index.js`: gemeinsame Spiel-Schnittstelle (`createGame`, `handleAction`, `view`, `tick`, `isOver` …) und Liste der Spielmodule
   - `server/monopoly/`: Regel-Engine, Spieldaten und Spielmodul (`index.js`)
   - `server/games/risiko/`: Risiko-Regel-Engine, Karte als Daten (`map.js`: Gebiete, Nachbarschaften) und Spielmodul
+  - `server/games/poker/`: Texas Hold'em – `cards.js` (Karten, Mischen über `server/rng.js`), `hands.js` (Handbewertung, eigene Umsetzung), `pots.js` (Pot, Side-Pots, Split), `money.js` (Euro als ganze Cent), `rules.js` (Rundenablauf, Aktionsprüfung, Einstellungen), `index.js` (Spielmodul mit Ereignissen, Zugzeit, Snapshots, eigener Farbpalette mit 12 Farben)
   - `server/games/risiko/map-paths.js`: realistische Weltkarte (SVG-Pfade, Seen, Marker, Namen, Seewege), **erzeugt** von `scripts/build-map.js` aus Natural Earth; nicht von Hand ändern, sondern neu bauen. Die Host-Ansicht lädt sie als `/risiko/map-paths.js`.
   - Startseite `public/start/` (unter `/`), Lobby- und Beitritts-Gestaltung gemeinsam in `public/shared/lobby.css` / `lobby.js`; Raumgrenzen (20 gleichzeitig, 5 pro Minute und IP, leere Räume nach 30 Minuten weg) in `server/rooms.js`
   - Clients: Monopoly in `board.js` / `play.js`, Risiko in `public/board/risiko.js` (dazu `risiko-audio.js` für Töne) und `public/play/risiko.js`; gemeinsame Kartenfarben und -größen in `public/shared/risiko-farben.js`
+  - Poker-Clients: `public/board/poker.js` (Tisch, Animationen aus den Server-Ereignissen; `poker-audio.js` für Töne), `public/play/poker.js`; Spielkarten, Sitzmarken und Euro-Anzeige gemeinsam in `public/shared/poker-karten.js` / `.css`
+  - Räume nehmen bis zu 12 Spieler auf (das Spielmodul begrenzt weiter: Monopoly 10, Risiko 6, Poker 12). Ein Modul kann eigene Lobby-Farben haben (`colors`); beim Spielwechsel werden die Farben übertragen.
   - Risiko-Anzeigedaten (Vorauswahl, Phasentexte, Animations-Ereignisse) entstehen im Spielmodul `server/games/risiko/index.js`; die Vorauswahl geht nur an die Host-Ansicht. Die Statistik fürs Abschlussbild zählt die Engine nur zur Anzeige mit.
   - `server/games/*.js`: Minispiele mit `wallet`-Interface
   - `server/db.js`: Postgres-Speicher (Neon). Mit `DATABASE_URL` wird jeder Raum nach Änderungen als JSONB gespeichert und beim Start wieder geladen; ohne `DATABASE_URL` liegt alles nur im Arbeitsspeicher. Während eines Minispiels wird nicht gespeichert.

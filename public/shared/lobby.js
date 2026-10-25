@@ -6,6 +6,7 @@
 const LB_GAMES = {
   monopoly: { name: 'Monopoly', desc: 'Straßen kaufen, Häuser bauen, Miete kassieren. Dazu Pferderennen, Roulette und Blackjack.', time: '2–3 Stunden' },
   risiko: { name: 'Risiko', desc: 'Die Welt in 42 Gebieten: verstärken, angreifen, verteidigen. Die Würfel fallen auf dem Fernseher.', time: '1–3 Stunden' },
+  poker: { name: 'Poker', desc: 'Texas Hold’em mit Blinds und Side-Pots. Die eigenen Karten liegen verdeckt auf dem Handy.', time: 'offen, ab 30 Minuten' },
 };
 
 /** Lesbare Schriftfarbe auf einer Spielerfarbe. */
@@ -23,7 +24,8 @@ const LB_SVG = 'http://www.w3.org/2000/svg';
 
 /**
  * Ruhiger Hintergrund: bei Risiko die Weltkarte als dunkle Fläche (langsam treibend),
- * bei Monopoly ein flaches Feldraster wie am Spielbrettrand.
+ * bei Monopoly ein flaches Feldraster wie am Spielbrettrand, bei Poker ein flaches
+ * Rautenmuster in Tischgrün.
  */
 function lbBackground(el, game) {
   if (!el || el.dataset.game === game) return;
@@ -51,6 +53,16 @@ function lbBackground(el, game) {
     for (let y = 0; y <= 900; y += 180) d += `M0 ${y}H1600`;
     path.setAttribute('d', d);
     path.setAttribute('class', 'lb-grid-line');
+    svg.appendChild(path);
+  } else if (game === 'poker') {
+    // Feines Rautengitter wie auf einem Kartenrücken, ohne Motive
+    svg.setAttribute('viewBox', '0 0 1600 900');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    const path = document.createElementNS(LB_SVG, 'path');
+    let d = '';
+    for (let x = -900; x <= 1600; x += 80) d += `M${x} 0L${x + 900} 900M${x + 900} 0L${x} 900`;
+    path.setAttribute('d', d);
+    path.setAttribute('class', 'lb-grid-line thin');
     svg.appendChild(path);
   }
   el.appendChild(svg);

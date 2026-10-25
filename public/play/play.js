@@ -210,11 +210,11 @@ function renderHeader(hold = false) {
   const p = lobbyMe();
   if (!p) return;
   document.documentElement.style.setProperty('--me', p.color);
-  $('#me-fig').textContent = p.figure;
+  $('#me-fig').textContent = p.figure || '';
   $('#me-name').textContent = p.name;
   const g = S.game;
   if (!g) {
-    $('#me-money').textContent = S.gameType === 'risiko' ? '🗺️ Risiko' : fmtM(S.settings.startMoney);
+    $('#me-money').textContent = S.gameType === 'risiko' ? '🗺️ Risiko' : S.gameType === 'poker' ? pkEuro(S.settings.startMoney) : fmtM(S.settings.startMoney);
     $('#turn-name').textContent = '–';
     return;
   }
@@ -230,14 +230,21 @@ function renderHeader(hold = false) {
   t.classList.toggle('mine', cur.id === me && g.phase !== 'gameover');
 }
 
+/** Kurzbeschreibung des gewählten Spiels für die Wartezeit. */
+function gameLine() {
+  if (S.gameType === 'risiko') return 'Risiko';
+  if (S.gameType === 'poker') return `Poker, Startguthaben ${pkEuro(S.settings.startMoney)}, Blinds ${pkEuro(S.settings.smallBlind)} / ${pkEuro(S.settings.bigBlind)}`;
+  return `Monopoly, Start mit ${fmtM(S.settings.startMoney)}`;
+}
+
 function renderWaiting() {
   patch($('#panel-wait'), `
     <div class="waiting">
       <div class="big">⏳</div>
       <h2>Warte auf den Spielstart…</h2>
-      <p>Raum <b>${escapeHtml(S.code)}</b> · ${S.gameType === 'risiko' ? 'Risiko' : `Monopoly, Start mit ${fmtM(S.settings.startMoney)}`}</p>
+      <p>Raum <b>${escapeHtml(S.code)}</b> · ${gameLine()}</p>
     </div>
-    <ul class="lobby-list">${S.lobby.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}">${p.figure} ${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</li>`).join('')}</ul>`);
+    <ul class="lobby-list">${S.lobby.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}">${S.gameType === 'monopoly' ? `${p.figure} ` : ''}${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</li>`).join('')}</ul>`);
 }
 
 /* ---------------- Tab: Zug ---------------- */
@@ -788,7 +795,10 @@ function attention() {
 function render() {
   if (!S || !me) return;
   if (S.game && S.gameType === 'risiko') { renderRisiko(); return; }
+  if (S.game && S.gameType === 'poker') { renderPoker(); return; }
   $('#panel-risiko').classList.add('hidden');
+  $('#panel-poker').classList.add('hidden');
+  document.body.classList.remove('poker-mode');
   const hold = animHold();
   renderHeader(hold);
   if (!S.game) {

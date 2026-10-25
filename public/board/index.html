@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/shared/racetrack.css" />
   <link rel="stylesheet" href="/board/board.css" />
   <link rel="stylesheet" href="/board/risiko.css" />
+  <link rel="stylesheet" href="/shared/poker-karten.css" />
+  <link rel="stylesheet" href="/board/poker.css" />
   <link rel="stylesheet" href="/shared/lobby.css" />
 </head>
 <body class="board-page">
@@ -46,6 +48,38 @@
             <label class="lb-field start-money"><span>Startbetrag für alle</span>
               <span class="money-input"><input id="start-money" type="number" min="100" max="100000" step="50" value="1500" /><b>M</b></span>
             </label>
+          </div>
+          <div id="settings-poker" class="lb-fields two-col poker-settings hidden">
+            <label class="lb-field"><span>Startguthaben</span>
+              <span class="money-input"><input id="poker-startMoney" inputmode="decimal" autocomplete="off" value="20,00" /><b>€</b></span>
+            </label>
+            <label class="lb-field"><span>Nachkaufen</span>
+              <select id="poker-rebuy">
+                <option value="an">an</option>
+                <option value="aus">aus</option>
+              </select>
+            </label>
+            <label class="lb-field"><span>Small Blind</span>
+              <span class="money-input"><input id="poker-smallBlind" inputmode="decimal" autocomplete="off" value="0,10" /><b>€</b></span>
+            </label>
+            <label class="lb-field"><span>Zugzeit</span>
+              <select id="poker-turnTime">
+                <option value="0">aus</option>
+                <option value="30">30 Sekunden</option>
+                <option value="60">60 Sekunden</option>
+              </select>
+            </label>
+            <label class="lb-field"><span>Big Blind</span>
+              <span class="money-input"><input id="poker-bigBlind" inputmode="decimal" autocomplete="off" value="0,20" /><b>€</b></span>
+            </label>
+            <label class="lb-field"><span>Animationen</span>
+              <select id="poker-animation">
+                <option value="normal">normal</option>
+                <option value="kurz">kurz</option>
+                <option value="aus">aus</option>
+              </select>
+            </label>
+            <p class="lb-note">Spielgeld in Euro, ohne Zahlungsfunktion. Beträge mit Komma oder Punkt, z. B. 12,50.</p>
           </div>
           <div id="settings-risiko" class="lb-fields risiko-settings hidden">
             <label class="lb-field"><span>Kartentausch</span>
@@ -117,6 +151,21 @@
     </footer>
   </section>
 
+  <!-- ============ POKER ============ -->
+  <section id="poker" class="poker hidden">
+    <header class="pkt-top">
+      <div id="pkt-banner" class="pkt-banner" aria-live="polite"></div>
+      <div id="pkt-meta" class="pkt-meta"></div>
+    </header>
+    <div id="pkt-table" class="pkt-table" role="img" aria-label="Pokertisch"></div>
+    <aside class="pkt-side">
+      <div class="pkt-side-head">Poker · Raum <b id="pkt-code"></b></div>
+      <ol id="pkt-list" class="pkt-list"></ol>
+      <ol id="pkt-log" class="pkt-log"></ol>
+    </aside>
+    <div id="pkt-final" class="pkt-final hidden"></div>
+  </section>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/common.js"></script>
   <script src="/shared/racetrack.js"></script>
@@ -126,5 +175,8 @@
   <script src="/shared/risiko-farben.js"></script>
   <script src="/board/risiko-audio.js"></script>
   <script src="/board/risiko.js"></script>
+  <script src="/shared/poker-karten.js"></script>
+  <script src="/board/poker-audio.js"></script>
+  <script src="/board/poker.js"></script>
 </body>
 </html>

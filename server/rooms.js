@@ -220,6 +220,7 @@ class Room {
     player.sockets.delete(socket.id);
     if (player.sockets.size) return;
     player.connected = false;
+    if (this.game && this.game.onDisconnect) this.game.onDisconnect(player.id);
     clearTimeout(player.leaveTimer);
     if (!this.started) {
       // In der Lobby wird ein getrennter Platz nach 5 Minuten wieder frei

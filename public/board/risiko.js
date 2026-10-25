@@ -59,6 +59,7 @@ function buildRisikoMap() {
   const lanes = svgEl('g', { class: 'rk-lanes' }, svg);
   for (const lane of geo.seaLanes) svgEl('path', { d: lane.d, 'data-lane': `${lane.a}|${lane.b}` }, lanes);
 
+  svgEl('g', { class: 'rk-highlight', id: 'rk-highlight' }, svg);
   svgEl('g', { class: 'rk-fx', id: 'rk-fx' }, svg);
 
   const labels = svgEl('g', { class: 'rk-labels' }, svg);
@@ -200,31 +201,26 @@ function rkSetArmies(id, value, ms = 350) {
   })(start);
 }
 
-function rkBannerHtml(g) {
-  const cur = g.currentId ? rkPlayer(g.currentId) : null;
-  const who = cur ? `<b style="--c:${rkTone(cur.id)}" class="rk-who">${escapeHtml(cur.name)}</b>` : '';
-  let text;
-  switch (g.phase) {
-    case 'setup': {
-      const open = g.players.filter((p) => !p.eliminated && p.remaining > 0);
-      text = `Aufbau: Alle setzen ihre Startarmeen${open.length ? ` – noch offen: ${open.map((p) => `${escapeHtml(p.name)} (${p.remaining})`).join(', ')}` : ''}`;
-      break;
-    }
-    case 'reinforce':
-      text = `${who} verstärkt – noch ${g.turn.reinforcements} ${g.turn.reinforcements === 1 ? 'Armee' : 'Armeen'}${cur.cards >= 5 ? ', muss Karten tauschen' : ''}`;
-      break;
-    case 'attack': text = `${who} greift an`; break;
-    case 'defend': {
-      const pa = g.turn.pendingAttack;
-      text = `${who} greift ${rkTerritoryName(pa.to)} von ${rkTerritoryName(pa.from)} aus an – ${rkName(pa.defenderId)} wählt die Würfel`;
-      break;
-    }
-    case 'occupy': text = `${who} rückt nach ${rkTerritoryName(g.turn.occupy.to)} nach`; break;
-    case 'fortify': text = `${who} kann einmal verschieben`; break;
-    case 'gameover': text = g.winner ? `${rkName(g.winner)} erobert die Welt` : 'Das Spiel ist vorbei.'; break;
-    default: text = '';
-  }
-  return `${text}${S.paused ? ' <span class="rk-paused">Pausiert – Spieler getrennt</span>' : ''}`;
+/** Banner aus den Phasendaten des Servers; der Name des Spielers am Zug ist farbig unterstrichen. */
+function rkBannerHtml(st) {
+  if (!st || !st.text) return { key: '', html: '' };
+  let text = escapeHtml(st.text);
+  const p = st.playerId ? rkPlayer(st.playerId) : null;
+  if (p && st.text.startsWith(p.name)) text = `<b class="rk-who" style="--c:${rkTone(p.id)}">${escapeHtml(p.name)}</b>${escapeHtml(st.text.slice(p.name.length))}`;
+  const detail = st.detail ? `<span class="rk-detail">${escapeHtml(st.detail)}</span>` : '';
+  const paused = S.paused ? '<span class="rk-paused">Pausiert – Spieler getrennt</span>' : '';
+  return { key: `${st.phase}|${st.playerId}`, html: `<span class="rk-phase">${text}</span>${detail}${paused}` };
+}
+
+/** Banner wechseln: bei neuer Phase sanft aus- und wieder einblenden, sonst nur den Text anpassen. */
+function rkSetBanner({ key, html }) {
+  const el = $('#rk-banner');
+  if (el.dataset.key === key) { patch(el, html); return; }
+  el.dataset.key = key;
+  clearTimeout(rkSetBanner.t);
+  if (RK_REDUCED.matches || !el.innerHTML) { patch(el, html); return; }
+  el.classList.add('fading');
+  rkSetBanner.t = setTimeout(() => { patch(el, html); el.classList.remove('fading'); }, 220);
 }
 
 function rkShowBattle(b) {
@@ -261,8 +257,9 @@ function renderRisiko() {
   $('#game').classList.add('hidden');
   $('#risiko').classList.remove('hidden');
   $('#rk-code').textContent = S.code;
+  $('#risiko').classList.toggle('anim-off', S.settings.animation === 'aus');
   const g = S.game;
-  patch($('#rk-banner'), rkBannerHtml(g));
+  rkSetBanner(rkBannerHtml(S.status));
   patch($('#rk-players'), rkPlayersHtml(g));
   patch($('#rk-log'), g.log.slice(-3).reverse().map((e) => `<li>${escapeHtml(rkPlain(e.text))}</li>`).join(''));
   if (!rkBuilt) buildRisikoMap();
@@ -293,10 +290,35 @@ function renderRisiko() {
     arrow.remove();
   }
 
+  rkRenderPreview(pa || rkBattleRunning ? null : S.preview);
+
   // Ohne Animation (z. B. nach dem Neuladen) die letzte Schlacht direkt zeigen
   if (g.lastBattle && g.lastBattle.seq !== rkBattleSeq && !rkBattleRunning) {
     rkBattleSeq = g.lastBattle.seq;
     rkShowBattle(g.lastBattle);
+  }
+}
+
+/**
+ * Vorauswahl vom Handy: Von- und Nach-Gebiet leuchten ruhig auf, mögliche Ziele sind dezent
+ * umrandet, ein dünner Bogen zeigt die Richtung. Ziele berechnet der Server.
+ */
+function rkRenderPreview(pv) {
+  const layer = $('#rk-highlight');
+  const key = pv ? `${pv.mode}|${pv.from}|${pv.to}|${pv.targets.join(',')}` : '';
+  if (layer.dataset.key === key) return;
+  layer.dataset.key = key;
+  layer.innerHTML = '';
+  if (!pv) return;
+  const geo = window.RISIKO_MAP_PATHS;
+  const outline = (id, cls) => svgEl('path', { d: geo.territories[id].d, class: `rk-hl ${cls}` }, layer);
+  for (const id of pv.targets) if (id !== pv.to) outline(id, 'target');
+  outline(pv.from, 'from');
+  if (pv.to) {
+    outline(pv.to, `to ${pv.mode}`);
+    const arrow = rkArrow(layer);
+    arrow.classList.add('rk-preview-arrow', pv.mode);
+    rkSetArrow(arrow, pv.from, pv.to);
   }
 }
 

@@ -11,7 +11,7 @@
  * ========================================================= */
 
 const { RisikoGame, RuleError, MIN_PLAYERS, MAX_PLAYERS, DEFAULT_SETTINGS, SETTING_OPTIONS } = require('./rules');
-const { MAP_VIEW } = require('./map');
+const { MAP_VIEW, NEIGHBORS, isNeighbor } = require('./map');
 
 const SETTING_ERRORS = {
   cardValues: 'Kartenwerte: bitte „steigend“ oder „fest“ wählen.',
@@ -34,9 +34,96 @@ class RisikoSession extends RisikoGame {
     return this._anim;
   }
 
-  handleAction(pid, action = {}) { return this.track(action.type, () => super.handleAction(pid, action)); }
+  handleAction(pid, action = {}) {
+    // Vorauswahl am Handy: nur Anzeige auf dem Fernseher, ändert nichts am Spiel
+    if (action.type === 'preview') return this.setPreview(pid, action);
+    return this.track(action.type, () => super.handleAction(pid, action));
+  }
 
-  removePlayer(pid, reason) { return this.track('remove', () => super.removePlayer(pid, reason)); }
+  removePlayer(pid, reason) {
+    this.onDisconnect(pid);
+    return this.track('remove', () => super.removePlayer(pid, reason));
+  }
+
+  /* ---------- Vorauswahl (Von/Nach am Handy → Fernseher) ---------- */
+
+  /** Merkt die Vorauswahl des Spielers am Zug; ungültige werden verworfen (ohne Fehlermeldung). */
+  setPreview(pid, { mode, from, to } = {}) {
+    const preview = from ? { playerId: pid, mode, from: String(from), to: to ? String(to) : null, turn: this.turn } : null;
+    const ok = preview && this.previewTargets(preview) !== null;
+    Object.defineProperty(this, '_preview', { value: ok ? preview : null, writable: true, configurable: true, enumerable: false });
+    return { preview: Boolean(ok) };
+  }
+
+  /** Ziele zur Vorauswahl (angreifbare bzw. erreichbare Gebiete) oder null, wenn sie nicht (mehr) gilt. */
+  previewTargets({ playerId, mode, from, to, turn }) {
+    const p = this.players.find((x) => x.id === playerId);
+    const src = this.territories[from];
+    if (!p || p.eliminated || this.phase === 'setup' || this.phase === 'gameover') return null;
+    if (turn !== this.turn || this.currentPlayer().id !== playerId || !src || src.owner !== playerId) return null;
+    if (mode === 'place') return this.phase === 'reinforce' && !to ? [] : null;
+    if (src.armies < 2) return null;
+    if (mode === 'attack') {
+      if (this.phase !== 'attack') return null;
+      const targets = NEIGHBORS[from].filter((n) => this.territories[n].owner !== playerId);
+      return !to || targets.includes(to) ? targets : null;
+    }
+    if (mode === 'fortify') {
+      if (this.phase !== 'attack' && this.phase !== 'fortify') return null;
+      const targets = this.settings.fortify === 'verbunden'
+        ? this.territoriesOf(playerId).filter((id) => id !== from && this.connected(playerId, from, id))
+        : NEIGHBORS[from].filter((n) => this.territories[n].owner === playerId);
+      return !to || (targets.includes(to) && (this.settings.fortify === 'verbunden' || isNeighbor(from, to))) ? targets : null;
+    }
+    return null;
+  }
+
+  /** Gültige Vorauswahl für die Host-Ansicht – verfällt mit dem Zug, einer Eroberung oder ungültigen Gebieten. */
+  currentPreview() {
+    const p = this._preview;
+    if (!p) return null;
+    const targets = this.previewTargets(p);
+    if (targets === null) { this._preview = null; return null; }
+    return { playerId: p.playerId, mode: p.mode, from: p.from, to: p.to, targets };
+  }
+
+  /** Verbindung des Spielers abgebrochen: seine Vorauswahl verfällt. */
+  onDisconnect(pid) {
+    if (this._preview && this._preview.playerId === pid) this._preview = null;
+  }
+
+  /* ---------- Phasenanzeige ---------- */
+
+  /** Kurze Texte zur Phase für Banner (Fernseher) und Kopfzeile (Handy). */
+  statusInfo() {
+    const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+    const cur = this.phase === 'setup' || this.phase === 'gameover' ? null : this.currentPlayer();
+    const name = cur ? cur.name : '';
+    const base = { phase: this.phase, playerId: cur ? cur.id : null, round: this.round };
+    switch (this.phase) {
+      case 'setup': {
+        const open = this.players.filter((p) => !p.eliminated && p.remaining > 0);
+        return { ...base, title: 'Aufbau', text: 'Aufbau', detail: open.length ? `Startarmeen setzen: noch ${open.map((p) => `${p.name} (${p.remaining})`).join(', ')}` : '' };
+      }
+      case 'reinforce': {
+        const n = this.turn.reinforcements;
+        return { ...base, title: 'Verstärken', text: `${name} verstärkt`, remaining: n, detail: n ? `Noch ${plural(n, 'Armee', 'Armeen')} zu setzen` : 'Karten tauschen' };
+      }
+      case 'attack': return { ...base, title: 'Angreifen', text: `${name} greift an`, detail: '' };
+      case 'defend': {
+        const def = this.turn.pendingAttack.defenderId;
+        const defName = def === 'neutral' ? 'Neutral' : this.player(def).name;
+        return { ...base, title: 'Angreifen', text: `${name} greift an`, detail: `${defName} verteidigt`, defenderId: def };
+      }
+      case 'occupy': return { ...base, title: 'Nachrücken', text: `${name} rückt nach`, detail: '' };
+      case 'fortify': return { ...base, title: 'Verschieben', text: `${name} verschiebt`, detail: 'einmal, danach endet der Zug' };
+      case 'gameover': {
+        const w = this.winner ? this.players.find((p) => p.id === this.winner) : null;
+        return { ...base, title: 'Spielende', text: w ? `${w.name} erobert die Welt` : 'Das Spiel ist vorbei', detail: '' };
+      }
+      default: return { ...base, title: '', text: '', detail: '' };
+    }
+  }
 
   /** Aktion ausführen und aus dem Unterschied vorher/nachher Ereignisse ableiten. */
   track(type, fn) {
@@ -120,18 +207,23 @@ class RisikoSession extends RisikoGame {
 
   view(role, playerId = null) {
     const anim = this.animState;
-    return {
+    const out = {
       map: MAP_VIEW,
       game: this.publicState(role === 'player' ? playerId : null),
+      status: this.statusInfo(),
       animUntil: anim.until,
       anim: { seq: anim.seq, events: anim.events },
     };
+    // Die Vorauswahl sieht nur der Fernseher, nicht die anderen Handys
+    if (role === 'board') out.preview = this.currentPreview();
+    return out;
   }
 
   toJSON() {
     const data = super.toJSON();
     delete data.timeScale;
     delete data._tracking;
+    delete data._preview;
     return data;
   }
 }

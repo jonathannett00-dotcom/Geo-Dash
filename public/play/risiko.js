@@ -6,7 +6,7 @@
  * ========================================================= */
 
 /** Auswahl auf dem Handy (bleibt zwischen Snapshots erhalten). */
-const rkUi = { place: '', placeCount: '', from: '', to: '', dice: '', defend: '', occupy: '', mFrom: '', mTo: '', mCount: '', cards: [] };
+const rkUi = { place: '', placeCount: '', from: '', to: '', dice: '', defend: '', occupy: '', mFrom: '', mTo: '', mCount: '', cards: [], mode: 'attack' };
 
 const SYMBOL_ICONS = { infanterie: '🪖 Infanterie', kavallerie: '🐎 Kavallerie', artillerie: '💣 Artillerie', joker: '🃏 Joker' };
 
@@ -20,6 +20,13 @@ function keep(key, values, fallback = values[0]) {
   if (!values.includes(rkUi[key])) rkUi[key] = fallback === undefined ? '' : fallback;
   return rkUi[key];
 }
+
+/** Ausdrückliche Auswahl: ungültige oder fehlende Werte werden leer (Platzhalter „– wählen –“). */
+function chosen(key, values) {
+  if (!values.includes(rkUi[key])) rkUi[key] = '';
+  return rkUi[key];
+}
+const PLACEHOLDER = '<option value="">– wählen –</option>';
 
 const options = (list, selected) => list.map(([v, label]) => `<option value="${escapeHtml(v)}" ${String(v) === String(selected) ? 'selected' : ''}>${label}</option>`).join('');
 
@@ -47,17 +54,17 @@ const terrLabel = (id) => `${rkT(id)} (${S.game.territories[id].armies})`;
 
 function placeBox(title, max, hint = '') {
   const own = ownIds();
-  const place = keep('place', own);
+  const place = chosen('place', own);
   const count = Math.min(max, Math.max(1, Number(rkUi.placeCount) || max));
   return `<div class="box mine rk-box">
     <h2>${title}</h2>
     ${hint}
-    <label>Gebiet<select id="rk-place-territory" data-rk-key="place" data-keep="no">${options(own.map((id) => [id, terrLabel(id)]), place)}</select></label>
+    <label>Gebiet<select id="rk-place-territory" data-rk-key="place" data-keep="no">${PLACEHOLDER}${options(own.map((id) => [id, terrLabel(id)]), place)}</select></label>
     <div class="rk-row">
       <label>Armeen<input id="rk-place-count" data-rk-key="placeCount" data-keep="no" type="number" min="1" max="${max}" value="${count}" inputmode="numeric" /></label>
       <button type="button" class="btn" data-rk-fill="placeCount" data-value="${max}">Alle (${max})</button>
     </div>
-    <button type="button" id="rk-place" class="btn primary block" data-rk="place">Setzen</button>
+    <button type="button" id="rk-place" class="btn primary block" data-rk="place" ${place ? '' : 'disabled'}>Setzen</button>
   </div>`;
 }
 
@@ -66,17 +73,17 @@ function attackBox() {
   const map = rkMap();
   const sources = ownIds().filter((id) => g.territories[id].armies >= 2 && map[id].neighbors.some((n) => g.territories[n].owner !== me));
   if (!sources.length) return '<div class="box rk-box"><h2>Angreifen</h2><p class="hint">Kein Gebiet kann angreifen: Du brauchst mindestens 2 Armeen neben einem fremden Gebiet.</p></div>';
-  const from = keep('from', sources);
-  const targets = map[from].neighbors.filter((n) => g.territories[n].owner !== me);
-  const to = keep('to', targets);
-  const maxDice = Math.min(3, g.territories[from].armies - 1);
+  const from = chosen('from', sources);
+  const targets = from ? map[from].neighbors.filter((n) => g.territories[n].owner !== me) : [];
+  const to = chosen('to', targets);
+  const maxDice = from ? Math.min(3, g.territories[from].armies - 1) : 3;
   const dice = keep('dice', Array.from({ length: maxDice }, (_, i) => String(i + 1)), String(maxDice));
   return `<div class="box mine rk-box">
     <h2>⚔️ Angreifen</h2>
-    <label>Von<select id="rk-from" data-rk-key="from" data-keep="no">${options(sources.map((id) => [id, terrLabel(id)]), from)}</select></label>
-    <label>Nach<select id="rk-to" data-rk-key="to" data-keep="no">${options(targets.map((id) => [id, `${terrLabel(id)} – ${rkWho(g.territories[id].owner)}`]), to)}</select></label>
+    <label>Von<select id="rk-from" data-rk-key="from" data-keep="no">${PLACEHOLDER}${options(sources.map((id) => [id, terrLabel(id)]), from)}</select></label>
+    <label>Nach<select id="rk-to" data-rk-key="to" data-keep="no" ${from ? '' : 'disabled'}>${PLACEHOLDER}${options(targets.map((id) => [id, `${terrLabel(id)} – ${rkWho(g.territories[id].owner)}`]), to)}</select></label>
     <label>Würfel<select id="rk-dice" data-rk-key="dice" data-keep="no">${options(Array.from({ length: maxDice }, (_, i) => [String(i + 1), `${i + 1} Würfel`]), dice)}</select></label>
-    <button type="button" id="rk-attack" class="btn danger block" data-rk="attack">Angreifen</button>
+    <button type="button" id="rk-attack" class="btn danger block" data-rk="attack" ${from && to ? '' : 'disabled'}>Angreifen</button>
     <button type="button" id="rk-end-attack" class="btn block" data-rk="endAttack">Angriff beenden</button>
   </div>`;
 }
@@ -88,17 +95,17 @@ function fortifyBox() {
   const sources = ownIds().filter((id) => g.territories[id].armies >= 2 && reach(id).length);
   const endBtn = '<button type="button" id="rk-end-turn" class="btn block" data-rk="endTurn">Zug beenden</button>';
   if (!sources.length) return `<div class="box rk-box"><h2>🚚 Verschieben</h2><p class="hint">Gerade kannst du nichts verschieben.</p>${endBtn}</div>`;
-  const from = keep('mFrom', sources);
-  const targets = reach(from);
-  const to = keep('mTo', targets);
-  const max = g.territories[from].armies - 1;
+  const from = chosen('mFrom', sources);
+  const targets = from ? reach(from) : [];
+  const to = chosen('mTo', targets);
+  const max = from ? g.territories[from].armies - 1 : 1;
   const count = Math.min(max, Math.max(1, Number(rkUi.mCount) || max));
   return `<div class="box rk-box">
     <h2>🚚 Verschieben <small>(einmal, beendet den Zug)</small></h2>
-    <label>Von<select id="rk-move-from" data-rk-key="mFrom" data-keep="no">${options(sources.map((id) => [id, terrLabel(id)]), from)}</select></label>
-    <label>Nach<select id="rk-move-to" data-rk-key="mTo" data-keep="no">${options(targets.map((id) => [id, terrLabel(id)]), to)}</select></label>
+    <label>Von<select id="rk-move-from" data-rk-key="mFrom" data-keep="no">${PLACEHOLDER}${options(sources.map((id) => [id, terrLabel(id)]), from)}</select></label>
+    <label>Nach<select id="rk-move-to" data-rk-key="mTo" data-keep="no" ${from ? '' : 'disabled'}>${PLACEHOLDER}${options(targets.map((id) => [id, terrLabel(id)]), to)}</select></label>
     <label>Armeen<input id="rk-move-count" data-rk-key="mCount" data-keep="no" type="number" min="1" max="${max}" value="${count}" inputmode="numeric" /></label>
-    <button type="button" id="rk-fortify" class="btn go block" data-rk="fortify">Verschieben</button>
+    <button type="button" id="rk-fortify" class="btn go block" data-rk="fortify" ${from && to ? '' : 'disabled'}>Verschieben</button>
     ${endBtn}
   </div>`;
 }
@@ -235,9 +242,30 @@ function renderRisiko() {
   if (left > 0 && g.phase !== 'gameover') {
     patch($('#panel-risiko'), `<div class="box center rk-hold"><h2>Schau auf den Fernseher</h2><p class="hint">${statusText(g)}</p></div>`);
     renderRisiko.hold = setTimeout(renderRisiko, left + 60);
+    rkSyncPreview(true);
     return;
   }
   patch($('#panel-risiko'), risikoHtml());
+  rkSyncPreview();
+}
+
+/**
+ * Vorauswahl an den Server (nur Anzeige auf dem Fernseher). Gesendet wird nur bei
+ * Änderungen; ohne Auswahl, außerhalb des eigenen Zuges oder während der Wartezeit wird sie aufgehoben.
+ */
+function rkSyncPreview(hold = false) {
+  const g = S.game;
+  let pv = null;
+  if (!hold && g.currentId === me) {
+    if (g.phase === 'reinforce' && rkUi.place) pv = { mode: 'place', from: rkUi.place };
+    else if (g.phase === 'attack' && rkUi.mode === 'attack' && rkUi.from) pv = { mode: 'attack', from: rkUi.from, to: rkUi.to || null };
+    else if ((g.phase === 'attack' || g.phase === 'fortify') && rkUi.mode === 'fortify' && rkUi.mFrom) pv = { mode: 'fortify', from: rkUi.mFrom, to: rkUi.mTo || null };
+    else if (g.phase === 'fortify' && rkUi.mFrom) pv = { mode: 'fortify', from: rkUi.mFrom, to: rkUi.mTo || null };
+  }
+  const key = JSON.stringify(pv);
+  if (key === (rkSyncPreview.last ?? 'null')) return;
+  rkSyncPreview.last = key;
+  socket.emit('act', { type: 'preview', ...(pv || {}) }, () => {});
 }
 
 /* ---------------- Eingaben ---------------- */
@@ -249,6 +277,8 @@ $('#panel-risiko').addEventListener('change', (e) => {
     rkUi.cards = el.checked ? [...rkUi.cards, id].slice(-3) : rkUi.cards.filter((c) => c !== id);
   } else if (el.dataset.rkKey) {
     rkUi[el.dataset.rkKey] = el.value;
+    if (['from', 'to'].includes(el.dataset.rkKey)) rkUi.mode = 'attack';
+    if (['mFrom', 'mTo'].includes(el.dataset.rkKey)) rkUi.mode = 'fortify';
   }
   renderRisiko();
 });

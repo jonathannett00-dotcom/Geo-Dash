@@ -40,6 +40,17 @@
 .rk-arrow-line { fill: none; stroke: #c0392b; stroke-width: 3px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .rk-arrow-head { fill: #c0392b; stroke: #c0392b; stroke-width: 1px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 
+/* ---------- Vorauswahl vom Handy ---------- */
+.rk-hl { fill: none; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; transition: opacity .3s ease; }
+.rk-hl.from, .rk-hl.to { fill: #fff; fill-opacity: .14; stroke: #fff; stroke-width: 2.2px; animation: rkGlow 2.4s ease-in-out infinite; }
+.rk-hl.to.attack { stroke: #f0b4ad; fill: #f0b4ad; }
+.rk-hl.target { stroke: rgba(255, 255, 255, .55); stroke-width: 1.2px; stroke-dasharray: 3 3; }
+.rk-preview-arrow .rk-arrow-line { stroke: #fff; stroke-width: 2px; stroke-dasharray: none; opacity: .95; }
+.rk-preview-arrow .rk-arrow-head { fill: #fff; stroke: #fff; }
+.rk-preview-arrow.attack .rk-arrow-line { stroke: #f0b4ad; }
+.rk-preview-arrow.attack .rk-arrow-head { fill: #f0b4ad; stroke: #f0b4ad; }
+@keyframes rkGlow { 50% { fill-opacity: .05; stroke-opacity: .7; } }
+
 /* ---------- Animationen ---------- */
 .rk-dice rect { stroke: var(--rk-line); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .rk-die-g.att rect { fill: #b3261e; }
@@ -56,6 +67,8 @@
 @media (prefers-reduced-motion: reduce) {
   .rk-area, .rk-territory .rk-disc { transition: none; }
   .rk-territory.hit .rk-disc, .rk-territory.hit .rk-armies { animation: none; }
+  .rk-hl.from, .rk-hl.to { animation: none; }
+  .rk-banner { transition: none; }
 }
 
 /* ---------- Flächen im Ozean ---------- */
@@ -65,7 +78,9 @@
   display: flex; align-items: center; gap: var(--gap); padding: calc(var(--gap) * .6) var(--gap);
   font-size: calc(clamp(14px, 1.15vw + .5vh, 24px) * min(var(--panel-scale), 1.12));
 }
-.rk-banner { flex: 1; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-banner { flex: 1; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .22s ease, transform .22s ease; }
+.rk-banner.fading { opacity: 0; transform: translateY(-3px); }
+.rk-detail { color: var(--rk-muted); font-weight: 500; margin-left: .75em; }
 .rk-who { color: var(--rk-text); box-shadow: inset 0 -.18em 0 var(--c); }
 .rk-paused { color: var(--gold); margin-left: .6em; font-weight: 700; }
 .rk-room { font-size: .75em; color: var(--rk-muted); white-space: nowrap; }
@@ -81,13 +96,15 @@
   display: grid; grid-template-columns: repeat(auto-fit, minmax(17em, 1fr)); column-gap: calc(var(--gap) * 1.5); row-gap: .1em;
   padding: calc(var(--gap) * .6) var(--gap); align-content: start;
 }
-.rk-player { display: grid; grid-template-columns: .8em minmax(4em, 1fr) repeat(3, var(--num)); align-items: center; column-gap: .55em; padding: .1em 0; }
+.rk-player { display: grid; grid-template-columns: .8em minmax(4em, 1fr) repeat(3, var(--num)); align-items: center; column-gap: .55em; padding: .12em .4em; }
 .rk-player.rk-head { color: var(--rk-muted); padding-bottom: .15em; }
 .rk-players.one-col .rk-head-2 { display: none; }
 .rk-player.rk-head .rk-num { font-size: .72em; letter-spacing: .04em; }
 .rk-swatch { width: .8em; height: .8em; border-radius: 50%; background: var(--c); }
 .rk-pname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rk-player.current .rk-pname { text-decoration: underline; text-decoration-color: var(--c); text-decoration-thickness: .14em; text-underline-offset: .22em; }
+.rk-player { border-radius: 6px; transition: background-color .35s ease, box-shadow .35s ease; }
+.rk-player.current { background: rgba(255, 255, 255, .09); box-shadow: inset .22em 0 0 var(--c); }
+.rk-player.current .rk-pname { color: #fff; }
 .rk-player.out { opacity: .45; }
 .rk-num { text-align: right; font-variant-numeric: tabular-nums; }
 .rk-player:not(.rk-head) .rk-num { color: var(--rk-muted); }
@@ -102,3 +119,7 @@
 .rk-log { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; gap: .2em; align-content: start; color: var(--rk-muted); font-size: .9em; }
 .rk-log li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rk-log li:first-child { color: var(--rk-text); }
+
+/* Animationen „aus“: alles statisch */
+.risiko.anim-off .rk-hl, .risiko.anim-off .rk-territory.hit .rk-disc, .risiko.anim-off .rk-territory.hit .rk-armies { animation: none; }
+.risiko.anim-off .rk-area, .risiko.anim-off .rk-banner, .risiko.anim-off .rk-player { transition: none; }

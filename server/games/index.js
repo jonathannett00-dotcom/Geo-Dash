@@ -22,6 +22,7 @@
  *    canSave()                          darf der Raum jetzt gespeichert werden?
  *    toJSON()                           Zustand als reine Daten
  *    dispose()                          Timer und laufende Unterspiele beenden
+ *    onDisconnect(playerId)             optional: Verbindung eines Spielers abgebrochen
  *
  *  onChange() meldet Änderungen, die nicht durch handleAction oder tick
  *  entstehen (z. B. Minispiel-Timer); der Raum plant dann neu und sendet Snapshots.

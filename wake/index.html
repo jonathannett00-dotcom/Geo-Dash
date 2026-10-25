@@ -2,41 +2,56 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Monopoly-Abend</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#14181d" />
+  <title>Spieleabend</title>
   <meta name="robots" content="noindex" />
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="wake.css" />
 </head>
 <body>
-  <main class="card">
-    <h1>Monopoly-Abend</h1>
-    <p class="sub">Starte ein neues Spiel am großen Bildschirm oder tritt mit dem Handy einem Raum bei.</p>
+  <!-- Flaches Raster wie der Hintergrund der Startseite (lbBackground in public/shared/lobby.js) -->
+  <div class="bg" aria-hidden="true">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+      <path class="grid-line" d="M0 0V900M120 0V900M240 0V900M360 0V900M480 0V900M600 0V900M720 0V900M840 0V900M960 0V900M1080 0V900M1200 0V900M1320 0V900M1440 0V900M1560 0V900M0 0H1600M0 180H1600M0 360H1600M0 540H1600M0 720H1600M0 900H1600" />
+    </svg>
+  </div>
+
+  <main class="wrap">
+    <header class="head">
+      <h1 class="title">Spieleabend</h1>
+      <p class="sub">Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly und Risiko – ohne Anmeldung.</p>
+    </header>
 
     <div class="actions">
-      <section class="action">
-        <h2>Neues Spiel</h2>
-        <p class="hint">Auf dem Tablet oder Fernseher öffnen. Dort erscheint der Raumcode.</p>
-        <button id="btn-new" class="btn primary big" type="button">Neues Spiel starten</button>
+      <section class="card card-new" aria-labelledby="new-title">
+        <h2 id="new-title">Neues Spiel starten</h2>
+        <p>Für den Fernseher, Laptop oder das Tablet. Hier erscheinen Raumcode und QR-Code, das Spiel wählt ihr in der Lobby.</p>
+        <button id="btn-new" class="btn primary" type="button">Neues Spiel starten</button>
       </section>
 
-      <form id="join-form" class="action" novalidate>
-        <h2>Spiel beitreten</h2>
-        <label class="field" for="join-code">Raumcode</label>
-        <input id="join-code" name="room" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
-               spellcheck="false" placeholder="ABCD" aria-describedby="join-msg" />
+      <section class="card card-join" aria-labelledby="join-title">
+        <h2 id="join-title">Spiel beitreten</h2>
+        <p>Mit dem Handy: den Raumcode vom großen Bildschirm eingeben.</p>
+        <form id="join-form" class="join-form" novalidate>
+          <label class="sr-only" for="join-code">Raumcode</label>
+          <input id="join-code" class="code" name="room" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
+                 spellcheck="false" placeholder="ABCD" aria-describedby="join-msg" />
+          <button id="btn-join" class="btn" type="submit">Beitreten</button>
+        </form>
         <p id="join-msg" class="msg" role="alert"></p>
-        <button id="btn-join" class="btn go big" type="submit">Spiel beitreten</button>
-      </form>
+      </section>
     </div>
 
     <div id="status" class="status" data-state="waking">
-      <p id="status-text" class="status-text" aria-live="polite">Der Server startet, das dauert bis zu einer Minute.</p>
-      <div class="bar" role="progressbar" aria-label="Server startet" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div id="bar-fill" class="bar-fill"></div>
+      <div class="wait">
+        <div class="bar" role="progressbar" aria-label="Server startet" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="bar-fill" class="bar-fill"></div>
+        </div>
+        <p id="status-text" class="status-text" aria-live="polite">Der Server startet, das dauert bis zu einer Minute.</p>
       </div>
       <p id="pending" class="pending hidden"></p>
-      <button id="btn-retry" class="btn ghost hidden" type="button">Erneut versuchen</button>
+      <button id="btn-retry" class="btn retry hidden" type="button">Erneut versuchen</button>
     </div>
   </main>
   <script src="wake.js"></script>

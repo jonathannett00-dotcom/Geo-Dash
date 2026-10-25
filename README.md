@@ -44,6 +44,7 @@ Hinweise zum kostenlosen Plan:
 - Ohne Datenbank liegt der Spielstand nur im Arbeitsspeicher.
 - Render legt kostenlose Dienste nach etwa 15 Minuten ohne eingehende Anfragen schlafen. Ohne Datenbank geht der Spielstand dabei verloren, und der erste Aufruf danach dauert einen Moment.
 - Unabhängig davon wird ein Raum nach 6 Stunden ohne Aktivität gelöscht.
+- Für den Link an Freunde gibt es eine kleine Weckseite in `wake/`. Sie weckt den Server und leitet weiter, sobald er bereit ist. Wie man sie bei Netlify veröffentlicht und `WAKE_ORIGIN` bei Render setzt, steht in `docs/spielcenter-plan.md` unter „Weckseite auf Netlify veröffentlichen“.
 
 ## Spielanleitung
 

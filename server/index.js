@@ -43,6 +43,8 @@ function createServer(options = {}) {
     store: options.store || null,
   };
   const { store } = config;
+  // Origin der Weckseite (Netlify), die /healthz abfragen darf – nur genau diese, kein Stern
+  const wakeOrigin = String(options.wakeOrigin ?? process.env.WAKE_ORIGIN ?? '').trim().replace(/\/+$/, '');
 
   const app = express();
   app.set('trust proxy', true);
@@ -56,7 +58,13 @@ function createServer(options = {}) {
   app.get(['/play', '/play/'], sendPage('play/index.html'));
   app.use(express.static(PUBLIC_DIR, { index: false }));
 
-  app.get('/healthz', (req, res) => res.json({ ok: true, rooms: rooms.size }));
+  app.get('/healthz', (req, res) => {
+    if (wakeOrigin) {
+      res.vary('Origin');
+      if (req.get('origin') === wakeOrigin) res.set('Access-Control-Allow-Origin', wakeOrigin);
+    }
+    res.json({ ok: true, rooms: rooms.size });
+  });
 
   const roomCode = (req) => String(req.query.room || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
 

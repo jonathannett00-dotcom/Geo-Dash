@@ -2,9 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
+const { browserSkip, startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
 
-test('Lobby: Tablet erstellt Raum mit QR-Code, Handys treten bei und verbinden sich neu', { timeout: 60000 }, async () => {
+test('Lobby: Tablet erstellt Raum mit QR-Code, Handys treten bei und verbinden sich neu', { skip: browserSkip(), timeout: 60000 }, async () => {
   const srv = await startServer();
   const browser = await launch();
   const errors = [];

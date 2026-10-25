@@ -29,7 +29,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Vanilla-JS-Clients ohne Build-Schritt
   - Zustand im Arbeitsspeicher; mit `DATABASE_URL` zusätzlich in Postgres (Neon), siehe Betrieb
 - **Deployment:** `render.yaml` als Web Service im Free-Plan; Build mit `npm install --omit=dev`, Start mit `npm start`, Healthcheck `/healthz`.
-- **Tests:** 108 Tests (`npm test`): Regel- und Minispiel-Tests (Monopoly, Risiko), Tests der Spiel-Schnittstelle und Spielauswahl, Neustart-Tests mit gespeicherten Räumen (Version 1 und 2), Playwright-Durchläufe (Monopoly mit 1 Host-Ansicht und 3 Handys, Risiko mit 2 Handys) sowie 2 Datenbank-Tests, die nur mit `DATABASE_URL` laufen.
+- **Tests:** `npm test` führt nur die Unit-Tests aus (104: Regeln von Monopoly, Risiko und Minispielen, Spiel-Schnittstelle, Spielauswahl, Neustart-Tests mit gespeicherten Räumen in Version 1 und 2, Wächter für die Testskripte). Lokal kommen dazu `npm run test:browser` (4 Playwright-Durchläufe: Monopoly mit 1 Host-Ansicht und 3 Handys, Lobby, alte Einzelversion, Risiko mit 2 Handys; braucht `CHROMIUM_PATH`) und `npm run test:db` (2 Datenbank-Tests, braucht `DATABASE_URL`). Fehlt die Umgebung, werden diese Tests mit Grund übersprungen. Zeitlimit 60 s pro Testdatei.
 - **Aufräumarbeiten:** `package-lock.json` liegt im Repo. Die alte Pferderennen-Einzelversion liegt in `legacy/`.
 
 ## Entscheidungen

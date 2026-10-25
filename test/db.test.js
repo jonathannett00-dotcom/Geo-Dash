@@ -2,7 +2,8 @@
 
 /*
  * Tests gegen eine echte Postgres-Datenbank (z. B. Neon).
- * Laufen nur mit gesetzter DATABASE_URL, sonst werden sie übersprungen.
+ * Laufen nur mit gesetzter DATABASE_URL (npm run test:db), sonst werden sie
+ * übersprungen, ohne pg zu laden oder eine Verbindung aufzubauen.
  * Jeder Lauf nutzt eine eigene Tabelle. Am Ende wird jeder angelegte Raum
  * gelöscht (und geprüft, dass er weg ist), danach die Tabelle selbst.
  */
@@ -10,14 +11,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
-const { createPgStore } = require('../server/db');
-const { persistenceScenario } = require('./persistence-scenario');
 
 const URL = process.env.DATABASE_URL;
-const skip = URL ? false : 'DATABASE_URL nicht gesetzt – Datenbank-Tests übersprungen';
+const skip = URL ? false : 'DATABASE_URL fehlt (nur lokal)';
 
 /** Speicher mit eigener Tabelle, der sich jeden gespeicherten Raumcode merkt. */
 function testStore() {
+  const { createPgStore } = require('../server/db');
   const store = createPgStore({ connectionString: URL, table: `rooms_test_${crypto.randomBytes(4).toString('hex')}`, max: 2 });
   const codes = new Set();
   const save = store.save.bind(store);
@@ -56,6 +56,7 @@ test('Datenbank: Raum speichern, laden, überschreiben und löschen', { skip, ti
 });
 
 test('Datenbank: Partie überlebt zwei Server-Neustarts und läuft weiter', { skip, timeout: 60000 }, async () => {
+  const { persistenceScenario } = require('./persistence-scenario');
   const store = testStore();
   try {
     await persistenceScenario(store);

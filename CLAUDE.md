@@ -21,7 +21,7 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
 ## Regeln für Änderungen
 
 - Alle Texte für Spieler sind **auf Deutsch**: UI, Fehlermeldungen, Ticker, README.
-- **`npm test` muss vor jedem Commit grün sein.**
+- **`npm test` muss vor jedem Commit grün sein.** Wer Oberfläche oder Speicher ändert, lässt lokal zusätzlich `test:browser` bzw. `test:db` laufen.
 - **Ein Feature pro Branch.**
 - **Keine neuen Abhängigkeiten ohne Rückfrage.**
   - Laufzeit: nur `express`, `socket.io`, `qrcode`, `pg`.
@@ -32,9 +32,12 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
 ## Befehle
 
 - `npm start`: startet den Server auf `PORT` (Standard 3000). Host-Ansicht unter `/board`, Handy unter `/play`.
-- `npm test`: Unit-Tests (`node:test`) und Playwright-Browser-Tests.
-  - Chromium kommt aus `CHROMIUM_PATH`, Standard `/opt/pw-browsers/chromium`.
+- `npm test`: nur Unit-Tests (`node:test`), ohne Browser und ohne Datenbank. Läuft überall, auch ohne Zugangsdaten.
+  - Jede Testdatei steht in genau einem Skript; neue Dateien in `package.json` eintragen (`test/testskripte.test.js` prüft das).
+  - Zeitlimit 60 s pro Testdatei (`--test-timeout=60000`), auch in den beiden lokalen Skripten.
+- `npm run test:browser` (nur lokal): Playwright-Browser-Tests. Ohne `CHROMIUM_PATH` oder wenn die Datei fehlt, werden sie mit „CHROMIUM_PATH fehlt (nur lokal)“ übersprungen.
+  - Beispiel: `CHROMIUM_PATH=/opt/pw-browsers/chromium npm run test:browser`
   - `E2E_SCREEN=1920x1080` prüft den Durchlauf in TV-Auflösung.
   - `E2E_SHOTS=<ordner>` speichert Bildschirmfotos.
-  - Mit `DATABASE_URL` laufen zusätzlich die Datenbank-Tests (`test/db.test.js`, eigene Wegwerf-Tabelle), ohne werden sie übersprungen: `node --env-file=.env.local --test --test-concurrency=1 test/*.test.js`.
+- `npm run test:db` (nur lokal): Datenbank-Tests (`test/db.test.js`, eigene Wegwerf-Tabelle) mit `DATABASE_URL` aus `.env.local`. Ohne `DATABASE_URL` werden sie mit „DATABASE_URL fehlt (nur lokal)“ übersprungen, ohne zu verbinden.
 - Zugangsdaten stehen nur in `.env` / `.env.local` (in `.gitignore`). Die Verbindungs-URL nie ausgeben, loggen oder committen.

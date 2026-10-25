@@ -9,7 +9,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
+const { browserSkip, startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
 
 const SHOTS = process.env.E2E_SHOTS;
 const [SCREEN_W, SCREEN_H] = (process.env.E2E_SCREEN || '1024x768').split('x').map(Number);
@@ -17,7 +17,7 @@ const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: pa
 const until = (page, fn, arg, timeout = 20000) => page.waitForFunction(fn, arg, { timeout, polling: 100 });
 const armiesOnBoard = (board, id) => board.evaluate((t) => Number(document.querySelector(`#rk-t-${t} .rk-armies`).textContent), id);
 
-test('Risiko: Spielauswahl, Startarmeen, Verstärkung und Angriff mit Verteidigung am Handy', { timeout: 120000 }, async () => {
+test('Risiko: Spielauswahl, Startarmeen, Verstärkung und Angriff mit Verteidigung am Handy', { skip: browserSkip(), timeout: 120000 }, async () => {
   const srv = await startServer();
   const browser = await launch();
   const errors = [];

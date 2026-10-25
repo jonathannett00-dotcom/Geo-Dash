@@ -39,6 +39,11 @@ function pkCardHtml(card, cls = '') {
 /** Leerer Kartenplatz (z. B. für Turn und River vor dem Aufdecken). */
 const pkSlotHtml = (cls = '') => `<span class="pk-card slot ${cls}"></span>`;
 
+/** „Anna“, „Anna und Ben“, „Anna, Ben und Cem“ (Namen schon maskiert) */
+function pkNames(names) {
+  return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} und ${names[names.length - 1]}`;
+}
+
 /** Sitzmarke: Nummer auf der Spielerfarbe – die Farbe ist nie der einzige Unterschied. */
 function pkSeatHtml(p, cls = '') {
   return `<span class="pk-seat ${cls}" style="--c:${p.color};--ink:${lbInkOn(p.color)}" aria-label="Platz ${p.seat}">${p.seat}</span>`;

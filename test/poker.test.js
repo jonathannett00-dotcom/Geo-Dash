@@ -349,3 +349,10 @@ test('Poker: 12 Spieler – Austeilen bis zum River ohne Kartenmangel', () => {
   assert.equal(g.deck.length, 52 - 24 - 5 - 3, 'drei Brennkarten');
   assert.equal(g.totalMoney(), 12 * 2000);
 });
+
+test('Poker: Gewinnernamen im Ticker', () => {
+  const { nameList } = require('../server/games/poker/rules');
+  assert.equal(nameList(['Anna']), 'Anna');
+  assert.equal(nameList(['Anna', 'Ben']), 'Anna und Ben');
+  assert.equal(nameList(['Anna', 'Ben', 'Cem']), 'Anna, Ben und Cem');
+});

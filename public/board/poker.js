@@ -220,7 +220,7 @@ function pkRenderTable(g, d) {
 function pkWinText(g, d) {
   const w = d.win;
   if (!w) return '';
-  const names = w.winners.map((x) => escapeHtml(pkPlayer(x.id)?.name || '?')).join(' und ');
+  const names = pkNames(w.winners.map((x) => escapeHtml(pkPlayer(x.id)?.name || '?')));
   const what = w.side ? `Side-Pot ${w.pot}` : '';
   const verb = w.winners.length > 1 ? 'teilen' : 'gewinnt';
   return `<span class="pkt-win">${what ? `${what}: ` : ''}${names} ${verb} ${pkEuro(w.amount)}</span>${w.label ? `<span class="pkt-label">${escapeHtml(w.label)}</span>` : ''}`;

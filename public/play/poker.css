@@ -9,7 +9,7 @@ body.poker-mode .me-fig { font-size: 1.15rem; font-weight: 800; }
 body.poker-mode .main { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 body.poker-mode.pk-bar-open .main { padding-bottom: calc(330px + env(safe-area-inset-bottom, 0px)); }
 
-#panel-poker { gap: .75rem; color: #eef3ef; }
+#panel-poker { gap: .75rem; color: #eef3ef; -webkit-tap-highlight-color: transparent; }
 #panel-poker .btn { min-height: 48px; }
 #panel-poker .btn.armed { background: #8a1c14; color: #fff; }
 
@@ -42,7 +42,7 @@ body.poker-mode.pk-bar-open .main { padding-bottom: calc(330px + env(safe-area-i
 .pk-hole:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .pk-hole .pk-card { --cw: min(25vw, 6.2rem); }
 .pk-nocards { margin: 1.5rem 0; color: #9fb8ab; }
-.pk-handlabel { min-height: 1.4em; line-height: 44px; font-weight: 700; font-size: 1.05rem; color: #f2d27a; text-align: center; }
+.pk-handlabel { flex-basis: 100%; min-height: 44px; line-height: 44px; font-weight: 700; font-size: 1.05rem; color: #f2d27a; text-align: center; }
 .pk-switch { display: flex !important; flex-direction: row !important; align-items: center; gap: .6rem; color: #eef3ef !important; font-weight: 600 !important; font-size: .95rem !important; min-height: 44px; }
 .pk-switch input { width: 1.4rem; height: 1.4rem; flex: none; accent-color: #f2c94c; }
 

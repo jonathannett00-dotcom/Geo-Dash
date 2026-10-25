@@ -558,7 +558,7 @@ class PokerGame {
       const label = winners[0].hand.label;
       const cards = winners.length === 1 ? winners[0].hand.cards.slice() : null;
       const side = k > 0;
-      const names = winners.map((p) => p.name).join(' und ');
+      const names = nameList(winners.map((p) => p.name));
       this.event(`${names} ${winners.length > 1 ? 'teilen sich' : 'gewinnt'} ${side ? `den Side-Pot ${k}` : this.pots.length > 1 ? 'den Hauptpot' : 'den Pot'} (${euro(pot.amount)}) mit ${label}.`, 'win');
       const entry = { pot: k, amount: pot.amount, winners: shares, label, cards, side };
       result.push(entry);
@@ -761,6 +761,11 @@ class PokerGame {
   }
 }
 
+/** „Anna“, „Anna und Ben“, „Anna, Ben und Cem“ */
+function nameList(names) {
+  return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} und ${names[names.length - 1]}`;
+}
+
 const SUIT_SYMBOLS = { s: '♠', h: '♥', d: '♦', c: '♣' };
 /** 'Td' → '10♦' (Ticker) */
 function cardText(card) {
@@ -779,5 +784,6 @@ module.exports = {
   STREET_NAMES,
   applySettings,
   cardText,
+  nameList,
   isCard,
 };

@@ -157,7 +157,7 @@ function pkExtraHtml(g) {
   }
   if (g.phase === 'between' && g.result) {
     const lines = g.result.pots.map((pot) => {
-      const names = pot.winners.map((w) => pkName(g, w.id)).join(' und ');
+      const names = pkNames(pot.winners.map((w) => pkName(g, w.id)));
       const what = pot.side ? 'Side-Pot' : g.result.pots.length > 1 ? 'Hauptpot' : 'Pot';
       return `<li>${names} ${pot.winners.length > 1 ? 'teilen' : 'gewinnt'} ${what} ${pkEuro(pot.amount)}${pot.label ? ` – ${escapeHtml(pot.label)}` : ''}</li>`;
     });

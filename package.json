@@ -8,7 +8,7 @@
     "start": "node server/index.js",
     "test": "node --test --test-concurrency=1 --test-timeout=60000 test/blackjack.test.js test/games.test.js test/horserace.test.js test/monopoly.test.js test/persistence.test.js test/poker.test.js test/poker-modul.test.js test/risiko.test.js test/risiko-karte.test.js test/risiko-animation.test.js test/risiko-anzeige.test.js test/raeume-grenzen.test.js test/rooms.test.js test/roulette.test.js test/testskripte.test.js test/wake.test.js",
     "test:db": "node --env-file=.env.local --test --test-concurrency=1 --test-timeout=60000 test/db.test.js",
-    "test:browser": "node --test --test-concurrency=1 --test-timeout=60000 test/e2e.test.js test/lobby.e2e.test.js test/legacy.e2e.test.js test/risiko.e2e.test.js test/start.e2e.test.js test/wake.e2e.test.js",
+    "test:browser": "node --test --test-concurrency=1 --test-timeout=60000 test/e2e.test.js test/lobby.e2e.test.js test/legacy.e2e.test.js test/risiko.e2e.test.js test/poker.e2e.test.js test/start.e2e.test.js test/wake.e2e.test.js",
     "build:map": "node scripts/build-map.js"
   },
   "engines": {

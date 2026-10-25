@@ -47,7 +47,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Vanilla-JS-Clients ohne Build-Schritt
   - Zustand im Arbeitsspeicher; mit `DATABASE_URL` zusätzlich in Postgres (Neon), siehe Betrieb
 - **Deployment:** `render.yaml` als Web Service im Free-Plan; Build mit `npm install --omit=dev`, Start mit `npm start`, Healthcheck `/healthz`.
-- **Tests:** `npm test` führt nur die Unit-Tests aus (129: Regeln von Monopoly, Risiko und Minispielen, Spiel-Schnittstelle, Spielauswahl, Neustart-Tests mit gespeicherten Räumen in Version 1 und 2, Prüfung der erzeugten Weltkarte, Animations-Ereignisse, Risiko-Anzeigedaten wie Vorauswahl, Phasentexte und Statistik samt altem Spielstand ohne Statistik, Animationsdauern, Raumlimit, Rate-Limit und Aufräumen leerer Räume, Startseite per HTTP, Wächter für die Testskripte). Lokal kommen dazu `npm run test:browser` (5 Playwright-Durchläufe: Monopoly mit 1 Host-Ansicht und 3 Handys, Lobby, alte Einzelversion, Risiko mit 2 Handys inkl. Vorauswahl auf dem Fernseher, Startseite mit Raum anlegen und Beitritt per Code; braucht `CHROMIUM_PATH`) und `npm run test:db` (2 Datenbank-Tests, braucht `DATABASE_URL`). Fehlt die Umgebung, werden diese Tests mit Grund übersprungen. Zeitlimit 60 s pro Testdatei.
+- **Tests:** `npm test` führt nur die Unit-Tests aus (131: Regeln von Monopoly, Risiko und Minispielen, Spiel-Schnittstelle, Spielauswahl, Neustart-Tests mit gespeicherten Räumen in Version 1 und 2, Prüfung der erzeugten Weltkarte, Animations-Ereignisse, Risiko-Anzeigedaten wie Vorauswahl, Phasentexte und Statistik samt altem Spielstand ohne Statistik, Animationsdauern, Raumlimit, Rate-Limit und Aufräumen leerer Räume, Startseite per HTTP, CORS-Freigabe von `/healthz` für die Weckseite, Wächter für die Testskripte). Lokal kommen dazu `npm run test:browser` (Playwright-Durchläufe: Monopoly mit 1 Host-Ansicht und 3 Handys, Lobby, alte Einzelversion, Risiko mit 2 Handys inkl. Vorauswahl auf dem Fernseher, Startseite mit Raum anlegen und Beitritt per Code, Weckseite; braucht `CHROMIUM_PATH`) und `npm run test:db` (2 Datenbank-Tests, braucht `DATABASE_URL`). Fehlt die Umgebung, werden diese Tests mit Grund übersprungen. Zeitlimit 60 s pro Testdatei.
 - **Aufräumarbeiten:** `package-lock.json` liegt im Repo. Die alte Pferderennen-Einzelversion liegt in `legacy/`.
 
 ## Entscheidungen
@@ -56,6 +56,8 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 2. **Reihenfolge:** zuerst Monopoly (fertig), dann Risiko, dann Poker.
 3. **Server ist die einzige Instanz** für Spielzustand und Zufall. Clients zeigen nur Snapshots, versteckte Information wird pro Spieler gefiltert (siehe `CLAUDE.md`).
 4. **Gleiche Grundlage für alle Spiele:** Räume, Beitritt, QR-Code und Wiederverbindung werden geteilt; Hosting auf Render bleibt.
+5. **Risiko: Neutrale Armee bei 2 Spielern bleibt.** Es spielt eine neutrale Armee mit 40 Armeen mit (klassische Zwei-Personen-Regel). Sie hat kein Handy und verteidigt immer mit der Höchstzahl an Würfeln.
+6. **Risiko: Gebiete von Ausgeschiedenen werden neutral.** Wer aufgibt oder zu lange getrennt ist, scheidet aus; die Gebiete werden neutral, die Armeen bleiben stehen, die Karten kommen auf den Ablagestapel.
 
 ## Offene Punkte
 
@@ -74,8 +76,18 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Die Datenbank-Tests (`test/db.test.js`) sind lokal gegen den Neon-Branch `test` grün: 2 bestanden, 0 fehlgeschlagen, 0 übersprungen.
   - Die Browser-Tests (`e2e`, `lobby.e2e`, `legacy.e2e`) wurden dabei nicht ausgeführt.
   - Offen: Ein unterbrochenes Minispiel startet nach einem Neustart neu.
+- Weckseite (`wake/`) für den Link an Freunde, siehe unten.
 - Nur eine Server-Instanz möglich, weil Socket.IO keinen gemeinsamen Adapter (z. B. Redis) nutzt.
 - Keine Authentifizierung: Wer den Raumcode kennt, kann die Host-Ansicht öffnen und starten. Getrennte Plätze lassen sich übernehmen. Jeder mit dem Link kann über die Startseite Räume anlegen (begrenzt, siehe Räume). Die IP für das Rate-Limit kommt aus `X-Forwarded-For` (erster Eintrag); wer sie fälscht, umgeht nur die 5 pro Minute, nicht das Raumlimit.
+
+### Weckseite auf Netlify veröffentlichen
+Render legt den kostenlosen Dienst nach etwa 15 Minuten schlafen. Die statische Weckseite in `wake/` weckt ihn auf und leitet weiter, sobald `/healthz` mit `ok: true` antwortet. Sie ist der Link, den man an Freunde schickt.
+1. Auf [app.netlify.com/drop](https://app.netlify.com/drop) den Ordner `wake/` hineinziehen. Das legt eine **neue Seite** an. Nicht in das bestehende Projekt `poolgames69` hochladen.
+2. Die Adresse der neuen Seite notieren, z. B. `https://name.netlify.app`. Unter *Site configuration* lässt sich der Name ändern.
+3. Bei Render im Dienst `monopoly-abend` unter *Environment* die Variable `WAKE_ORIGIN` auf genau diese Adresse setzen: mit `https://`, ohne Pfad und ohne Schrägstrich am Ende. Danach neu deployen.
+   - Erst damit darf die Weckseite den Status von `/healthz` lesen. Der Server erlaubt nur genau diese Origin, ohne Stern.
+   - Ohne `WAKE_ORIGIN` funktioniert die Seite trotzdem über einen ungenauen Rückfall (Anfrage im no-cors-Modus). Sie leitet dann schon weiter, sobald Render irgendetwas antwortet, notfalls auf Renders eigene Warteseite.
+4. Ändert sich die Render-Adresse, nur die Konstante `SERVER` oben in `wake/wake.js` anpassen und den Ordner erneut hochladen (bei Netlify unter *Deploys* per Drag-and-drop).
 
 ### Noch zu klären
 - Render: Welcher Branch ist verbunden, ist `PUBLIC_URL` gesetzt, welche Node-Version läuft, bleibt es beim Free-Plan?
@@ -83,11 +95,6 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 - Verhalten auf echten Handys (iOS Safari, Android) über längere Zeit, z. B. Displaysperre und Netzwechsel. Getestet ist nur headless Chromium.
 - Last mit 10 Spielern auf dem Free-Plan.
 - Regeln und Umfang für Poker: Varianten, Spielerzahl, Spieldauer, Minispiele ja oder nein.
-
-### Offene Entscheidungen Risiko
-Beide Regeln sind umgesetzt und im Code mit „OFFENE ENTSCHEIDUNG“ markiert (`server/games/risiko/rules.js`); geändert wird erst nach einer Vorgabe.
-- **Neutrale Armee bei 2 Spielern:** Heute spielt eine neutrale Armee mit 40 Armeen mit (klassische Zwei-Personen-Regel). Sie hat kein Handy und verteidigt deshalb immer mit der Höchstzahl an Würfeln. Diese Datei enthielt dazu keine Vorgabe. Offen: beibehalten oder entfernen (dann z. B. 2 Spieler ohne Neutral, Startarmeen festlegen).
-- **Ausscheiden (aufgegeben oder zu lange getrennt):** Die Gebiete werden neutral, die Armeen bleiben stehen, die Karten kommen auf den Ablagestapel. Offen: so lassen oder z. B. Gebiete an andere Spieler verteilen.
 
 ### Bekannte Regelvereinfachungen in Monopoly
 - Keine 10 % Zinsen auf übernommene Hypotheken.

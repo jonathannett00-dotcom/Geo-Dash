@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monopoly-Abend</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="wake.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>Monopoly-Abend</h1>
+    <p class="sub">Starte ein neues Spiel am großen Bildschirm oder tritt mit dem Handy einem Raum bei.</p>
+
+    <div class="actions">
+      <section class="action">
+        <h2>Neues Spiel</h2>
+        <p class="hint">Auf dem Tablet oder Fernseher öffnen. Dort erscheint der Raumcode.</p>
+        <button id="btn-new" class="btn primary big" type="button">Neues Spiel starten</button>
+      </section>
+
+      <form id="join-form" class="action" novalidate>
+        <h2>Spiel beitreten</h2>
+        <label class="field" for="join-code">Raumcode</label>
+        <input id="join-code" name="room" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD" aria-describedby="join-msg" />
+        <p id="join-msg" class="msg" role="alert"></p>
+        <button id="btn-join" class="btn go big" type="submit">Spiel beitreten</button>
+      </form>
+    </div>
+
+    <div id="status" class="status" data-state="waking">
+      <p id="status-text" class="status-text" aria-live="polite">Der Server startet, das dauert bis zu einer Minute.</p>
+      <div class="bar" role="progressbar" aria-label="Server startet" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="bar-fill" class="bar-fill"></div>
+      </div>
+      <p id="pending" class="pending hidden"></p>
+      <button id="btn-retry" class="btn ghost hidden" type="button">Erneut versuchen</button>
+    </div>
+  </main>
+  <script src="wake.js"></script>
+</body>
+</html>

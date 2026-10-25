@@ -104,8 +104,8 @@ class RisikoGame {
       quit: false,
       stats: emptyStats(),
     }));
-    // OFFENE ENTSCHEIDUNG (siehe docs/spielcenter-plan.md): Bei 2 Spielern spielt eine
-    // neutrale Armee mit (Regel der klassischen Ausgabe). Eine Vorgabe dazu fehlt noch.
+    // ENTSCHIEDEN (siehe docs/spielcenter-plan.md, Entscheidung 5): Bei 2 Spielern spielt eine
+    // neutrale Armee mit (Regel der klassischen Ausgabe).
     this.neutral = players.length === 2 ? { id: NEUTRAL, name: 'Neutral', color: NEUTRAL_COLOR } : null;
     this.territories = Object.fromEntries(TERRITORY_IDS.map((id) => [id, { owner: null, armies: 0 }]));
     this.deck = rng.shuffle(CARDS.map((c) => c.id));
@@ -355,7 +355,7 @@ class RisikoGame {
     this.turn.pendingAttack = { from, to, dice: nAtt, defenderId, maxDefend: Math.min(MAX_DEFEND_DICE, dst.armies) };
     this.phase = 'defend';
     this.event(`⚔️ ${p.name} greift mit ${plural(nAtt, 'Würfel', 'Würfeln')} von ${tname(from)} ${tname(to)} an – ${this.nameOf(defenderId)} verteidigt.`, 'battle');
-    // OFFENE ENTSCHEIDUNG (siehe docs/spielcenter-plan.md): Die neutrale Armee hat kein Handy
+    // ENTSCHIEDEN (siehe docs/spielcenter-plan.md, Entscheidung 5): Die neutrale Armee hat kein Handy
     // und verteidigt deshalb immer mit der höchstmöglichen Würfelzahl.
     if (defenderId === NEUTRAL) this.resolveBattle(this.turn.pendingAttack.maxDefend);
   }
@@ -526,7 +526,7 @@ class RisikoGame {
   /**
    * Spieler scheidet aus (aufgegeben oder zu lange getrennt): Gebiete werden neutral,
    * Karten kommen auf den Ablagestapel.
-   * OFFENE ENTSCHEIDUNG (siehe docs/spielcenter-plan.md): Verbleib der Gebiete beim Ausscheiden.
+   * ENTSCHIEDEN (siehe docs/spielcenter-plan.md, Entscheidung 6): Die Gebiete werden neutral.
    */
   removePlayer(pid, reason = 'timeout') {
     const p = this.player(pid);

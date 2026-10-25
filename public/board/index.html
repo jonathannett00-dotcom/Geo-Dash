@@ -77,16 +77,14 @@
 
   <!-- ============ RISIKO ============ -->
   <section id="risiko" class="risiko hidden">
-    <header class="rk-top">
+    <svg id="rk-map" class="rk-map" role="img" aria-label="Risiko-Weltkarte"></svg>
+    <header class="rk-panel rk-top">
       <div id="rk-banner" class="rk-banner"></div>
       <div class="rk-room">Raum <b id="rk-code"></b></div>
     </header>
-    <div class="rk-map-wrap">
-      <svg id="rk-map" class="rk-map" role="img" aria-label="Risiko-Weltkarte" preserveAspectRatio="xMidYMid meet"></svg>
-    </div>
-    <footer class="rk-bar">
-      <div id="rk-players" class="rk-players"></div>
-      <div class="rk-feed">
+    <footer class="rk-bottom">
+      <div id="rk-players" class="rk-panel rk-players"></div>
+      <div class="rk-panel rk-feed">
         <div id="rk-battle" class="rk-battle hidden"></div>
         <ol id="rk-log" class="rk-log"></ol>
       </div>

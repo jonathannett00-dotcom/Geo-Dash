@@ -14,7 +14,7 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
   - `server/games/index.js`: gemeinsame Spiel-Schnittstelle (`createGame`, `handleAction`, `view`, `tick`, `isOver` …) und Liste der Spielmodule
   - `server/monopoly/`: Regel-Engine, Spieldaten und Spielmodul (`index.js`)
   - `server/games/risiko/`: Risiko-Regel-Engine, Karte als Daten (`map.js`: Gebiete, Nachbarschaften) und Spielmodul
-  - `server/games/risiko/map-paths.js`: realistische Weltkarte (SVG-Pfade, Marker, Seewege), **erzeugt** von `scripts/build-map.js` aus Natural Earth; nicht von Hand ändern, sondern neu bauen. Die Host-Ansicht lädt sie als `/risiko/map-paths.js`.
+  - `server/games/risiko/map-paths.js`: realistische Weltkarte (SVG-Pfade, Seen, Marker, Namen, Seewege), **erzeugt** von `scripts/build-map.js` aus Natural Earth; nicht von Hand ändern, sondern neu bauen. Die Host-Ansicht lädt sie als `/risiko/map-paths.js`.
   - Clients: Monopoly in `board.js` / `play.js`, Risiko in `public/board/risiko.js` und `public/play/risiko.js`
   - `server/games/*.js`: Minispiele mit `wallet`-Interface
   - `server/db.js`: Postgres-Speicher (Neon). Mit `DATABASE_URL` wird jeder Raum nach Änderungen als JSONB gespeichert und beim Start wieder geladen; ohne `DATABASE_URL` liegt alles nur im Arbeitsspeicher. Während eines Minispiels wird nicht gespeichert.
@@ -27,14 +27,14 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
 - **Keine neuen Abhängigkeiten ohne Rückfrage.**
   - Laufzeit: nur `express`, `socket.io`, `qrcode`, `pg`.
   - Entwicklung: nur `playwright` sowie `@neon/config` und `@neon/env` (für die Neon-CLI und `neon.ts`).
-  - Ausnahme nur für das Build-Skript der Risiko-Karte: `world-atlas`, `topojson-client`, `polygon-clipping` (devDependencies; Render installiert sie nicht, die Laufzeit braucht nur die erzeugte Datei).
+  - Ausnahme nur für das Build-Skript der Risiko-Karte: `sane-topojson` (Natural Earth 1:50m mit Provinzen/Staaten), `topojson-client`, `polygon-clipping` (devDependencies; Render installiert sie nicht, die Laufzeit braucht nur die erzeugte Datei).
   - `package-lock.json` liegt im Repo und wird mit `npm install` aktualisiert.
 - `legacy/` enthält die alte Pferderennen-Einzelversion. Sie bleibt unverändert; neuer Code verweist nicht darauf.
 
 ## Befehle
 
 - `npm start`: startet den Server auf `PORT` (Standard 3000). Host-Ansicht unter `/board`, Handy unter `/play`.
-- `npm run build:map`: baut `server/games/risiko/map-paths.js` neu (braucht die devDependencies). Das Skript prüft, dass jede Landgrenze eine Nachbarschaft aus `map.js` ist; die erzeugte Datei wird committed.
+- `npm run build:map`: baut `server/games/risiko/map-paths.js` neu (braucht die devDependencies). Das Skript prüft, dass jede Landgrenze eine Nachbarschaft aus `map.js` ist und dass alle Namen überlappungsfrei Platz finden; die erzeugte Datei wird committed.
 - `npm test`: nur Unit-Tests (`node:test`), ohne Browser und ohne Datenbank. Läuft überall, auch ohne Zugangsdaten.
   - Jede Testdatei steht in genau einem Skript; neue Dateien in `package.json` eintragen (`test/testskripte.test.js` prüft das).
   - Zeitlimit 60 s pro Testdatei (`--test-timeout=60000`), auch in den beiden lokalen Skripten.

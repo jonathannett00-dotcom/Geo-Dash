@@ -105,6 +105,8 @@ test('Risiko: Spielauswahl, Startarmeen, Verstärkung und Angriff mit Verteidigu
     await attacker.click('#rk-occupy');
     await until(board, ([t, owner]) => S.game.phase === 'attack' && S.game.territories[t].owner === owner, [plan.to, plan.first]);
     assert.deepEqual(await board.evaluate(() => [S.game.lastBattle.attack, S.game.lastBattle.defend]), [[6, 6, 6], [1]]);
+    // Die Zahl zählt weich auf den Stand des Servers
+    await until(board, (t) => Number(document.querySelector(`#rk-t-${t} .rk-armies`).textContent) === S.game.territories[t].armies, plan.to);
     assert.ok(await armiesOnBoard(board, plan.to) >= 3, 'Armeen auf dem eroberten Gebiet sichtbar');
     await until(board, () => document.querySelector('#rk-battle') && !document.querySelector('#rk-battle').classList.contains('hidden'));
     await shot(board, 'erobert');

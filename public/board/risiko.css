@@ -7,60 +7,79 @@
 .risiko-settings label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; color: var(--muted); font-size: .85rem; }
 
 /* ================= Risiko: Karte =================
- * Flach und ruhig: Flächen, Konturen, Zahlen-Marker. Striche bleiben
- * unabhängig von der Bildschirmgröße gleich dick (non-scaling-stroke). */
+ * Randloser Ozean im ganzen Fenster, die Karte ist eingepasst. Banner und
+ * Flächen liegen halbtransparent im Ozean, im gleichen Raster (--gap) und
+ * nie über Land. Striche bleiben unabhängig von der Größe gleich dick. */
 .risiko {
-  --rk-bg: #101c29; --rk-ocean: #1d3249; --rk-line: #1a222c; --rk-text: #e9ecef; --rk-muted: #9aa8b6;
-  height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px; padding: 8px 10px;
-  background: var(--rk-bg); color: var(--rk-text);
+  --rk-ocean: #1c3149; --rk-line: #17202a; --rk-text: #e9edf1; --rk-muted: #9daab8;
+  --rk-panel: rgba(13, 24, 37, .62); --rk-radius: 10px; --gap: 12px; --panel-scale: 1;
+  position: relative; height: 100%; overflow: hidden; background: var(--rk-ocean); color: var(--rk-text);
 }
-.rk-top { display: flex; align-items: baseline; gap: 1rem; min-height: 1.6em; }
-.rk-banner { flex: 1; font-size: clamp(15px, 2.2vh, 26px); font-weight: 600; }
-.rk-who { color: var(--rk-text); box-shadow: inset 0 -.2em 0 var(--c); }
+.rk-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.rk-ocean { fill: var(--rk-ocean); }
+.rk-other-land { fill: #3a4656; stroke: var(--rk-line); stroke-width: .6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.rk-area {
+  fill: #b5b0a4; fill-rule: evenodd; stroke: var(--rk-line); stroke-width: .75px; stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke; transition: fill .6s ease;
+}
+.rk-lakes { fill: var(--rk-ocean); stroke: var(--rk-line); stroke-width: .6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.rk-continents path { fill: none; stroke: var(--rk-line); stroke-width: 1.7px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.rk-lanes path { fill: none; stroke: #a7b8ca; stroke-width: 1.3px; stroke-dasharray: 4 4; stroke-linecap: round; opacity: .7; vector-effect: non-scaling-stroke; }
+
+.rk-label {
+  fill: rgba(236, 240, 244, .86); font-family: var(--font-body); font-weight: 600; letter-spacing: .01em;
+  dominant-baseline: central; paint-order: stroke; stroke: rgba(16, 24, 33, .78); stroke-width: .3em; stroke-linejoin: round;
+  pointer-events: none;
+}
+.rk-territory .rk-disc { fill: #f6f4ef; stroke: var(--rk-line); stroke-width: 1.3px; vector-effect: non-scaling-stroke; transition: stroke-width .3s ease; }
+.rk-territory.active .rk-disc { stroke-width: 2.4px; }
+.rk-territory.attacking .rk-disc { stroke: #b3261e; stroke-width: 2.8px; }
+.rk-territory.defending .rk-disc { stroke: #1d1d1b; stroke-width: 2.8px; }
+.rk-armies { fill: #17202a; font: 700 8.2px var(--font-body); font-variant-numeric: tabular-nums; pointer-events: none; }
+.rk-territory.wide .rk-armies { font-size: 6.6px; }
+.rk-arrow { fill: none; stroke: #b3261e; stroke-width: 2.6px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+/* ---------- Flächen im Ozean ---------- */
+.rk-panel { background: var(--rk-panel); border-radius: var(--rk-radius); backdrop-filter: blur(2px); }
+.rk-top {
+  position: absolute; top: var(--gap); left: var(--gap); right: var(--gap);
+  display: flex; align-items: center; gap: var(--gap); padding: calc(var(--gap) * .6) var(--gap);
+  font-size: calc(clamp(14px, 1.15vw + .5vh, 24px) * min(var(--panel-scale), 1.12));
+}
+.rk-banner { flex: 1; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-who { color: var(--rk-text); box-shadow: inset 0 -.18em 0 var(--c); }
 .rk-paused { color: var(--gold); margin-left: .6em; font-weight: 700; }
-.rk-room { font-size: clamp(12px, 1.5vh, 18px); color: var(--rk-muted); white-space: nowrap; }
+.rk-room { font-size: .75em; color: var(--rk-muted); white-space: nowrap; }
 .rk-room b { color: var(--rk-text); letter-spacing: .12em; }
 
-.rk-map-wrap { min-height: 0; display: grid; place-items: center; }
-.rk-map { width: 100%; height: 100%; display: block; }
-.rk-ocean { fill: var(--rk-ocean); }
-.rk-other-land { fill: #3b4757; stroke: var(--rk-line); stroke-width: .6px; vector-effect: non-scaling-stroke; }
-.rk-area { fill: #b5b0a4; fill-rule: evenodd; stroke: var(--rk-line); stroke-width: .7px; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: fill .5s ease; }
-.rk-continents path { fill: none; stroke: var(--rk-line); stroke-width: 1.8px; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
-.rk-lanes line { stroke: #9fb3c7; stroke-width: 1.3px; stroke-dasharray: 5 4; stroke-linecap: round; opacity: .75; vector-effect: non-scaling-stroke; }
-
-.rk-territory .rk-disc { fill: #f6f4ef; stroke: var(--rk-line); stroke-width: 1.3px; vector-effect: non-scaling-stroke; }
-.rk-territory.active .rk-disc { stroke-width: 2.6px; }
-.rk-territory.attacking .rk-disc { stroke: #b3261e; stroke-width: 3px; }
-.rk-territory.defending .rk-disc { stroke: #1d1d1b; stroke-width: 3px; }
-.rk-armies { fill: #1a222c; font: 700 8.2px var(--font-body); font-variant-numeric: tabular-nums; pointer-events: none; }
-.rk-territory.wide .rk-armies { font-size: 6.6px; }
-.rk-attack-line { stroke: #b3261e; stroke-width: 2.5px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-
-/* ================= Risiko: Leiste unten ================= */
-.rk-bar { display: flex; gap: 1rem; align-items: stretch; font-size: clamp(12px, 1.55vh, 19px); min-height: 0; }
-.rk-players { flex: 1; display: flex; flex-wrap: wrap; gap: .4em .9em; align-content: flex-start; }
-.rk-player { display: flex; align-items: center; gap: .5em; padding: .25em .5em .25em .3em; border-radius: 6px; }
-.rk-player.current { background: rgba(255, 255, 255, .08); }
+.rk-bottom {
+  position: absolute; left: var(--gap); right: var(--gap); bottom: var(--gap);
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: var(--gap); align-items: stretch;
+  font-size: calc(clamp(12px, .78vw + .45vh, 19px) * var(--panel-scale));
+}
+.rk-players {
+  --num: 4.2em;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(17em, 1fr)); column-gap: calc(var(--gap) * 1.5); row-gap: .1em;
+  padding: calc(var(--gap) * .6) var(--gap); align-content: start;
+}
+.rk-player { display: grid; grid-template-columns: .8em minmax(4em, 1fr) repeat(3, var(--num)); align-items: center; column-gap: .55em; padding: .1em 0; }
+.rk-player.rk-head { color: var(--rk-muted); padding-bottom: .15em; }
+.rk-players.one-col .rk-head-2 { display: none; }
+.rk-player.rk-head .rk-num { font-size: .72em; letter-spacing: .04em; }
+.rk-swatch { width: .8em; height: .8em; border-radius: 50%; background: var(--c); }
+.rk-pname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-player.current .rk-pname { text-decoration: underline; text-decoration-color: var(--c); text-decoration-thickness: .14em; text-underline-offset: .22em; }
 .rk-player.out { opacity: .45; }
-.rk-swatch { width: .95em; height: 1.9em; border-radius: 3px; background: var(--c); flex: none; }
-.rk-pname { font-weight: 700; }
-.rk-player.current .rk-pname { text-decoration: underline; text-decoration-color: var(--c); text-decoration-thickness: .15em; text-underline-offset: .2em; }
-.rk-pstats { color: var(--rk-muted); font-size: .85em; font-variant-numeric: tabular-nums; }
-.rk-feed { width: clamp(260px, 30vw, 520px); display: flex; gap: .8em; min-width: 0; }
-.rk-battle { flex: none; display: grid; gap: .15em; align-content: start; font-size: .9em; }
+.rk-num { text-align: right; font-variant-numeric: tabular-nums; }
+.rk-player:not(.rk-head) .rk-num { color: var(--rk-muted); }
+.rk-feed { display: flex; gap: var(--gap); padding: calc(var(--gap) * .6) var(--gap); min-width: 0; }
+.rk-battle { flex: none; display: grid; gap: .2em; align-content: start; font-size: .92em; }
 .rk-battle-row { display: flex; align-items: center; gap: .3em; }
-.rk-battle-row span:first-child { min-width: 7.5em; color: var(--rk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rk-die { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 3px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rk-battle-row span:first-child { width: 7.5em; color: var(--rk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-die { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: .3em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rk-die.att { background: #b3261e; color: #fff; }
-.rk-die.def { background: #e9ecef; color: #1a222c; }
+.rk-die.def { background: #e9edf1; color: #17202a; }
 .rk-battle-foot { color: var(--rk-muted); font-size: .9em; }
-.rk-log { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; gap: .15em; align-content: start; color: var(--rk-muted); font-size: .85em; }
+.rk-log { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; gap: .2em; align-content: start; color: var(--rk-muted); font-size: .9em; }
 .rk-log li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rk-log li:first-child { color: var(--rk-text); }
-
-/* Tablet (4:3): Die Karte nutzt die volle Breite, unten ist Platz für eine größere Leiste */
-@media (max-aspect-ratio: 3/2) {
-  .rk-bar { font-size: clamp(13px, 1.45vw, 20px); }
-  .rk-banner { font-size: clamp(15px, 1.8vw, 26px); }
-}

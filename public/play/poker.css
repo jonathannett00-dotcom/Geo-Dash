@@ -1,0 +1,111 @@
+/* =========================================================
+ *  Handy: Poker. Ruhig und flach in Tischgrün, große Knöpfe
+ *  (mindestens 48 px), Aktionsleiste unten fest.
+ * ========================================================= */
+
+body.poker-mode { background: #0e2a1f; }
+body.poker-mode .topbar { background: #0b2219; }
+body.poker-mode .me-fig { font-size: 1.15rem; font-weight: 800; }
+body.poker-mode .main { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+body.poker-mode.pk-bar-open .main { padding-bottom: calc(330px + env(safe-area-inset-bottom, 0px)); }
+
+#panel-poker { gap: .75rem; color: #eef3ef; }
+#panel-poker .btn { min-height: 48px; }
+#panel-poker .btn.armed { background: #8a1c14; color: #fff; }
+
+/* ---------- Status ---------- */
+.pk-status-inner { background: #163b2c; border-radius: var(--radius); padding: .7rem 1rem; box-shadow: inset .3rem 0 0 rgba(255, 255, 255, .2); }
+.pk-status-inner.mine { box-shadow: inset .3rem 0 0 var(--me, var(--gold)); background: #1c4a37; }
+.pk-st-title { font-size: 1.35rem; font-weight: 800; line-height: 1.15; }
+.pk-st-detail { font-size: .95rem; color: #b9cdc2; margin-top: .15rem; min-height: 1.2em; }
+.pk-st-detail [data-ends] { font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+.pk-st-detail [data-ends].urgent { color: #ffb4a8; }
+
+/* ---------- Zahlen ---------- */
+.pk-info { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.pk-cell { background: #143428; border-radius: 10px; padding: .45rem .55rem; min-width: 0; }
+.pk-cell span { display: block; font-size: .72rem; font-weight: 700; color: #9fb8ab; text-transform: uppercase; letter-spacing: .04em; }
+.pk-cell b { display: block; font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-cell.pot b { font-size: 1.15rem; color: #f2d27a; }
+.pk-cell.call b { color: #ffd59a; }
+.pk-cell.wrap b { white-space: normal; font-size: .95rem; line-height: 1.2; }
+
+/* ---------- Karten ---------- */
+.pk-boardrow { display: flex; gap: .35rem; justify-content: center; background: #1a5a3f; border-radius: var(--radius); padding: .6rem; }
+.pk-boardrow .pk-card { --cw: min(14vw, 3.2rem); }
+.pk-holebox { display: grid; justify-items: center; gap: .3rem; }
+.pk-holefoot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; column-gap: 1rem; }
+.pk-hole {
+  display: flex; gap: .7rem; justify-content: center; padding: .4rem; border-radius: 16px; cursor: pointer;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.pk-hole:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.pk-hole .pk-card { --cw: min(25vw, 6.2rem); }
+.pk-nocards { margin: 1.5rem 0; color: #9fb8ab; }
+.pk-handlabel { min-height: 1.4em; line-height: 44px; font-weight: 700; font-size: 1.05rem; color: #f2d27a; text-align: center; }
+.pk-switch { display: flex !important; flex-direction: row !important; align-items: center; gap: .6rem; color: #eef3ef !important; font-weight: 600 !important; font-size: .95rem !important; min-height: 44px; }
+.pk-switch input { width: 1.4rem; height: 1.4rem; flex: none; accent-color: #f2c94c; }
+
+/* ---------- Hinweise und Entscheidungen ---------- */
+.pk-box { background: #fffaf0; color: var(--ink); border-radius: var(--radius); padding: .9rem 1rem; display: grid; gap: .5rem; }
+.pk-box.warn { box-shadow: inset .3rem 0 0 #e0a43a; }
+.pk-box h2 { font-size: 1.15rem; margin: 0; }
+.pk-box p { margin: 0; }
+.pk-two { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.pk-result { margin: 0; padding-left: 1.1rem; display: grid; gap: .3rem; }
+.pk-final { margin: 0; padding: 0; list-style: none; display: grid; gap: .35rem; }
+.pk-final li { display: grid; grid-template-columns: auto 1fr auto; column-gap: .5rem; align-items: center; }
+.pk-final small { grid-column: 3; text-align: right; color: var(--muted); }
+
+/* ---------- Spieler am Tisch ---------- */
+.pk-table { display: grid; gap: .3rem; }
+.pk-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "seat name bet stack" "seat tags tags stack";
+  align-items: center; column-gap: .55rem; background: #143428; border-radius: 10px; padding: .4rem .6rem;
+}
+.pk-row .pk-seat { grid-area: seat; font-size: .95rem; }
+.pk-row-name { grid-area: name; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-row-tags { grid-area: tags; display: flex; flex-wrap: wrap; gap: .25rem; min-height: 0; }
+.pk-row-tags:empty { display: none; }
+.pk-row-bet { grid-area: bet; color: #f2d27a; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pk-row-stack { grid-area: stack; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pk-row-stack small { display: block; font-size: .7rem; font-weight: 600; color: #9fb8ab; }
+.pk-row.active { box-shadow: inset 0 0 0 2px #f2c94c; }
+.pk-row.out { opacity: .55; }
+.pk-row.me { background: #1a4535; }
+.pk-tag { font-style: normal; font-size: .7rem; font-weight: 800; padding: .1rem .4rem; border-radius: 999px; background: #2a5a46; color: #eef3ef; }
+.pk-tag.dealer { background: #f6f4ef; color: #17202a; }
+.pk-tag.allin { background: #b23b2e; color: #fff; }
+.pk-tag.muted { background: transparent; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3); color: #b9cdc2; }
+
+.pk-settings { background: #143428; border-radius: 10px; padding: .4rem .8rem .7rem; }
+.pk-settings summary { cursor: pointer; font-weight: 700; min-height: 40px; display: flex; align-items: center; }
+.pk-leave { width: 100%; margin-top: .4rem; background: #2a5a46; color: #fff; }
+
+/* ---------- Aktionsleiste ---------- */
+.pk-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: #0b2219; color: #eef3ef;
+  padding: .6rem 16px calc(.7rem + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -2px 10px rgba(0, 0, 0, .3); display: grid; gap: .55rem;
+}
+.pk-bar-wait { min-height: 56px; display: grid; place-items: center; text-align: center; color: #b9cdc2; font-weight: 600; }
+.pk-bar-btns { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: .5rem; }
+.pk-btn { min-height: 56px !important; border-radius: 14px; font-size: 1.05rem; padding: .4rem .5rem; }
+.pk-btn.fold { background: #3b4a44; color: #fff; }
+.pk-btn.call { background: #2e9a4f; color: #fff; }
+.pk-btn.raise-toggle, .pk-btn.raise { background: #e8b923; color: #2a2200; }
+.pk-btn.raise-toggle.sel { box-shadow: inset 0 0 0 3px #fff3c4; }
+.pk-btn.allin { background: #b23b2e; color: #fff; }
+.pk-btn.go { background: #2e9a4f; color: #fff; }
+.pk-bar-note { margin: 0; font-size: .85rem; color: #b9cdc2; text-align: center; }
+
+.pk-raise { display: grid; gap: .5rem; }
+.pk-raise-row { display: flex; align-items: center; gap: .5rem; }
+.pk-raise-row label { color: #b9cdc2 !important; font-size: .95rem !important; flex: none; }
+.pk-raise-input {
+  flex: 1; min-width: 0; min-height: 48px; font: inherit; font-size: 1.3rem; font-weight: 800; text-align: right;
+  border-radius: 10px; border: 2px solid transparent; background: #fffaf0; color: var(--ink); padding: .3rem .6rem;
+}
+.pk-raise-input.bad { border-color: #e06a5a; }
+.pk-range { width: 100%; height: 44px; accent-color: #e8b923; margin: 0; }
+.pk-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
+.pk-quick .btn { min-height: 48px; padding: .3rem; background: #1e4a39; color: #fff; font-size: .95rem; }

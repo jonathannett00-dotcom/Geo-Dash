@@ -1,0 +1,28 @@
+/* =========================================================
+ *  Poker: flache Spielkarten und Sitzmarken (Fernseher und Handy).
+ *  Größe über --cw (Kartenbreite); alles andere skaliert mit.
+ * ========================================================= */
+
+.pk-card {
+  --cw: 3rem;
+  position: relative; display: inline-block; flex: none; width: var(--cw); height: calc(var(--cw) * 1.4);
+  border-radius: calc(var(--cw) * .1); background: #fbfaf6; color: #1d1d1b;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .14); font-family: var(--font-body); line-height: 1;
+  user-select: none; -webkit-user-select: none; vertical-align: middle;
+}
+.pk-card .pk-r { position: absolute; left: 9%; top: 6%; font-size: calc(var(--cw) * .42); font-weight: 800; letter-spacing: -.04em; }
+.pk-card .pk-s { position: absolute; left: 10%; top: 38%; font-size: calc(var(--cw) * .3); }
+.pk-card .pk-big { position: absolute; right: 8%; bottom: 5%; font-size: calc(var(--cw) * .58); }
+.pk-card.s-s { color: #1d1d1b; }
+.pk-card.s-h { color: #c62828; }
+.pk-card.s-d { color: #1559b0; }
+.pk-card.s-c { color: #23793a; }
+.pk-card.back { background: #24496b; box-shadow: inset 0 0 0 calc(var(--cw) * .07) #fbfaf6, inset 0 0 0 calc(var(--cw) * .1) #24496b, inset 0 0 0 calc(var(--cw) * .12) rgba(255, 255, 255, .35); }
+.pk-card.slot { background: transparent; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .18); }
+.pk-card.dim { opacity: .38; }
+.pk-card.best { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .14), 0 0 0 calc(var(--cw) * .06) #f2c94c; }
+
+.pk-seat {
+  display: inline-grid; place-items: center; flex: none; width: 1.7em; height: 1.7em; border-radius: 50%;
+  background: var(--c); color: var(--ink); font-weight: 800; font-size: .9em; font-variant-numeric: tabular-nums; line-height: 1;
+}

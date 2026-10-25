@@ -51,6 +51,16 @@
 .rk-preview-arrow.attack .rk-arrow-head { fill: #f0b4ad; stroke: #f0b4ad; }
 @keyframes rkGlow { 50% { fill-opacity: .05; stroke-opacity: .7; } }
 
+/* ---------- Kampf mit Fokus ---------- */
+.rk-area, .rk-territory, .rk-label, .rk-other-land, .rk-lanes { transition: filter .45s ease, opacity .45s ease, fill .6s ease; }
+.risiko.focus .rk-area:not(.rk-focus), .risiko.focus .rk-other-land { filter: saturate(.3) brightness(.62); }
+.risiko.focus .rk-territory:not(.rk-focus), .risiko.focus .rk-label:not(.rk-focus), .risiko.focus .rk-lanes { opacity: .4; }
+.rk-die-inner { transform-box: fill-box; transform-origin: center; }
+.rk-armies { transform-box: fill-box; transform-origin: center; }
+.rk-die-g rect { transition: opacity .25s ease, stroke-width .25s ease; }
+.rk-die-g.win rect { stroke: #fff; stroke-width: 2.6px; }
+.rk-die-g.lose, .rk-die-g.idle { opacity: .38; transition: opacity .3s ease; }
+
 /* ---------- Animationen ---------- */
 .rk-dice rect { stroke: var(--rk-line); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .rk-die-g.att rect { fill: #b3261e; }
@@ -65,7 +75,7 @@
 .rk-glow { fill: #fff; fill-opacity: 0; pointer-events: none; }
 .rk-moving .rk-disc { fill: #fff; stroke-width: 1.8px; }
 @media (prefers-reduced-motion: reduce) {
-  .rk-area, .rk-territory .rk-disc { transition: none; }
+  .rk-area, .rk-territory .rk-disc, .rk-territory, .rk-label { transition: none; }
   .rk-territory.hit .rk-disc, .rk-territory.hit .rk-armies { animation: none; }
   .rk-hl.from, .rk-hl.to { animation: none; }
   .rk-banner { transition: none; }

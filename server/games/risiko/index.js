@@ -23,7 +23,7 @@ const VIEW_OPTIONS = { animation: ['normal', 'kurz', 'aus'] };
 const OPTIONS = { ...SETTING_OPTIONS, ...VIEW_OPTIONS };
 
 /** Dauer der Animationen in ms bei „normal“. */
-const ANIM_MS = { place: 700, battle: 1900, conquer: 1500, move: 900 };
+const ANIM_MS = { place: 700, battle: 2600, conquer: 1500, move: 900 };
 const ANIM_FACTOR = { normal: 1, kurz: 0.45, aus: 0 };
 const ANIM_KEEP = 30;
 

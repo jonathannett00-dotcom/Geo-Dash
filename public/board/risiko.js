@@ -397,6 +397,31 @@ function rkPop(id, ms, scale = 1.35) {
   ], { duration: ms, easing: 'cubic-bezier(.3, 1.4, .5, 1)' });
 }
 
+/** Übrige Karte tritt zurück (Entsättigen und Abdunkeln), die genannten Gebiete bleiben im Fokus. */
+function rkFocus(ids, on) {
+  $$('.rk-focus').forEach((el) => el.classList.remove('rk-focus'));
+  $('#risiko').classList.toggle('focus', on);
+  if (!on) return;
+  for (const id of ids) ['rk-a-', 'rk-t-', 'rk-l-'].forEach((p) => document.getElementById(p + id)?.classList.add('rk-focus'));
+}
+
+/** Verlust: Marker blinkt rot, die Zahl zählt herunter und schwingt leicht nach. */
+function rkHit(id, value, ms) {
+  const node = document.getElementById(`rk-t-${id}`);
+  node.classList.remove('hit');
+  void node.getBoundingClientRect();
+  node.classList.add('hit');
+  rkSetArmies(id, value, ms * 0.5);
+  const text = node.querySelector('.rk-armies');
+  text.animate([
+    { transform: 'translateY(0) scale(1)' },
+    { transform: 'translateY(-14%) scale(1.28)', offset: 0.25 },
+    { transform: 'translateY(4%) scale(.92)', offset: 0.55 },
+    { transform: 'translateY(-1%) scale(1.03)', offset: 0.8 },
+    { transform: 'translateY(0) scale(1)' },
+  ], { duration: ms, easing: 'ease-out' });
+}
+
 const RK_ANIMATIONS = {
   /** Verstärkung: Marker poppt auf, die Zahl zählt hoch. */
   place(e, dur) {
@@ -406,7 +431,11 @@ const RK_ANIMATIONS = {
     rkSetArmies(e.territory, e.to, dur * 0.8);
   },
 
-  /** Angriff: Pfeil, rollende Würfel, dann blinken die Verluste rot und zählen herunter. */
+  /**
+   * Angriff: Die übrige Karte tritt zurück, der Pfeil zeichnet
+   * sich, die Würfel rollen aus, dann werden die Vergleichspaare nacheinander gezeigt – jeder Verlust
+   * blinkt rot und zählt mit leichtem Nachschwingen herunter. Augen und Verluste kommen vom Server.
+   */
   async battle(e, dur) {
     document.getElementById('rk-attack-arrow')?.remove();
     const done = () => { rkBattleSeq = S.game.lastBattle ? S.game.lastBattle.seq : rkBattleSeq; rkShowBattle(e); };
@@ -417,53 +446,69 @@ const RK_ANIMATIONS = {
       return;
     }
     const top = $('#rk-top-fx');
+    rkFocus([e.from, e.to], true);
     const arrow = rkArrow($('#rk-fx'));
     document.getElementById(`rk-t-${e.from}`).classList.add('attacking');
     document.getElementById(`rk-t-${e.to}`).classList.add('defending');
+    await rkWait(dur * 0.06);
     let geom = rkSetArrow(arrow, e.from, e.to, 0);
-    await rkTween(dur * 0.28, (t) => { geom = rkSetArrow(arrow, e.from, e.to, t); });
+    await rkTween(dur * 0.18, (t) => { geom = rkSetArrow(arrow, e.from, e.to, t); });
 
-    // Würfel rollen neben der Mitte des Bogens, auf der Außenseite (Augen vom Server)
+    // Würfel neben der Mitte des Bogens, auf der Außenseite
     const size = rkSizes(rkK).r * 1.55;
     const [p0, p1] = [geom.point(0.45), geom.point(0.55)];
     const tl = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1;
     const nx = -(p1[1] - p0[1]) / tl; const ny = (p1[0] - p0[0]) / tl;
     const [cx0, cy0] = geom.point(0.5);
-    const off = size * 1.9;
-    const [mx, my] = [cx0 - nx * off, cy0 - ny * off];
-    const dice = svgEl('g', { class: 'rk-dice', transform: `translate(${mx} ${my})` }, top);
+    // Seite und Abstand so wählen, dass die Würfel keinen der beiden Marker verdecken
+    const [ma, mb] = [rkMarkerPos(e.from), rkMarkerPos(e.to)];
+    const spots = [];
+    for (const k of [1.9, 2.6, 3.4]) for (const sgn of [-1, 1]) spots.push([cx0 + sgn * nx * size * k, cy0 + sgn * ny * size * k]);
+    const clear = ([x, y]) => Math.min(Math.hypot(x - ma[0], y - ma[1]), Math.hypot(x - mb[0], y - mb[1]));
+    const spot = spots.find((p) => clear(p) > size * 2.6) || spots.reduce((best, p) => (clear(p) > clear(best) ? p : best));
+    const dice = svgEl('g', { class: 'rk-dice', transform: `translate(${spot[0]} ${spot[1]})` }, top);
+    const dieEls = { att: [], def: [] };
     const row = (values, y, cls) => values.forEach((v, i) => {
       const x = (i - (values.length - 1) / 2) * size * 1.25;
       const d = svgEl('g', { class: `rk-die-g ${cls}`, transform: `translate(${x} ${y})` }, dice);
-      const inner = svgEl('g', {}, d);
+      const inner = svgEl('g', { class: 'rk-die-inner' }, d);
       svgEl('rect', { x: -size / 2, y: -size / 2, width: size, height: size, rx: size * 0.22 }, inner);
       svgEl('text', { 'text-anchor': 'middle', dy: '0.35em', style: `font-size:${size * 0.62}px` }, inner).textContent = String(v);
+      // Ausrollen mit echtem Abbremsen: zwei Umdrehungen, die immer langsamer werden
       inner.animate([
-        { transform: 'rotate(-220deg) scale(.2)', opacity: 0 },
-        { transform: 'rotate(25deg) scale(1.12)', opacity: 1, offset: 0.7 },
+        { transform: 'rotate(-760deg) scale(.35)', opacity: 0 },
+        { transform: 'rotate(-180deg) scale(1.08)', opacity: 1, offset: 0.45 },
         { transform: 'rotate(0deg) scale(1)', opacity: 1 },
-      ], { duration: dur * 0.3, delay: i * dur * 0.05, easing: 'cubic-bezier(.2, .8, .3, 1)', fill: 'backwards' });
+      ], { duration: dur * 0.24, delay: i * dur * 0.025, easing: 'cubic-bezier(.12, .72, .22, 1)', fill: 'backwards' });
+      dieEls[cls].push(d);
     });
     row(e.attack, -size * 0.7, 'att');
     row(e.defend, size * 0.7, 'def');
-    await rkWait(dur * 0.4);
+    await rkWait(dur * 0.3);
 
-    // Verluste: Zahlen blinken rot und zählen herunter
-    const hit = (id, from, losses) => {
-      if (!losses) return;
-      const node = document.getElementById(`rk-t-${id}`);
-      node.classList.remove('hit');
-      void node.getBoundingClientRect();
-      node.classList.add('hit');
-      rkShown[id] = from;
-      rkSetArmies(id, from - losses, dur * 0.22);
-    };
-    hit(e.from, e.attackerArmies, e.attackerLosses);
-    hit(e.to, e.defenderArmies, e.defenderLosses);
-    await rkWait(dur * 0.25);
-    dice.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.07, fill: 'forwards' });
-    arrow.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.07, fill: 'forwards' });
-    await rkWait(dur * 0.07);
+    // Vergleichspaare nacheinander: höchster gegen höchsten, zweithöchster gegen zweithöchsten
+    const pairs = Math.min(e.attack.length, e.defend.length);
+    const shown = { [e.from]: e.attackerArmies, [e.to]: e.defenderArmies };
+    const step = (dur * 0.3) / Math.max(1, pairs);
+    for (let i = 0; i < pairs; i++) {
+      const attackerWins = e.attack[i] > e.defend[i];
+      const [win, lose] = attackerWins ? [dieEls.att[i], dieEls.def[i]] : [dieEls.def[i], dieEls.att[i]];
+      win.classList.add('win');
+      lose.classList.add('lose');
+      lose.firstChild.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6%)' }, { transform: 'translateX(5%)' }, { transform: 'translateX(0)' }],
+        { duration: step * 0.45, easing: 'ease-in-out' });
+      const loser = attackerWins ? e.to : e.from;
+      shown[loser] -= 1;
+      rkHit(loser, shown[loser], step * 0.8);
+      await rkWait(step);
+    }
+    // Übrige Würfel ohne Gegenüber treten zurück
+    [...dieEls.att.slice(pairs), ...dieEls.def.slice(pairs)].forEach((d) => d.classList.add('idle'));
+    await rkWait(dur * 0.08);
+    dice.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.06, fill: 'forwards' });
+    arrow.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.06, fill: 'forwards' });
+    rkFocus([], false);
+    await rkWait(dur * 0.06);
     dice.remove();
     arrow.remove();
     ['hit', 'attacking', 'defending'].forEach((c) => $$(`.rk-territory.${c}`).forEach((n) => n.classList.remove(c)));

@@ -191,6 +191,54 @@ function rkSetBanner({ key, html }) {
   rkSetBanner.t = setTimeout(() => { patch(el, html); el.classList.remove('fading'); }, 220);
 }
 
+/* ---------------- Abschlussbild ---------------- */
+
+/** Nach Spielende: Sieger und Zähler je Spieler – erst, wenn die letzte Animation vorbei ist. */
+function rkRenderFinal(g) {
+  const box = $('#rk-final');
+  clearTimeout(rkRenderFinal.t);
+  if (g.phase !== 'gameover') {
+    box.classList.add('hidden');
+    $('#risiko').classList.remove('over');
+    return;
+  }
+  const wait = (S.animUntil || 0) - clock.now();
+  if (wait > 0) { rkRenderFinal.t = setTimeout(() => rkRenderFinal(S.game), wait + 400); return; }
+  patch(box, rkFinalHtml(g));
+  box.classList.remove('hidden');
+  $('#risiko').classList.add('over');
+}
+
+function rkFinalHtml(g) {
+  const w = g.winner ? rkPlayer(g.winner) : null;
+  const status = (p) => (p.id === g.winner ? 'Sieger' : p.quit ? 'aufgegeben' : p.eliminated ? 'ausgeschieden' : '');
+  const players = [...g.players].sort((a, b) => (b.id === g.winner) - (a.id === g.winner));
+  const cols = [
+    ['conquests', 'Eroberungen'],
+    ['armiesDefeated', 'Armeen besiegt'],
+    ['armiesLost', 'Armeen verloren'],
+    ['comparisonsWon', 'Würfelvergleiche gewonnen'],
+    ['maxTerritories', 'Meiste Gebiete'],
+  ];
+  const rows = players.map((p) => {
+    const st = p.stats || {};
+    return `<tr class="${p.id === g.winner ? 'winner' : ''}" style="--c:${rkTone(p.id)}">
+      <th scope="row"><span class="rk-swatch"></span>${escapeHtml(p.name)}<small>${status(p)}</small></th>
+      ${cols.map(([k]) => `<td>${st[k] ?? 0}</td>`).join('')}</tr>`;
+  }).join('');
+  const rounds = g.round === 1 ? 'nach 1 Runde' : `nach ${g.round} Runden`;
+  const since = g.statsSinceRound > 0
+    ? `<p class="rk-final-note">Gezählt ab Runde ${g.statsSinceRound}: Der Spielstand stammt aus einer älteren Version.</p>` : '';
+  return `<div class="rk-final-card">
+    <h2>${w ? `<b class="rk-who" style="--c:${rkTone(w.id)}">${escapeHtml(w.name)}</b> erobert die Welt` : 'Das Spiel ist vorbei'}</h2>
+    <p class="rk-final-sub">${rounds}</p>
+    <table class="rk-final-table">
+      <thead><tr><th></th>${cols.map(([, label]) => `<th scope="col">${label}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>${since}
+  </div>`;
+}
+
 function rkShowBattle(b) {
   const box = $('#rk-battle');
   const dice = (list, cls) => list.map((d) => `<span class="rk-die ${cls}">${d}</span>`).join('');
@@ -236,6 +284,7 @@ function renderRisiko() {
   const geo = window.RISIKO_MAP_PATHS;
 
   rkQueueEvents();
+  rkRenderFinal(g);
   const now = clock.now();
   for (const [id, t] of Object.entries(g.territories)) {
     const node = document.getElementById(`rk-t-${id}`);
@@ -437,6 +486,27 @@ const RK_SOUNDS = {
 };
 
 const RK_ANIMATIONS = {
+  /** Neuer Zug: kurz und ruhig „Runde 4 · Cem ist am Zug“ unter der Kopfzeile. Bei „aus“ genügt die Kopfzeile. */
+  turn(e) {
+    const p = rkPlayer(e.playerId);
+    if (!e.dur || !p) return;
+    const el = $('#rk-announce');
+    el.innerHTML = `${e.newRound ? `<span class="rk-ann-round">Runde ${e.round}</span>` : ''}
+      <span class="rk-ann-who" style="--c:${rkTone(p.id)}"><b>${escapeHtml(p.name)}</b> ist am Zug</span>`;
+    const top = $('.rk-top');
+    el.style.top = `${top.offsetTop + top.offsetHeight + 12}px`;
+    el.classList.remove('hidden');
+    el.getAnimations().forEach((a) => a.cancel());
+    const lift = RK_REDUCED.matches ? 0 : 6;
+    const a = el.animate([
+      { opacity: 0, transform: `translate(-50%, ${lift}px)` },
+      { opacity: 1, transform: 'translate(-50%, 0)', offset: 0.15 },
+      { opacity: 1, transform: 'translate(-50%, 0)', offset: 0.8 },
+      { opacity: 0, transform: 'translate(-50%, 0)' },
+    ], { duration: Math.max(1400, e.dur), easing: 'ease-out' });
+    a.onfinish = () => el.classList.add('hidden');
+  },
+
   /** Verstärkung: Marker poppt auf, die Zahl zählt hoch. */
   place(e, dur) {
     rkShown[e.territory] = e.from;

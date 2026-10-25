@@ -1,0 +1,384 @@
+{
+ "version": 2,
+ "code": "NCEY",
+ "gameType": "risiko",
+ "settings": {
+  "cardValues": "steigend",
+  "fortify": "benachbart",
+  "animation": "normal"
+ },
+ "started": true,
+ "lastActivity": 0,
+ "players": [
+  {
+   "id": "p4b67048b",
+   "token": "164e6c383441c15c271c4f02b7b0528b",
+   "name": "Anna",
+   "color": "#e63946",
+   "figure": "🎩"
+  },
+  {
+   "id": "p7ad342c9",
+   "token": "ff8811aeb003440b844617b7ad9fb502",
+   "name": "Ben",
+   "color": "#1d72d8",
+   "figure": "🚗"
+  },
+  {
+   "id": "p55fde314",
+   "token": "06dcd534d6ae0753fceb5a65a56710e7",
+   "name": "Cem",
+   "color": "#2a9d8f",
+   "figure": "🐕"
+  }
+ ],
+ "game": {
+  "settings": {
+   "cardValues": "steigend",
+   "fortify": "benachbart",
+   "animation": "normal"
+  },
+  "players": [
+   {
+    "id": "p4b67048b",
+    "name": "Anna",
+    "color": "#e63946",
+    "figure": "🎩",
+    "cards": [],
+    "remaining": 0,
+    "eliminated": false,
+    "quit": false
+   },
+   {
+    "id": "p7ad342c9",
+    "name": "Ben",
+    "color": "#1d72d8",
+    "figure": "🚗",
+    "cards": [],
+    "remaining": 0,
+    "eliminated": false,
+    "quit": false
+   },
+   {
+    "id": "p55fde314",
+    "name": "Cem",
+    "color": "#2a9d8f",
+    "figure": "🐕",
+    "cards": [],
+    "remaining": 0,
+    "eliminated": false,
+    "quit": false
+   }
+  ],
+  "neutral": null,
+  "territories": {
+   "alaska": {
+    "owner": "p4b67048b",
+    "armies": 26
+   },
+   "nordwest-territorium": {
+    "owner": "p7ad342c9",
+    "armies": 20
+   },
+   "groenland": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "alberta": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "ontario": {
+    "owner": "p55fde314",
+    "armies": 22
+   },
+   "quebec": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "weststaaten": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "oststaaten": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "mittelamerika": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "venezuela": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "peru": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "brasilien": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "argentinien": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "island": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "skandinavien": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "grossbritannien": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "nordeuropa": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "westeuropa": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "suedeuropa": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "osteuropa": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "nordafrika": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "aegypten": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "ostafrika": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "zentralafrika": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "suedafrika": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "madagaskar": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "ural": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "sibirien": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "jakutien": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "irkutsk": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "kamtschatka": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "mongolei": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "japan": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "afghanistan": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "china": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "naher-osten": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "indien": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "suedostasien": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "indonesien": {
+    "owner": "p7ad342c9",
+    "armies": 1
+   },
+   "neuguinea": {
+    "owner": "p4b67048b",
+    "armies": 1
+   },
+   "westaustralien": {
+    "owner": "p55fde314",
+    "armies": 1
+   },
+   "ostaustralien": {
+    "owner": "p4b67048b",
+    "armies": 1
+   }
+  },
+  "deck": [
+   "alaska",
+   "kamtschatka",
+   "grossbritannien",
+   "zentralafrika",
+   "afghanistan",
+   "joker-1",
+   "westaustralien",
+   "skandinavien",
+   "mittelamerika",
+   "ostaustralien",
+   "argentinien",
+   "nordafrika",
+   "westeuropa",
+   "peru",
+   "osteuropa",
+   "oststaaten",
+   "jakutien",
+   "suedafrika",
+   "indien",
+   "joker-2",
+   "ostafrika",
+   "sibirien",
+   "naher-osten",
+   "indonesien",
+   "suedeuropa",
+   "venezuela",
+   "alberta",
+   "irkutsk",
+   "brasilien",
+   "nordwest-territorium",
+   "mongolei",
+   "quebec",
+   "island",
+   "suedostasien",
+   "madagaskar",
+   "ural",
+   "aegypten",
+   "groenland",
+   "ontario",
+   "japan",
+   "china",
+   "nordeuropa",
+   "neuguinea",
+   "weststaaten"
+  ],
+  "discard": [],
+  "tradeCount": 0,
+  "seq": 10,
+  "log": [
+   {
+    "seq": 1,
+    "text": "Die Gebiete sind verteilt. Alle setzen ihre restlichen Startarmeen (35 Armeen insgesamt).",
+    "kind": "setup",
+    "time": 1792947218440
+   },
+   {
+    "seq": 2,
+    "text": "Anna hat alle Startarmeen gesetzt.",
+    "kind": "setup",
+    "time": 1792947218441
+   },
+   {
+    "seq": 3,
+    "text": "Ben hat alle Startarmeen gesetzt.",
+    "kind": "setup",
+    "time": 1792947218442
+   },
+   {
+    "seq": 4,
+    "text": "Cem hat alle Startarmeen gesetzt.",
+    "kind": "setup",
+    "time": 1792947218442
+   },
+   {
+    "seq": 5,
+    "text": "Alle Armeen stehen – der Kampf beginnt!",
+    "kind": "setup",
+    "time": 1792947218442
+   },
+   {
+    "seq": 6,
+    "text": "Anna ist am Zug und erhält 4 Armeen.",
+    "kind": "turn",
+    "time": 1792947218443
+   },
+   {
+    "seq": 7,
+    "text": "Anna setzt 4 Armeen nach Alaska.",
+    "kind": "place",
+    "time": 1792947218444
+   },
+   {
+    "seq": 8,
+    "text": "⚔️ Anna greift mit 3 Würfeln von Alaska Nordwest-Territorium an – Ben verteidigt.",
+    "kind": "battle",
+    "time": 1792947218444
+   },
+   {
+    "seq": 10,
+    "text": "🎲 Alaska gegen Nordwest-Territorium: 6-6-6 gegen 1-1 – Verluste 0:2.",
+    "kind": "battle",
+    "time": 1792947218444
+   }
+  ],
+  "forcedDice": [],
+  "lastBattle": {
+   "seq": 9,
+   "attackerId": "p4b67048b",
+   "defenderId": "p7ad342c9",
+   "from": "alaska",
+   "to": "nordwest-territorium",
+   "attack": [
+    6,
+    6,
+    6
+   ],
+   "defend": [
+    1,
+    1
+   ],
+   "attackerLosses": 0,
+   "defenderLosses": 2,
+   "conquered": false
+  },
+  "lastTrade": null,
+  "winner": null,
+  "turn": {
+   "playerId": "p4b67048b",
+   "reinforcements": 0,
+   "conquered": false,
+   "fortified": false,
+   "occupy": null,
+   "returnTo": null,
+   "pendingAttack": null
+  },
+  "round": 1,
+  "currentIndex": 0,
+  "phase": "attack"
+ }
+}

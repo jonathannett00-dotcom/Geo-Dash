@@ -16,7 +16,11 @@
   position: relative; height: 100%; overflow: hidden; background: var(--rk-ocean); color: var(--rk-text);
 }
 .rk-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.rk-ocean { fill: var(--rk-ocean); }
+.rk-ocean { fill: var(--rk-ocean); animation: rkTide 28s ease-in-out infinite alternate; }
+/* Ozean: ganz langsamer, kaum merklicher Farbwechsel; statisch bei „aus“ und reduzierter Bewegung */
+@keyframes rkTide { from { fill: #1c3149; } to { fill: #1d3550; } }
+.risiko.anim-off .rk-ocean { animation: none; }
+@media (prefers-reduced-motion: reduce) { .rk-ocean { animation: none; } }
 .rk-other-land { fill: #3a4656; stroke: var(--rk-line); stroke-width: .6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .rk-area {
   fill: #b5b0a4; fill-rule: evenodd; stroke: var(--rk-line); stroke-width: .75px; stroke-linejoin: round; stroke-linecap: round;
@@ -140,3 +144,32 @@
 /* Animationen „aus“: alles statisch */
 .risiko.anim-off .rk-hl, .risiko.anim-off .rk-territory.hit .rk-disc, .risiko.anim-off .rk-territory.hit .rk-armies { animation: none; }
 .risiko.anim-off .rk-area, .risiko.anim-off .rk-banner, .risiko.anim-off .rk-player { transition: none; }
+
+/* ---------- Zugwechsel ---------- */
+.rk-announce {
+  position: absolute; left: 50%; top: calc(var(--gap) * 2 + 3.2em); transform: translateX(-50%); z-index: 4;
+  display: flex; align-items: baseline; gap: .8em; padding: .55em 1.3em; border-radius: var(--rk-radius);
+  background: rgba(13, 24, 37, .86); pointer-events: none; white-space: nowrap;
+  font-size: calc(clamp(16px, 1.5vw + .6vh, 32px) * min(var(--panel-scale), 1.12));
+}
+.rk-ann-round { color: var(--rk-muted); font-size: .8em; font-weight: 600; letter-spacing: .04em; }
+.rk-ann-who b { box-shadow: inset 0 -.18em 0 var(--c); }
+
+/* ---------- Abschlussbild ---------- */
+.risiko.over .rk-map { opacity: .35; transition: opacity .8s ease; }
+.risiko.over .rk-bottom { visibility: hidden; }
+.rk-final { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: var(--gap); pointer-events: none; }
+.rk-final-card {
+  background: rgba(13, 24, 37, .97); border-radius: var(--rk-radius); padding: 1.4em 1.8em; max-width: 100%;
+  font-size: calc(clamp(14px, 1.1vw + .5vh, 24px) * min(var(--panel-scale), 1.12));
+}
+.rk-final-card h2 { margin: 0; font-size: 1.9em; font-weight: 700; }
+.rk-final-sub { margin: .2em 0 1em; color: var(--rk-muted); }
+.rk-final-table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rk-final-table th, .rk-final-table td { padding: .45em .8em; text-align: right; }
+.rk-final-table thead th { color: var(--rk-muted); font-weight: 600; font-size: .78em; vertical-align: bottom; max-width: 7.5em; }
+.rk-final-table tbody th { text-align: left; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: .6em; }
+.rk-final-table tbody th small { color: var(--rk-muted); font-weight: 500; font-size: .78em; margin-left: .3em; }
+.rk-final-table tbody tr { border-top: 1px solid rgba(255, 255, 255, .08); }
+.rk-final-table tr.winner { background: rgba(255, 255, 255, .06); box-shadow: inset .22em 0 0 var(--c); }
+.rk-final-note { margin: 1em 0 0; color: var(--rk-muted); font-size: .8em; }

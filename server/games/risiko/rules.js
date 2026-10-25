@@ -75,6 +75,17 @@ function fixedTradeValue(cardIds) {
   return FIXED_VALUES[symbols[0]];
 }
 
+/**
+ * Version des gespeicherten Spielstands. 2: Statistik je Spieler (nur Anzeige,
+ * keine Regel hängt davon ab). Ältere Stände bekommen sie beim Laden nachgetragen.
+ */
+const FORMAT_VERSION = 2;
+
+/** Zähler fürs Abschlussbild. */
+function emptyStats() {
+  return { conquests: 0, armiesDefeated: 0, armiesLost: 0, comparisonsWon: 0, maxTerritories: 0 };
+}
+
 class RisikoGame {
   constructor({ players, settings = {}, rng = createRng(), now = Date.now, forcedDice = [] }) {
     if (!players || players.length < MIN_PLAYERS) fail(`Es werden mindestens ${MIN_PLAYERS} Spieler gebraucht.`);
@@ -91,6 +102,7 @@ class RisikoGame {
       remaining: 0,
       eliminated: false,
       quit: false,
+      stats: emptyStats(),
     }));
     // OFFENE ENTSCHEIDUNG (siehe docs/spielcenter-plan.md): Bei 2 Spielern spielt eine
     // neutrale Armee mit (Regel der klassischen Ausgabe). Eine Vorgabe dazu fehlt noch.
@@ -107,6 +119,9 @@ class RisikoGame {
     this.winner = null;
     this.turn = null;
     this.round = 0;
+    // Nur Anzeige (Abschlussbild): ab welcher Runde die Statistik zählt
+    this.format = FORMAT_VERSION;
+    this.statsSinceRound = 0;
     this.currentIndex = rng.int(this.players.length);
     this.phase = 'setup';
     this.deal();
@@ -222,6 +237,7 @@ class RisikoGame {
   checkSetupDone() {
     if (this.phase !== 'setup' || this.activePlayers().some((p) => p.remaining > 0)) return;
     this.event('Alle Armeen stehen – der Kampf beginnt!', 'setup');
+    for (const p of this.players) this.noteTerritories(p.id);
     if (!this.currentPlayer().eliminated) this.startTurn();
     else this.nextPlayer();
   }
@@ -368,6 +384,7 @@ class RisikoGame {
     }
     src.armies -= attackerLosses;
     dst.armies -= defenderLosses;
+    this.noteBattle(p.id, defenderId, attackerLosses, defenderLosses);
     const conquered = dst.armies === 0;
     this.lastBattle = {
       seq: this.nextSeq(), attackerId: p.id, defenderId, from, to,
@@ -382,6 +399,8 @@ class RisikoGame {
     const dst = this.territories[to];
     dst.owner = p.id;
     this.turn.conquered = true;
+    p.stats.conquests += 1;
+    this.noteTerritories(p.id);
     this.event(`🚩 ${p.name} erobert ${tname(to)}!`, 'conquer');
 
     if (defenderId !== NEUTRAL && this.territoriesOf(defenderId).length === 0) {
@@ -569,6 +588,27 @@ class RisikoGame {
   /** Nur im Testmodus: Würfel vorgeben (Paare oder einzelne Augenzahlen). */
   debugDice(list) { this.forcedDice.push(...list.flat().map(Number)); }
 
+  /* ---------------- Statistik (nur Anzeige) ---------------- */
+
+  /** Ein Kampf: Vergleiche gewonnen, Armeen besiegt und verloren (die neutrale Armee zählt nicht mit). */
+  noteBattle(attackerId, defenderId, attackerLosses, defenderLosses) {
+    const a = this.player(attackerId).stats;
+    a.armiesDefeated += defenderLosses;
+    a.armiesLost += attackerLosses;
+    a.comparisonsWon += defenderLosses;
+    const d = defenderId !== NEUTRAL && this.players.find((q) => q.id === defenderId);
+    if (d) {
+      d.stats.armiesDefeated += attackerLosses;
+      d.stats.armiesLost += defenderLosses;
+      d.stats.comparisonsWon += attackerLosses;
+    }
+  }
+
+  noteTerritories(pid) {
+    const st = this.player(pid).stats;
+    st.maxTerritories = Math.max(st.maxTerritories, this.territoriesOf(pid).length);
+  }
+
   /* ---------------- Speichern & Wiederherstellen ---------------- */
 
   toJSON() {
@@ -581,6 +621,15 @@ class RisikoGame {
     Object.assign(g, JSON.parse(JSON.stringify(data)));
     g.rng = rng;
     g.now = now;
+    if (!(g.format >= 2)) {
+      // Spielstand ohne Statistik: ab jetzt zählen, höchste Gebietszahl ist mindestens die aktuelle
+      g.format = FORMAT_VERSION;
+      g.statsSinceRound = g.round || 0;
+      for (const p of g.players) {
+        p.stats = emptyStats();
+        if (g.phase !== 'setup') g.noteTerritories(p.id);
+      }
+    }
     return g;
   }
 
@@ -612,7 +661,9 @@ class RisikoGame {
         continents: this.continentsOf(p.id).map((c) => c.id),
         eliminated: p.eliminated,
         quit: p.quit,
+        stats: { ...p.stats },
       })),
+      statsSinceRound: this.statsSinceRound,
       territories: Object.fromEntries(TERRITORY_IDS.map((id) => [id, { ...this.territories[id] }])),
       turn: this.turn ? {
         ...this.turn,
@@ -644,6 +695,7 @@ const PHASE_HINTS = {
 module.exports = {
   RisikoGame,
   RuleError,
+  FORMAT_VERSION,
   CARDS,
   CARD,
   SYMBOLS,

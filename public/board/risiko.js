@@ -50,6 +50,8 @@ function buildRisikoMap() {
   for (const t of S.map.territories) {
     svgEl('path', { class: 'rk-area', id: `rk-a-${t.id}`, 'data-territory': t.id, d: geo.territories[t.id].d }, areas);
   }
+  svgEl('g', { class: 'rk-wave', id: 'rk-wave' }, svg);
+  svgEl('defs', { id: 'rk-defs' }, svg);
   svgEl('path', { class: 'rk-lakes', d: geo.lakes }, svg);
   const continents = svgEl('g', { class: 'rk-continents' }, svg);
   for (const d of Object.values(geo.continents)) svgEl('path', { d }, continents);
@@ -72,6 +74,7 @@ function buildRisikoMap() {
     svgEl('text', { class: 'rk-armies', 'text-anchor': 'middle', dy: '0.35em' }, inner).textContent = '0';
     svgEl('title', {}, g).textContent = t.name;
   }
+  svgEl('g', { class: 'rk-top-fx', id: 'rk-top-fx' }, svg);
   rkBuilt = true;
   rkLayout();
 }
@@ -266,41 +269,267 @@ function renderRisiko() {
   else rkLayout();
   const geo = window.RISIKO_MAP_PATHS;
 
+  rkQueueEvents();
+  const now = clock.now();
   for (const [id, t] of Object.entries(g.territories)) {
-    const area = document.getElementById(`rk-a-${id}`);
     const node = document.getElementById(`rk-t-${id}`);
-    if (!area || !node) continue;
-    area.style.fill = rkTone(t.owner);
-    node.dataset.owner = t.owner || '';
-    rkSetArmies(id, t.armies);
+    if (!node) continue;
     node.classList.toggle('active', Boolean(g.currentId) && t.owner === g.currentId);
     node.classList.toggle('wide', t.armies >= 100);
+    if ((rkLocks[id] || 0) > now) continue;      // eine Animation zeigt gerade dieses Gebiet
+    rkApplyTerritory(id, t);
   }
 
-  // Laufender Angriff oder Nachrücken: Bogen zwischen den Markern
+  // Angesagter Angriff (Verteidiger wählt noch) oder Nachrücken: Pfeil zwischen den Markern
   const pa = g.turn && (g.turn.pendingAttack || g.turn.occupy);
   $$('.rk-territory.attacking, .rk-territory.defending').forEach((n) => n.classList.remove('attacking', 'defending'));
-  const fx = $('#rk-fx');
   let arrow = document.getElementById('rk-attack-arrow');
-  if (pa) {
-    if (!arrow) arrow = svgEl('path', { id: 'rk-attack-arrow', class: 'rk-arrow' }, fx);
-    arrow.setAttribute('d', rkArc(geo.territories[pa.from].marker, geo.territories[pa.to].marker));
+  if (pa && !rkBattleRunning) {
+    if (!arrow) arrow = rkArrow($('#rk-fx'), 'rk-attack-arrow');
+    rkSetArrow(arrow, pa.from, pa.to);
     document.getElementById(`rk-t-${pa.from}`).classList.add('attacking');
     document.getElementById(`rk-t-${pa.to}`).classList.add('defending');
   } else if (arrow) {
     arrow.remove();
   }
 
-  if (g.lastBattle && g.lastBattle.seq !== rkBattleSeq) {
+  // Ohne Animation (z. B. nach dem Neuladen) die letzte Schlacht direkt zeigen
+  if (g.lastBattle && g.lastBattle.seq !== rkBattleSeq && !rkBattleRunning) {
     rkBattleSeq = g.lastBattle.seq;
     rkShowBattle(g.lastBattle);
   }
 }
 
-/** Sanfter Bogen zwischen zwei Punkten (Karteneinheiten). */
-function rkArc([x1, y1], [x2, y2], bend = 0.22) {
-  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-  const cx = (x1 + x2) / 2 - ((y2 - y1) / len) * len * bend;
-  const cy = (y1 + y2) / 2 + ((x2 - x1) / len) * len * bend;
-  return `M${x1} ${y1}Q${cx.toFixed(1)} ${cy.toFixed(1)} ${x2} ${y2}`;
+function rkApplyTerritory(id, t, ms = 350) {
+  const area = document.getElementById(`rk-a-${id}`);
+  const node = document.getElementById(`rk-t-${id}`);
+  area.style.fill = rkTone(t.owner);
+  node.dataset.owner = t.owner || '';
+  rkSetArmies(id, t.armies, ms);
 }
+
+/* ---------------- Animationen (aus den Ereignissen des Servers) ---------------- */
+
+let rkAnimSeq = null;        // zuletzt übernommenes Ereignis
+const rkLocks = {};          // Gebiet → bis wann (Client-Uhr) eine Animation die Anzeige steuert
+let rkBattleRunning = 0;
+const RK_REDUCED = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+const rkEaseInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+const rkMarkerPos = (id) => window.RISIKO_MAP_PATHS.territories[id].marker;
+
+/** Neue Ereignisse einplanen; beim ersten Aufruf wird die Vorgeschichte übersprungen. */
+function rkQueueEvents() {
+  const anim = S.anim || { seq: 0, events: [] };
+  if (rkAnimSeq === null || anim.seq < rkAnimSeq) { rkAnimSeq = anim.seq; return; }
+  for (const e of anim.events) {
+    if (e.seq <= rkAnimSeq) continue;
+    rkAnimSeq = e.seq;
+    rkSchedule(e);
+  }
+}
+
+function rkSchedule(e) {
+  const now = clock.now();
+  const dur = RK_REDUCED.matches ? 0 : e.dur;
+  const delay = Math.max(0, e.at - now);
+  const end = now + delay + dur;
+  const ids = e.type === 'place' || e.type === 'conquer' ? [e.territory] : [e.from, e.to];
+  for (const id of ids) rkLocks[id] = Math.max(rkLocks[id] || 0, end + 40);
+  if (e.type === 'battle') rkBattleRunning++;
+  setTimeout(() => {
+    try { RK_ANIMATIONS[e.type](e, dur); } catch (err) { console.warn(err); }
+  }, delay);
+  // Danach den echten Stand übernehmen (falls keine weitere Animation das Gebiet hält)
+  setTimeout(() => {
+    if (e.type === 'battle') rkBattleRunning--;
+    const nowEnd = clock.now();
+    for (const id of ids) if ((rkLocks[id] || 0) <= nowEnd + 1 && S.game.territories[id]) rkApplyTerritory(id, S.game.territories[id]);
+    if (e.type === 'battle') renderRisiko();
+  }, delay + dur + 60);
+}
+
+/** Zeitgesteuerte Funktion mit Easing über rAF. */
+function rkTween(ms, fn, ease = rkEaseInOut) {
+  return new Promise((resolve) => {
+    if (ms <= 0) { fn(1); resolve(); return; }
+    const start = performance.now();
+    (function frame(now) {
+      const t = Math.min(1, (now - start) / ms);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(frame); else resolve();
+    })(start);
+  });
+}
+const rkWait = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
+
+/** Geschwungener Pfeil von Marker zu Marker (Rand zu Rand), mit Spitze. */
+function rkArrow(parent, id) {
+  const g = svgEl('g', { class: 'rk-arrow', ...(id ? { id } : {}) }, parent);
+  svgEl('path', { class: 'rk-arrow-line' }, g);
+  svgEl('path', { class: 'rk-arrow-head' }, g);
+  return g;
+}
+function rkArrowGeometry(from, to) {
+  const [x1, y1] = rkMarkerPos(from);
+  const [x2, y2] = rkMarkerPos(to);
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const bend = Math.min(0.28 * len, 26);
+  const c = [(x1 + x2) / 2 - ((y2 - y1) / len) * bend, (y1 + y2) / 2 + ((x2 - x1) / len) * bend];
+  const r = rkSizes(rkK).r + 1.2;
+  const trim = (p, q) => { const l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [p[0] + ((q[0] - p[0]) / l) * r, p[1] + ((q[1] - p[1]) / l) * r]; };
+  const a = trim([x1, y1], c);
+  const b = trim([x2, y2], c);
+  const point = (t) => [(1 - t) ** 2 * a[0] + 2 * (1 - t) * t * c[0] + t * t * b[0], (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * c[1] + t * t * b[1]];
+  return { a, b, c, point };
+}
+function rkSetArrow(g, from, to, progress = 1) {
+  const { a, b, c, point } = rkArrowGeometry(from, to);
+  const line = g.firstChild;
+  line.setAttribute('d', `M${a[0]} ${a[1]}Q${c[0]} ${c[1]} ${b[0]} ${b[1]}`);
+  const total = line.getTotalLength();
+  line.style.strokeDasharray = `${total} ${total}`;
+  line.style.strokeDashoffset = String(total * (1 - progress));
+  const tip = point(Math.max(0.02, progress));
+  const back = point(Math.max(0, progress - 0.06));
+  const ang = Math.atan2(tip[1] - back[1], tip[0] - back[0]);
+  const s = rkSizes(rkK).r * 0.75;
+  const pts = [[0, 0], [-s, -s * 0.55], [-s * 0.7, 0], [-s, s * 0.55]].map(([x, y]) => [tip[0] + x * Math.cos(ang) - y * Math.sin(ang), tip[1] + x * Math.sin(ang) + y * Math.cos(ang)]);
+  g.lastChild.setAttribute('d', `M${pts.map((p) => p.map((v) => v.toFixed(2)).join(' ')).join('L')}Z`);
+  return { point };
+}
+
+/** Marker kurz aufpoppen lassen (Web Animations, mit Easing). */
+function rkPop(id, ms, scale = 1.35) {
+  const inner = document.querySelector(`#rk-t-${id} .rk-marker`);
+  const base = rkSizes(rkK).markerScale;
+  inner.animate([
+    { transform: `scale(${base})` }, { transform: `scale(${base * scale})`, offset: 0.35 }, { transform: `scale(${base})` },
+  ], { duration: ms, easing: 'cubic-bezier(.3, 1.4, .5, 1)' });
+}
+
+const RK_ANIMATIONS = {
+  /** Verstärkung: Marker poppt auf, die Zahl zählt hoch. */
+  place(e, dur) {
+    rkShown[e.territory] = e.from;
+    rkSetArmies(e.territory, e.from, 0);
+    if (dur > 0) rkPop(e.territory, dur * 0.7);
+    rkSetArmies(e.territory, e.to, dur * 0.8);
+  },
+
+  /** Angriff: Pfeil, rollende Würfel, dann blinken die Verluste rot und zählen herunter. */
+  async battle(e, dur) {
+    document.getElementById('rk-attack-arrow')?.remove();
+    const done = () => { rkBattleSeq = S.game.lastBattle ? S.game.lastBattle.seq : rkBattleSeq; rkShowBattle(e); };
+    if (dur <= 0) {
+      rkSetArmies(e.from, e.attackerArmies - e.attackerLosses, 0);
+      rkSetArmies(e.to, e.defenderArmies - e.defenderLosses, 0);
+      done();
+      return;
+    }
+    const top = $('#rk-top-fx');
+    const arrow = rkArrow($('#rk-fx'));
+    document.getElementById(`rk-t-${e.from}`).classList.add('attacking');
+    document.getElementById(`rk-t-${e.to}`).classList.add('defending');
+    let geom = rkSetArrow(arrow, e.from, e.to, 0);
+    await rkTween(dur * 0.28, (t) => { geom = rkSetArrow(arrow, e.from, e.to, t); });
+
+    // Würfel rollen neben der Mitte des Bogens, auf der Außenseite (Augen vom Server)
+    const size = rkSizes(rkK).r * 1.55;
+    const [p0, p1] = [geom.point(0.45), geom.point(0.55)];
+    const tl = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1;
+    const nx = -(p1[1] - p0[1]) / tl; const ny = (p1[0] - p0[0]) / tl;
+    const [cx0, cy0] = geom.point(0.5);
+    const off = size * 1.9;
+    const [mx, my] = [cx0 - nx * off, cy0 - ny * off];
+    const dice = svgEl('g', { class: 'rk-dice', transform: `translate(${mx} ${my})` }, top);
+    const row = (values, y, cls) => values.forEach((v, i) => {
+      const x = (i - (values.length - 1) / 2) * size * 1.25;
+      const d = svgEl('g', { class: `rk-die-g ${cls}`, transform: `translate(${x} ${y})` }, dice);
+      const inner = svgEl('g', {}, d);
+      svgEl('rect', { x: -size / 2, y: -size / 2, width: size, height: size, rx: size * 0.22 }, inner);
+      svgEl('text', { 'text-anchor': 'middle', dy: '0.35em', style: `font-size:${size * 0.62}px` }, inner).textContent = String(v);
+      inner.animate([
+        { transform: 'rotate(-220deg) scale(.2)', opacity: 0 },
+        { transform: 'rotate(25deg) scale(1.12)', opacity: 1, offset: 0.7 },
+        { transform: 'rotate(0deg) scale(1)', opacity: 1 },
+      ], { duration: dur * 0.3, delay: i * dur * 0.05, easing: 'cubic-bezier(.2, .8, .3, 1)', fill: 'backwards' });
+    });
+    row(e.attack, -size * 0.7, 'att');
+    row(e.defend, size * 0.7, 'def');
+    await rkWait(dur * 0.4);
+
+    // Verluste: Zahlen blinken rot und zählen herunter
+    const hit = (id, from, losses) => {
+      if (!losses) return;
+      const node = document.getElementById(`rk-t-${id}`);
+      node.classList.remove('hit');
+      void node.getBoundingClientRect();
+      node.classList.add('hit');
+      rkShown[id] = from;
+      rkSetArmies(id, from - losses, dur * 0.22);
+    };
+    hit(e.from, e.attackerArmies, e.attackerLosses);
+    hit(e.to, e.defenderArmies, e.defenderLosses);
+    await rkWait(dur * 0.25);
+    dice.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.07, fill: 'forwards' });
+    arrow.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.07, fill: 'forwards' });
+    await rkWait(dur * 0.07);
+    dice.remove();
+    arrow.remove();
+    ['hit', 'attacking', 'defending'].forEach((c) => $$(`.rk-territory.${c}`).forEach((n) => n.classList.remove(c)));
+    done();
+  },
+
+  /** Eroberung: Welle in der neuen Farbe von der Mitte aus, dann ein sanfter Puls. */
+  async conquer(e, dur) {
+    const area = document.getElementById(`rk-a-${e.territory}`);
+    const tone = rkTone(e.owner);
+    if (dur <= 0) { area.style.fill = tone; return; }
+    const clipId = `rk-clip-${e.seq}`;
+    const clip = svgEl('clipPath', { id: clipId }, $('#rk-defs'));
+    svgEl('path', { d: area.getAttribute('d'), 'clip-rule': 'evenodd' }, clip);
+    const [cx, cy] = rkMarkerPos(e.territory);
+    const bb = area.getBBox();
+    const radius = Math.max(...[[bb.x, bb.y], [bb.x + bb.width, bb.y], [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]]
+      .map(([x, y]) => Math.hypot(x - cx, y - cy)));
+    const wave = svgEl('g', { 'clip-path': `url(#${clipId})` }, $('#rk-wave'));
+    const disc = svgEl('circle', { cx, cy, r: 0, fill: tone }, wave);
+    const ring = svgEl('circle', { cx, cy, r: 0, fill: 'none', stroke: '#fff', 'stroke-opacity': 0.55, 'vector-effect': 'non-scaling-stroke', 'stroke-width': 3 }, wave);
+    await rkTween(dur * 0.55, (t) => { disc.setAttribute('r', radius * t); ring.setAttribute('r', radius * t); ring.setAttribute('stroke-opacity', 0.55 * (1 - t)); }, rkEase);
+    area.style.transition = 'none';
+    area.style.fill = tone;
+    void area.getBoundingClientRect();
+    area.style.transition = '';
+    const glow = svgEl('path', { d: area.getAttribute('d'), class: 'rk-glow' }, wave);
+    disc.remove();
+    ring.remove();
+    await rkTween(dur * 0.45, (t) => glow.setAttribute('fill-opacity', (0.32 * Math.sin(Math.PI * t)).toFixed(3)), (t) => t);
+    wave.remove();
+    clip.remove();
+  },
+
+  /** Nachrücken und Verschieben: Ein Marker gleitet vom Ursprung ins Ziel. */
+  async move(e, dur) {
+    const fromNow = (rkShown[e.from] ?? 0) - e.count;
+    rkSetArmies(e.from, Math.max(1, fromNow), Math.min(250, dur * 0.3));
+    if (dur <= 0) { rkSetArmies(e.to, (rkShown[e.to] || 0) + e.count, 0); return; }
+    const { point } = rkArrowGeometry(e.from, e.to);
+    const [sx, sy] = rkMarkerPos(e.from);
+    const [tx, ty] = rkMarkerPos(e.to);
+    const { markerScale } = rkSizes(rkK);
+    const g = svgEl('g', { class: 'rk-territory rk-moving' }, $('#rk-top-fx'));
+    const inner = svgEl('g', { class: 'rk-marker', transform: `scale(${markerScale})` }, g);
+    svgEl('circle', { class: 'rk-disc', r: window.RISIKO_MAP_PATHS.style.markerR * 0.85 }, inner);
+    svgEl('text', { class: 'rk-armies', 'text-anchor': 'middle', dy: '0.35em' }, inner).textContent = String(e.count);
+    await rkTween(dur * 0.85, (t) => {
+      // Start und Ende in der Markermitte, dazwischen auf dem Bogen
+      const p = t < 0.08 ? [sx + (point(0)[0] - sx) * (t / 0.08), sy + (point(0)[1] - sy) * (t / 0.08)]
+        : t > 0.92 ? [point(1)[0] + (tx - point(1)[0]) * ((t - 0.92) / 0.08), point(1)[1] + (ty - point(1)[1]) * ((t - 0.92) / 0.08)]
+          : point((t - 0.08) / 0.84);
+      g.setAttribute('transform', `translate(${p[0].toFixed(2)} ${p[1].toFixed(2)})`);
+    });
+    g.remove();
+    rkPop(e.to, dur * 0.15, 1.2);
+    rkSetArmies(e.to, (rkShown[e.to] || 0) + e.count, dur * 0.15);
+  },
+};

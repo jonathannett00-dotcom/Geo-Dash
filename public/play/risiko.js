@@ -229,6 +229,14 @@ function renderRisiko() {
   const t = $('#turn-name');
   t.textContent = g.phase === 'gameover' ? 'Spielende' : (g.phase === 'setup' ? 'Aufbau' : (cur.id === me ? 'Du!' : cur.name));
   t.classList.toggle('mine', Boolean(cur) && cur.id === me);
+  // Wie bei Monopoly: erst weiter, wenn der Fernseher die Animation gezeigt hat
+  clearTimeout(renderRisiko.hold);
+  const left = (S.animUntil || 0) - clock.now();
+  if (left > 0 && g.phase !== 'gameover') {
+    patch($('#panel-risiko'), `<div class="box center rk-hold"><h2>Schau auf den Fernseher</h2><p class="hint">${statusText(g)}</p></div>`);
+    renderRisiko.hold = setTimeout(renderRisiko, left + 60);
+    return;
+  }
   patch($('#panel-risiko'), risikoHtml());
 }
 

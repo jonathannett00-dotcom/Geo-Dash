@@ -69,7 +69,7 @@ function renderLobby() {
   $('#settings-monopoly').classList.toggle('hidden', risiko);
   $('#settings-risiko').classList.toggle('hidden', !risiko);
   if (risiko) {
-    ['cardValues', 'fortify'].forEach((k) => {
+    ['cardValues', 'fortify', 'animation'].forEach((k) => {
       const el = $(`#risiko-${k}`);
       if (document.activeElement !== el) el.value = S.settings[k];
     });
@@ -93,7 +93,7 @@ $('#game-choice').addEventListener('click', (e) => {
   socket.emit('board:game', { gameType: b.dataset.game }, (res) => { if (!res.ok) toast(res.error, 'error'); });
 });
 
-['cardValues', 'fortify'].forEach((k) => {
+['cardValues', 'fortify', 'animation'].forEach((k) => {
   $(`#risiko-${k}`).addEventListener('change', (e) => {
     socket.emit('board:settings', { [k]: e.target.value }, (res) => {
       if (!res.ok) { toast(res.error, 'error'); e.target.value = S.settings[k]; }

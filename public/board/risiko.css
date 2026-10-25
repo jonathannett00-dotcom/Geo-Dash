@@ -3,7 +3,7 @@
 .game-choice .btn { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.2; border-radius: 12px; }
 .game-choice .btn small { font-weight: 600; font-size: .75rem; opacity: .75; }
 .game-choice .btn.ghost { color: var(--ink); border-color: var(--line); }
-.risiko-settings { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: 1rem; }
+.risiko-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin-bottom: 1rem; }
 .risiko-settings label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; color: var(--muted); font-size: .85rem; }
 
 /* ================= Risiko: Karte =================
@@ -37,7 +37,26 @@
 .rk-territory.defending .rk-disc { stroke: #1d1d1b; stroke-width: 2.8px; }
 .rk-armies { fill: #17202a; font: 700 8.2px var(--font-body); font-variant-numeric: tabular-nums; pointer-events: none; }
 .rk-territory.wide .rk-armies { font-size: 6.6px; }
-.rk-arrow { fill: none; stroke: #b3261e; stroke-width: 2.6px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.rk-arrow-line { fill: none; stroke: #c0392b; stroke-width: 3px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.rk-arrow-head { fill: #c0392b; stroke: #c0392b; stroke-width: 1px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+/* ---------- Animationen ---------- */
+.rk-dice rect { stroke: var(--rk-line); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rk-die-g.att rect { fill: #b3261e; }
+.rk-die-g.def rect { fill: #f2f4f6; }
+.rk-die-g text { font-family: var(--font-body); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rk-die-g.att text { fill: #fff; }
+.rk-die-g.def text { fill: #17202a; }
+.rk-territory.hit .rk-disc { animation: rkHit .55s ease-in-out 2; }
+.rk-territory.hit .rk-armies { animation: rkHitText .55s ease-in-out 2; }
+@keyframes rkHit { 50% { fill: #d6453a; stroke: #7a1610; } }
+@keyframes rkHitText { 50% { fill: #fff; } }
+.rk-glow { fill: #fff; fill-opacity: 0; pointer-events: none; }
+.rk-moving .rk-disc { fill: #fff; stroke-width: 1.8px; }
+@media (prefers-reduced-motion: reduce) {
+  .rk-area, .rk-territory .rk-disc { transition: none; }
+  .rk-territory.hit .rk-disc, .rk-territory.hit .rk-armies { animation: none; }
+}
 
 /* ---------- Flächen im Ozean ---------- */
 .rk-panel { background: var(--rk-panel); border-radius: var(--rk-radius); backdrop-filter: blur(2px); }

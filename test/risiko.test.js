@@ -619,8 +619,10 @@ test('Speichern: Zustand übersteht toJSON/fromJSON vollständig', () => {
 
 test('Modul: Einstellungen werden geprüft', () => {
   const s = risiko.defaultSettings();
-  assert.deepEqual(s, { cardValues: 'steigend', fortify: 'benachbart' });
-  assert.deepEqual(risiko.applySettings(s, { cardValues: 'fest' }), { cardValues: 'fest', fortify: 'benachbart' });
+  assert.deepEqual(s, { cardValues: 'steigend', fortify: 'benachbart', animation: 'normal' });
+  assert.deepEqual(risiko.applySettings(s, { cardValues: 'fest' }), { cardValues: 'fest', fortify: 'benachbart', animation: 'normal' });
+  assert.equal(risiko.applySettings(s, { animation: 'aus' }).animation, 'aus');
+  assert.throws(() => risiko.applySettings(s, { animation: 'langsam' }), /normal/);
   assert.throws(() => risiko.applySettings(s, { cardValues: 'doppelt' }), /steigend/);
   assert.throws(() => risiko.applySettings(s, { fortify: 'überall' }), /benachbart/);
   assert.throws(() => newGame(1), /mindestens 2/);

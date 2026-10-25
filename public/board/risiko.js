@@ -9,21 +9,7 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Feste, ruhige Kartenfarbe je Spielerfarbe aus der Lobby. */
-const RK_TONES = {
-  '#e63946': '#c4605a',
-  '#1d72d8': '#5582b8',
-  '#2a9d8f': '#4f9a8d',
-  '#f4a261': '#d39a66',
-  '#8e44ad': '#8a6aa6',
-  '#e9c46a': '#cdb567',
-  '#ff6fb5': '#c9809f',
-  '#264653': '#58747c',
-  '#8ac926': '#8aad5b',
-  '#795548': '#977661',
-};
-const RK_NEUTRAL = '#b5b0a4';
-const LABEL_DIRS = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0], se: [0.72, 0.72], sw: [-0.72, 0.72], ne: [0.72, -0.72], nw: [-0.72, -0.72] };
+/* Farben, Größen und Namenspositionen: public/shared/risiko-farben.js */
 
 let rkBuilt = false;
 let rkBattleSeq = 0;
@@ -81,14 +67,6 @@ function buildRisikoMap() {
 }
 
 /* ---------------- Layout: Karte füllt das Fenster, Flächen im Ozean ---------------- */
-
-/** Größen bei Maßstab k – dieselben Formeln wie scripts/build-map.js. */
-function rkSizes(k) {
-  const st = window.RISIKO_MAP_PATHS.style;
-  const markerScale = Math.max(1, Math.min(st.markerMaxScale, st.markerMinPx / (st.markerR * k)));
-  const font = Math.max(st.labelMinPx, Math.min(st.labelMaxPx, st.labelUnits * k)) / k;
-  return { markerScale, r: st.markerR * markerScale, font };
-}
 
 function rkLayout() {
   const geo = window.RISIKO_MAP_PATHS;
@@ -150,28 +128,18 @@ function rkPlayerColumns() {
 
 function rkPlaceMarkersAndLabels() {
   const geo = window.RISIKO_MAP_PATHS;
-  const { markerScale, r, font } = rkSizes(rkK);
-  const gap = geo.style.labelGap * font;
+  const { markerScale } = rkSizes(rkK);
   for (const [id, t] of Object.entries(geo.territories)) {
     const [mx, my] = t.marker;
     const node = document.getElementById(`rk-t-${id}`);
     node.setAttribute('transform', `translate(${mx} ${my})`);
     node.firstChild.setAttribute('transform', `scale(${markerScale.toFixed(3)})`);
     const label = document.getElementById(`rk-l-${id}`);
-    const l = t.label;
-    let lx; let ly; let anchor = 'middle';
-    if (l.x !== undefined) { lx = l.x; ly = l.y; } else {
-      const [dx, dy] = LABEL_DIRS[l.dir];
-      const d = (r + gap) * l.m;
-      lx = mx + dx * d;
-      ly = my + dy * d;
-      if (dx > 0.1) anchor = 'start'; else if (dx < -0.1) anchor = 'end';
-      if (dy > 0.1) ly += font / 2; else if (dy < -0.1) ly -= font / 2;
-    }
-    label.setAttribute('x', lx.toFixed(2));
-    label.setAttribute('y', ly.toFixed(2));
-    label.setAttribute('text-anchor', anchor);
-    label.style.fontSize = `${font.toFixed(2)}px`;
+    const pos = rkLabelPos(t, rkK);
+    label.setAttribute('x', pos.x.toFixed(2));
+    label.setAttribute('y', pos.y.toFixed(2));
+    label.setAttribute('text-anchor', pos.anchor);
+    label.style.fontSize = `${pos.font.toFixed(2)}px`;
   }
 }
 

@@ -163,7 +163,7 @@ function rkSetArmies(id, value, ms = 350) {
   if (from === undefined || from === value || ms <= 0) { text.textContent = String(value); return; }
   const start = performance.now();
   (function step(now) {
-    const t = Math.min(1, (now - start) / ms);
+    const t = Math.max(0, Math.min(1, (now - start) / ms));
     text.textContent = String(Math.round(from + (value - from) * rkEase(t)));
     if (t < 1) text._raf = requestAnimationFrame(step);
   })(start);
@@ -344,7 +344,7 @@ function rkTween(ms, fn, ease = rkEaseInOut) {
     if (ms <= 0) { fn(1); resolve(); return; }
     const start = performance.now();
     (function frame(now) {
-      const t = Math.min(1, (now - start) / ms);
+      const t = Math.max(0, Math.min(1, (now - start) / ms));
       fn(ease(t));
       if (t < 1) requestAnimationFrame(frame); else resolve();
     })(start);

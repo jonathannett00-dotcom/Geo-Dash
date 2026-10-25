@@ -67,7 +67,7 @@ function renderLobby() {
   const info = LB_GAMES[S.gameType] || { name: S.gameType };
   $('#lb-game-name').textContent = info.name;
   const list = S.lobby;
-  $('#lobby-count').innerHTML = `<b>${list.length}</b> von ${S.maxPlayers}`;
+  $('#lobby-count').innerHTML = `<b>${list.length}</b> von ${S.maxPlayers}${list.length ? '' : ' · noch niemand da'}`;
   renderLobbyPlayers(list, S.maxPlayers);
   patch($('#game-choice'), (S.games || []).map((g) => {
     const gi = LB_GAMES[g.id] || { name: g.name, desc: '', time: '' };
@@ -124,7 +124,6 @@ function renderLobbyPlayers(list, max) {
   for (let i = list.length; i < max; i++) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = i === 0 ? 'Wartet auf Spieler' : '';
     ul.appendChild(li);
   }
 }

@@ -15,7 +15,8 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
   - `server/monopoly/`: Regel-Engine, Spieldaten und Spielmodul (`index.js`)
   - `server/games/risiko/`: Risiko-Regel-Engine, Karte als Daten (`map.js`: Gebiete, Nachbarschaften) und Spielmodul
   - `server/games/risiko/map-paths.js`: realistische Weltkarte (SVG-Pfade, Seen, Marker, Namen, Seewege), **erzeugt** von `scripts/build-map.js` aus Natural Earth; nicht von Hand ändern, sondern neu bauen. Die Host-Ansicht lädt sie als `/risiko/map-paths.js`.
-  - Clients: Monopoly in `board.js` / `play.js`, Risiko in `public/board/risiko.js` und `public/play/risiko.js`
+  - Clients: Monopoly in `board.js` / `play.js`, Risiko in `public/board/risiko.js` (dazu `risiko-audio.js` für Töne) und `public/play/risiko.js`; gemeinsame Kartenfarben und -größen in `public/shared/risiko-farben.js`
+  - Risiko-Anzeigedaten (Vorauswahl, Phasentexte, Animations-Ereignisse) entstehen im Spielmodul `server/games/risiko/index.js`; die Vorauswahl geht nur an die Host-Ansicht. Die Statistik fürs Abschlussbild zählt die Engine nur zur Anzeige mit.
   - `server/games/*.js`: Minispiele mit `wallet`-Interface
   - `server/db.js`: Postgres-Speicher (Neon). Mit `DATABASE_URL` wird jeder Raum nach Änderungen als JSONB gespeichert und beim Start wieder geladen; ohne `DATABASE_URL` liegt alles nur im Arbeitsspeicher. Während eines Minispiels wird nicht gespeichert.
 

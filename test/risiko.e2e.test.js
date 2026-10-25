@@ -3,7 +3,8 @@
 /*
  * Risiko im Browser: Tablet wählt Risiko in der Lobby, zwei Handys treten bei,
  * setzen ihre Startarmeen, verstärken und kämpfen (der Verteidiger wählt seine
- * Würfel auf dem Handy). Würfel kommen über das Debug-Flag (nur im Testmodus).
+ * Würfel auf dem Handy). Die Von/Nach-Vorauswahl am Handy erscheint nur auf dem
+ * Fernseher. Würfel kommen über das Debug-Flag (nur im Testmodus).
  */
 
 const test = require('node:test');
@@ -89,9 +90,18 @@ test('Risiko: Spielauswahl, Startarmeen, Verstärkung und Angriff mit Verteidigu
     await attacker.selectOption('#rk-from', plan.from);
     await attacker.selectOption('#rk-to', plan.to);
     assert.equal(await attacker.inputValue('#rk-dice'), '3', 'höchste Würfelzahl vorausgewählt');
+
+    /* ---------- Vorauswahl: Von/Nach vom Handy erscheint nur auf dem Fernseher ---------- */
+    await until(board, ([f, t]) => S.preview && S.preview.from === f && S.preview.to === t, [plan.from, plan.to]);
+    await until(board, () => document.querySelector('#rk-highlight .rk-hl.from') && document.querySelector('#rk-highlight .rk-hl.to')
+      && document.querySelector('.rk-preview-arrow'));
+    assert.equal(await defender.evaluate(() => 'preview' in S), false, 'das andere Handy bekommt keine Vorauswahl');
+    assert.equal(await attacker.evaluate(() => 'preview' in S), false, 'auch das eigene Handy nicht (es kennt seine Auswahl)');
+    await shot(board, 'vorauswahl');
     await attacker.click('#rk-attack');
 
     await until(board, () => S.game.phase === 'defend');
+    await until(board, () => !document.querySelector('.rk-preview-arrow'));
     await defender.waitForSelector('#rk-defend');
     assert.equal(await defender.isChecked('input[name="rk-defend"][value="1"]'), true, 'mit 1 Armee: 1 Würfel vorausgewählt');
     assert.equal(await board.evaluate(() => S.game.lastBattle), null, 'vor der Wahl wird nicht gewürfelt');

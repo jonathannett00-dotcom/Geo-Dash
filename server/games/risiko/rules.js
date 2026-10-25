@@ -123,6 +123,7 @@ class RisikoGame {
     this.format = FORMAT_VERSION;
     this.statsSinceRound = 0;
     this.currentIndex = rng.int(this.players.length);
+    this.startIndex = this.currentIndex;
     this.phase = 'setup';
     this.deal();
   }
@@ -246,7 +247,8 @@ class RisikoGame {
 
   startTurn() {
     const p = this.currentPlayer();
-    if (this.currentIndex === this.firstActiveIndex()) this.round += 1;
+    // Runden zählen ab dem Startspieler (nur Anzeige)
+    if (this.round === 0 || this.currentIndex === this.roundStartIndex()) this.round += 1;
     const reinforcements = this.reinforcementsFor(p.id);
     this.turn = { playerId: p.id, reinforcements, conquered: false, fortified: false, occupy: null, returnTo: null, pendingAttack: null };
     this.phase = 'reinforce';
@@ -256,6 +258,14 @@ class RisikoGame {
   }
 
   firstActiveIndex() { return this.players.findIndex((p) => !p.eliminated); }
+
+  /** Wer eine Runde eröffnet: der Startspieler oder, wenn er ausgeschieden ist, der nächste nach ihm. */
+  roundStartIndex() {
+    if (this.startIndex === undefined) return this.firstActiveIndex(); // ältere Spielstände
+    const n = this.players.length;
+    for (let i = 0; i < n; i++) if (!this.players[(this.startIndex + i) % n].eliminated) return (this.startIndex + i) % n;
+    return -1;
+  }
 
   nextPlayer() {
     if (this.checkGameOver()) return;

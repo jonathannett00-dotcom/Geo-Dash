@@ -14,3 +14,6 @@ services:
       # Verbindungs-URL von Neon – wird im Render-Dashboard eingetragen, nie im Repo
       - key: DATABASE_URL
         sync: false
+      # Adresse der Weckseite (Netlify), z. B. https://name.netlify.app – ohne Schrägstrich am Ende
+      - key: WAKE_ORIGIN
+        sync: false

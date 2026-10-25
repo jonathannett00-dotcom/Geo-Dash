@@ -1,12 +1,9 @@
 'use strict';
 
 const crypto = require('crypto');
-const { MonopolyGame } = require('./monopoly/rules');
-const { SQUARES, GROUP_COLORS } = require('./monopoly/board');
 const { createRng } = require('./rng');
-const { HorseRace } = require('./games/horserace');
-const { Roulette } = require('./games/roulette');
-const { Blackjack } = require('./games/blackjack');
+const { GAMES, DEFAULT_GAME } = require('./games');
+const { TIMING, MINIGAMES } = require('./monopoly');
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const MAX_PLAYERS = 10;
@@ -18,21 +15,6 @@ const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 const COLORS = ['#e63946', '#1d72d8', '#2a9d8f', '#f4a261', '#8e44ad', '#e9c46a', '#ff6fb5', '#264653', '#8ac926', '#795548'];
 const FIGURES = ['🎩', '🚗', '🐕', '🚢', '👢', '🐈', '🦆', '🦖', '✈️', '🎸'];
 
-/* Animationszeiten (ms) – Tablet und Server rechnen mit denselben Werten. */
-const TIMING = { dice: 1800, step: 380, jump: 1100, land: 900, rollDelay: 3000, miniDelay: 2500 };
-
-/** Minispiele nach Typ. */
-const MINIGAMES = {
-  horserace: HorseRace,
-  roulette: Roulette,
-  blackjack: Blackjack,
-};
-
-/** Statische Brettdaten für die Clients. */
-const BOARD = SQUARES.map((s) => ({
-  name: s.name, type: s.type, group: s.group || s.type, price: s.price, house: s.house, rent: s.rent, amount: s.amount,
-}));
-
 /** Fehler, deren Text dem Spieler angezeigt wird. */
 class UserError extends Error {
   constructor(message) { super(message); this.name = 'UserError'; }
@@ -40,28 +22,30 @@ class UserError extends Error {
 const fail = (msg) => { throw new UserError(msg); };
 
 class Room {
-  constructor(code, manager) {
+  constructor(code, manager, gameType = DEFAULT_GAME) {
+    if (!GAMES[gameType]) fail('Dieses Spiel gibt es nicht.');
     this.code = code;
     this.manager = manager;
     this.config = manager.config;
+    this.gameType = gameType;
+    this.module = GAMES[gameType];
     this.players = [];
-    this.settings = { startMoney: 1500 };
+    this.settings = this.module.defaultSettings();
     this.started = false;
     this.lastActivity = Date.now();
     this.rng = createRng(this.config.seed);
     this.game = null;
-    this.mini = null;
     this.timers = {};
-    this.animUntil = 0;
-    this.seenRollSeq = 0;
-    this.seenMoveSeq = 0;
     this.pendingDice = [];
-    this.shoe = {};
   }
 
   get timeScale() { return this.config.timeScale ?? 1; }
 
   get io() { return this.manager.io; }
+
+  get maxPlayers() { return Math.min(this.module.maxPlayers, MAX_PLAYERS); }
+
+  get minPlayers() { return this.module.minPlayers; }
 
   touch() { this.lastActivity = Date.now(); }
 
@@ -71,7 +55,7 @@ class Room {
 
   join({ name, color, figure }) {
     if (this.started) fail('Das Spiel läuft bereits – neue Spieler können nicht mehr beitreten.');
-    if (this.players.length >= MAX_PLAYERS) fail(`Der Raum ist voll (maximal ${MAX_PLAYERS} Spieler).`);
+    if (this.players.length >= this.maxPlayers) fail(`Der Raum ist voll (maximal ${this.maxPlayers} Spieler).`);
     name = String(name || '').trim().replace(/\s+/g, ' ');
     if (!name) fail('Bitte gib einen Namen ein.');
     if (name.length > 16) fail('Der Name darf höchstens 16 Zeichen lang sein.');
@@ -101,94 +85,54 @@ class Room {
     return player;
   }
 
-  setStartMoney(value) {
+  updateSettings(patch) {
     if (this.started) fail('Das Spiel läuft bereits.');
-    const v = Math.floor(Number(value));
-    if (!Number.isFinite(v) || v < 100 || v > 100000) fail('Der Startbetrag muss zwischen 100 und 100.000 M liegen.');
-    this.settings.startMoney = v;
+    this.settings = this.module.applySettings(this.settings, patch);
+  }
+
+  setStartMoney(value) { this.updateSettings({ startMoney: value }); }
+
+  /** Callbacks, mit denen eine Partie Änderungen außerhalb von Aktionen meldet. */
+  gameHooks() {
+    return {
+      rng: this.rng,
+      timeScale: this.timeScale,
+      onChange: () => { this.touch(); this.schedule(); this.broadcast(); },
+    };
   }
 
   start() {
     if (this.started) fail('Das Spiel läuft bereits.');
-    if (this.players.length < MIN_PLAYERS) fail(`Es werden mindestens ${MIN_PLAYERS} Spieler gebraucht.`);
-    this.game = new MonopolyGame({
+    if (this.players.length < this.minPlayers) fail(`Es werden mindestens ${this.minPlayers} Spieler gebraucht.`);
+    this.game = this.module.createGame({
+      ...this.gameHooks(),
       players: this.players.map(({ id, name, color, figure }) => ({ id, name, color, figure })),
-      startMoney: this.settings.startMoney,
-      rng: this.rng,
+      settings: this.settings,
+      forcedDice: this.pendingDice,
     });
-    this.game.forcedDice.push(...this.pendingDice);
     this.pendingDice = [];
     this.started = true;
-    this.afterGameChange();
+    this.schedule();
   }
 
   /* ---------- Spielzüge ---------- */
 
-  /** Absicht eines Spielers ausführen – der Server prüft alles selbst. */
+  /** Absicht eines Spielers ausführen – das Spielmodul prüft alles selbst. */
   act(pid, action = {}) {
-    const g = this.game;
-    if (!g) fail('Das Spiel hat noch nicht begonnen.');
-    switch (action.type) {
-      case 'buy': g.buy(pid); break;
-      case 'decline': g.declineBuy(pid); break;
-      case 'jail:pay': g.payJail(pid); break;
-      case 'jail:card': g.useJailCard(pid); break;
-      case 'jail:roll': g.rollInJail(pid); break;
-      case 'bid': g.bid(pid, action.amount); break;
-      case 'pass': g.passAuction(pid); break;
-      case 'build': g.buildHouse(pid, action.square); break;
-      case 'sell': g.sellHouse(pid, action.square); break;
-      case 'mortgage': g.mortgage(pid, action.square); break;
-      case 'unmortgage': g.unmortgage(pid, action.square); break;
-      case 'bankrupt': g.declareBankruptcy(pid); break;
-      case 'endTurn': g.endTurn(pid); break;
-      case 'quit':
-        g.quit(pid);
-        if (this.mini && this.mini.leave) this.mini.leave(pid);
-        break;
-      case 'trade:propose': g.proposeTrade(pid, action.trade || {}); break;
-      case 'trade:respond': g.respondTrade(pid, action.id, Boolean(action.accept)); break;
-      case 'trade:cancel': g.cancelTrade(pid, action.id); break;
-      case 'mini':
-        if (!this.mini) fail('Gerade läuft kein Minispiel.');
-        this.mini.handle(pid, action.action || {});
-        break;
-      default: fail('Unbekannte Aktion.');
-    }
-    this.afterGameChange();
+    if (!this.game) fail('Das Spiel hat noch nicht begonnen.');
+    this.game.handleAction(pid, action || {});
+    this.schedule();
   }
 
-  currentRoomPlayer() { return this.game ? this.playerById(this.game.currentPlayer().id) : null; }
-
-  /** Getrennter Spieler, auf den das Spiel gerade wartet (am Zug oder mit Schulden) – sonst null. */
+  /** Getrennter Spieler, auf den das Spiel gerade wartet – sonst null. */
   blockingPlayer() {
-    const g = this.game;
-    if (!g || !['roll', 'jail', 'buy', 'debt', 'end'].includes(g.phase)) return null;
-    const cur = this.currentRoomPlayer();
-    const waitingFor = g.phase === 'debt' && g.debts[0] ? this.playerById(g.debts[0].debtorId) : cur;
+    if (!this.game || this.game.isOver()) return null;
+    const waitingFor = this.playerById(this.game.waitingFor());
     return waitingFor && !waitingFor.connected ? waitingFor : null;
   }
 
   /** Ist der Zug pausiert, weil der Spieler am Zug getrennt ist? */
   isPaused() { return Boolean(this.blockingPlayer()); }
-
-  /** Merkt sich, wie lange das Tablet für Würfel und Figuren braucht. */
-  afterGameChange() {
-    const g = this.game;
-    if (!g) return;
-    let anim = 0;
-    if (g.lastRoll && g.lastRoll.seq > this.seenRollSeq) {
-      this.seenRollSeq = g.lastRoll.seq;
-      anim += TIMING.dice;
-    }
-    for (const m of g.moves) {
-      if (m.seq <= this.seenMoveSeq) continue;
-      this.seenMoveSeq = m.seq;
-      anim += m.mode === 'jump' ? TIMING.jump : m.steps * TIMING.step + TIMING.land;
-    }
-    if (anim) this.animUntil = Math.max(this.animUntil, Date.now()) + anim * this.timeScale;
-    this.schedule();
-  }
 
   setTimer(key, ms, fn) {
     clearTimeout(this.timers[key]);
@@ -205,14 +149,12 @@ class Room {
     delete this.timers[key];
   }
 
-  /** Automatisches Würfeln, Auktions-Timer und Start der Minispiele. */
+  /** Ausscheiden getrennter Spieler und zeitgesteuerte Schritte des Spiels. */
   schedule() {
     const g = this.game;
     if (!g) return;
-    const ts = this.timeScale;
-    const waitAnim = () => Math.max(0, this.animUntil - Date.now());
-    if (g.phase === 'gameover') {
-      this.stopMini();
+    if (g.isOver()) {
+      g.dispose();
       Object.keys(this.timers).forEach((k) => this.clearTimer(k));
       return;
     }
@@ -227,7 +169,7 @@ class Room {
           const still = this.blockingPlayer();
           if (still && still.id === this.dropFor) {
             this.game.removePlayer(still.id);
-            this.afterGameChange();
+            this.schedule();
           }
         });
       }
@@ -236,74 +178,14 @@ class Room {
       this.dropFor = null;
     }
 
-    const cur = this.currentRoomPlayer();
-    if (g.phase === 'roll' && cur && cur.connected) {
-      if (!this.timers.roll) {
-        this.setTimer('roll', waitAnim() + TIMING.rollDelay * ts, () => {
-          const p = this.currentRoomPlayer();
-          if (this.game.phase === 'roll' && p && p.connected) this.game.roll(p.id);
-          this.afterGameChange();
-        });
-      }
+    const wait = g.tick(Date.now(), { isConnected: (id) => Boolean(this.playerById(id)?.connected) });
+    if (g.isOver()) {
+      this.schedule();
+    } else if (wait === null || wait === undefined) {
+      this.clearTimer('tick');
     } else {
-      this.clearTimer('roll');
+      this.setTimer('tick', wait, () => this.schedule());
     }
-
-    if (g.phase === 'auction' && g.auction) {
-      this.setTimer('auction', g.auction.endsAt - Date.now() + 50, () => {
-        this.game.auctionTimeout();
-        this.afterGameChange();
-      });
-    } else {
-      this.clearTimer('auction');
-    }
-
-    if (g.phase === 'minigame' && !this.mini && !this.timers.mini) {
-      this.setTimer('mini', waitAnim() + TIMING.miniDelay * ts, () => this.startMini());
-    }
-  }
-
-  /* ---------- Minispiele ---------- */
-
-  startMini() {
-    const g = this.game;
-    if (!g || g.phase !== 'minigame' || this.mini) return;
-    const { type, seq } = g.minigame;
-    const Game = MINIGAMES[type];
-    if (!Game) {
-      g.finishMinigame();
-      this.afterGameChange();
-      return;
-    }
-    this.mini = new Game({
-      id: seq,
-      players: g.activePlayers().map(({ id, name, color, figure }) => ({ id, name, color, figure })),
-      wallet: {
-        balance: (id) => g.player(id).money,
-        debit: (id, amount) => g.debitBet(id, amount),
-        credit: (id, amount) => g.creditWin(id, amount),
-      },
-      rng: this.rng,
-      timeScale: this.timeScale,
-      shoe: this.shoe,
-      log: (text) => g.event(text, 'minigame'),
-      onChange: () => { this.touch(); this.broadcast(); },
-      onDone: () => this.finishMini(),
-    });
-    this.mini.start();
-  }
-
-  finishMini() {
-    this.stopMini();
-    if (this.game) this.game.finishMinigame();
-    this.afterGameChange();
-    this.touch();
-    this.broadcast();
-  }
-
-  stopMini() {
-    if (this.mini) this.mini.stop();
-    this.mini = null;
   }
 
   /* ---------- Verbindungen ---------- */
@@ -355,39 +237,42 @@ class Room {
 
   /* ---------- Zustand an Clients ---------- */
 
-  snapshot() {
+  /** Snapshot für das Tablet ('board') oder das Handy eines Spielers. */
+  snapshot(role = 'board', playerId = null) {
     return {
       code: this.code,
       now: Date.now(),
+      gameType: this.gameType,
       started: this.started,
       settings: this.settings,
-      minPlayers: MIN_PLAYERS,
-      maxPlayers: MAX_PLAYERS,
+      minPlayers: this.minPlayers,
+      maxPlayers: this.maxPlayers,
       colors: COLORS,
       figures: FIGURES,
       lobby: this.players.map((p) => ({ id: p.id, name: p.name, color: p.color, figure: p.figure, connected: p.connected })),
-      board: this.game ? BOARD : null,
-      groupColors: GROUP_COLORS,
-      timing: { ...TIMING, timeScale: this.timeScale },
-      game: this.game ? this.game.publicState() : null,
       paused: this.isPaused(),
-      animUntil: this.animUntil,
+      role,
+      board: null,
+      game: null,
+      mini: null,
+      ...(this.game ? this.game.view(role, playerId) : {}),
     };
   }
 
   broadcast() {
     this.manager.persist(this);
     if (!this.io) return;
-    const snap = this.snapshot();
-    const mini = (role) => (this.mini ? this.mini.view(role) : null);
-    this.io.to(`${this.code}:board`).emit('state', { ...snap, role: 'board', mini: mini('board') });
-    this.io.to(`${this.code}:players`).emit('state', { ...snap, role: 'player', mini: mini('player') });
+    this.io.to(`${this.code}:board`).emit('state', this.snapshot('board'));
+    // Jedes Handy bekommt seinen eigenen Snapshot – versteckte Information bleibt auf dem Server
+    for (const p of this.players) {
+      if (p.sockets.size) this.io.to([...p.sockets]).emit('state', this.snapshot('player', p.id));
+    }
   }
 
   dispose() {
     this.players.forEach((p) => clearTimeout(p.leaveTimer));
     Object.keys(this.timers).forEach((k) => this.clearTimer(k));
-    this.stopMini();
+    if (this.game) this.game.dispose();
   }
 
   /* ---------- Speichern & Wiederherstellen ---------- */
@@ -395,14 +280,14 @@ class Room {
   /** Zustand des Raums als reine Daten für die Datenbank (ohne Sockets und Timer). */
   serialize() {
     return {
-      version: 1,
+      version: 2,
       code: this.code,
+      gameType: this.gameType,
       settings: this.settings,
       started: this.started,
       lastActivity: this.lastActivity,
       players: this.players.map(({ id, token, name, color, figure }) => ({ id, token, name, color, figure })),
       game: this.game ? this.game.toJSON() : null,
-      shoe: this.shoe,
     };
   }
 
@@ -411,17 +296,15 @@ class Room {
    * und kommen per Token zurück; ein unterbrochenes Minispiel startet neu.
    */
   static restore(data, manager) {
-    const room = new Room(data.code, manager);
+    const room = new Room(data.code, manager, data.gameType || DEFAULT_GAME);
     room.settings = { ...room.settings, ...data.settings };
     room.started = Boolean(data.started);
     room.lastActivity = data.lastActivity || Date.now();
     room.players = (data.players || []).map((p) => ({ ...p, connected: false, sockets: new Set(), leaveTimer: null }));
-    room.shoe = data.shoe || {};
     if (data.game) {
-      room.game = MonopolyGame.fromJSON(data.game, { rng: room.rng });
-      // Bereits gezeigte Würfe und Züge nicht noch einmal abwarten
-      room.seenRollSeq = room.game.lastRoll ? room.game.lastRoll.seq : 0;
-      room.seenMoveSeq = room.game.moves.reduce((m, x) => Math.max(m, x.seq), 0);
+      // Version 1 (nur Monopoly): Engine-Zustand und Blackjack-Schuh lagen getrennt
+      const gameData = (data.version || 1) < 2 ? { engine: data.game, shoe: data.shoe } : data.game;
+      room.game = room.module.restoreGame(gameData, room.gameHooks());
     }
     if (!room.started) {
       room.players.forEach((p) => {
@@ -449,12 +332,12 @@ class RoomManager {
 
   get(code) { return this.rooms.get(String(code || '').toUpperCase()); }
 
-  create() {
+  create(gameType = DEFAULT_GAME) {
     let code;
     do {
       code = Array.from({ length: 4 }, () => CODE_LETTERS[crypto.randomInt(CODE_LETTERS.length)]).join('');
     } while (this.rooms.has(code));
-    const room = new Room(code, this);
+    const room = new Room(code, this, gameType);
     this.rooms.set(code, room);
     return room;
   }
@@ -479,7 +362,7 @@ class RoomManager {
    * nicht gespeichert – der letzte Stand ist dann der Beginn des Minispiels.
    */
   persist(room) {
-    if (!this.store || room.mini) return;
+    if (!this.store || (room.game && !room.game.canSave())) return;
     clearTimeout(this.saveTimers.get(room.code));
     const t = setTimeout(() => { this.saveTimers.delete(room.code); this.saveNow(room); }, 250);
     t.unref?.();
@@ -503,7 +386,7 @@ class RoomManager {
     for (const [code, t] of this.saveTimers) {
       clearTimeout(t);
       const room = this.rooms.get(code);
-      if (room && !room.mini) this.saveNow(room);
+      if (room && (!room.game || room.game.canSave())) this.saveNow(room);
     }
     this.saveTimers.clear();
     await Promise.all(this.saving.values());
@@ -596,7 +479,7 @@ class RoomManager {
     handle('board:settings', ({ startMoney }, use) => {
       const room = ownRoom();
       if (socket.data.role !== 'board') fail('Nur das Tablet kann das Spiel einstellen.');
-      room.setStartMoney(startMoney);
+      room.updateSettings({ startMoney });
       use(room);
     });
 
@@ -610,7 +493,7 @@ class RoomManager {
     handle('room:info', ({ code }) => {
       const room = this.requireRoom(code);
       const snap = room.snapshot();
-      return { started: snap.started, lobby: snap.lobby, colors: COLORS, figures: FIGURES, full: snap.lobby.length >= MAX_PLAYERS };
+      return { started: snap.started, lobby: snap.lobby, colors: COLORS, figures: FIGURES, full: snap.lobby.length >= room.maxPlayers };
     });
 
     handle('player:join', ({ code, name, color, figure }, use) => {
@@ -649,8 +532,9 @@ class RoomManager {
       handle('debug:dice', ({ dice }, use) => {
         const room = ownRoom();
         const list = (Array.isArray(dice) ? dice : []).map((d) => [Number(d[0]), Number(d[1])]);
-        if (room.game) room.game.forcedDice.push(...list);
-        else room.pendingDice.push(...list);
+        if (!room.game) room.pendingDice.push(...list);
+        else if (room.game.debugDice) room.game.debugDice(list);
+        else fail('Dieses Spiel unterstützt keine vorgegebenen Würfel.');
         use(room);
       });
     }

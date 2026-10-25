@@ -42,11 +42,11 @@ test('Persistenz: während eines Minispiels wird nicht gespeichert', async () =>
   room.join({ name: 'Anna', color: COLORS[0], figure: FIGURES[0] });
   room.join({ name: 'Ben', color: COLORS[1], figure: FIGURES[1] });
   room.start();
-  room.mini = { stop() {} };
+  room.game.mini = { stop() {} };
   room.broadcast();
   await manager.flush();
   assert.equal(store.rows.size, 0);
-  room.mini = null;
+  room.game.mini = null;
   room.broadcast();
   await manager.flush();
   assert.equal(store.rows.size, 1);

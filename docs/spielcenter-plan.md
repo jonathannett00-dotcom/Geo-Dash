@@ -36,8 +36,8 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 > Hinweis: Die Projektwissensdatei lag beim Anlegen dieses Dokuments nicht vor. Die Punkte stammen aus der Projektanalyse vom Oktober 2026 – bitte mit der Projektwissensdatei abgleichen.
 
 ### Architektur
-- `server/rooms.js` ist fest an Monopoly gekoppelt: `Room.game` ist ein `MonopolyGame`, `act()` ist ein Monopoly-`switch`, und Animations-Timing, Auto-Würfeln und Pause hängen an Monopoly-Phasen. Für weitere Spiele braucht es eine gemeinsame Schnittstelle für Spielmodule, zum Beispiel `create`, `handleAction`, `view(spieler)`, Timer und Ende.
-- Snapshots gehen heute an alle Handys gleich, gefiltert wird nur nach Rolle. Für Poker (Handkarten) und Risiko (verdeckte Karten) muss es einen eigenen Snapshot pro Spieler bzw. Socket geben.
+- Erledigt: Gemeinsame Spiel-Schnittstelle in `server/games/index.js` (`createGame`, `handleAction`, `view(role, playerId)`, `tick`, `isOver`, dazu `waitingFor`, `removePlayer`, `toJSON`). Monopoly ist die erste Implementierung (`server/monopoly/index.js`); Animations-Timing, Auto-Würfeln, Auktions-Timer und Minispiele liegen dort, `server/rooms.js` ist spielunabhängig.
+- Erledigt: Jedes Handy bekommt einen eigenen Snapshot (`view('player', playerId)`). Spielstände werden als Version 2 mit `gameType` gespeichert; Version 1 lässt sich weiter laden.
 - Die Frontends `public/board/board.js` und `public/play/play.js` sind große Einzeldateien mit Monopoly- und Minispiel-Ansichten. Für mehrere Spiele sollten sie pro Spiel aufgeteilt werden; dazu kommt eine gemeinsame Hülle für Lobby, Kopfzeile und Verbindung.
 - Animationszeiten sind zwischen Server (`TIMING`, Konstanten der Minispiele) und Clients verteilt.
 - Es braucht eine Spielauswahl in der Lobby der Host-Ansicht.

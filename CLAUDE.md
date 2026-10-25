@@ -7,13 +7,13 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
 - **Der Server ist die einzige Instanz für Spielzustand und Zufall.** Würfel, Karten, Mischen, Rennsimulation, Roulette-Zahl: alles entsteht auf dem Server (`server/rng.js`). Clients senden nur Absichten (`act` mit `{ type, … }`). Der Server prüft jede Aktion (Zug, Phase, Geld) und lehnt mit einer verständlichen deutschen Meldung ab.
 - **Clients zeigen nur Snapshots.** Der Server schickt nach jeder Änderung den vollständigen Zustand (`state`-Event). Host-Ansicht (`public/board/`) und Handy (`public/play/`) berechnen keine Ergebnisse, sie stellen nur dar und animieren.
 - **Versteckte Information wird pro Spieler gefiltert.** Was ein Spieler nicht sehen darf (z. B. die verdeckte Dealerkarte, später Pokerhände oder verdeckte Risiko-Karten), verlässt den Server nicht. Die Filterung passiert beim Erzeugen des Snapshots, nicht im Client.
-  - Heute filtert `view(role)` nur nach Rolle: Host-Ansicht oder Handy.
-  - Für Poker und Risiko braucht es einen Snapshot pro Spieler.
+  - Jede Partie liefert `view(role, playerId)`; der Raum schickt jedem Handy einen eigenen Snapshot.
 - **Aufbau:**
   - `server/index.js`: HTTP und Socket.IO
-  - `server/rooms.js`: Räume, Beitritt, Wiederverbindung, Timer, Ablauf
-  - `server/monopoly/`: Regel-Engine und Spieldaten
-  - `server/games/`: Minispiele mit `wallet`-Interface
+  - `server/rooms.js`: Räume, Beitritt, Wiederverbindung, Timer; spielunabhängig
+  - `server/games/index.js`: gemeinsame Spiel-Schnittstelle (`createGame`, `handleAction`, `view`, `tick`, `isOver` …) und Liste der Spielmodule
+  - `server/monopoly/`: Regel-Engine, Spieldaten und Spielmodul (`index.js`)
+  - `server/games/*.js`: Minispiele mit `wallet`-Interface
   - `server/db.js`: Postgres-Speicher (Neon). Mit `DATABASE_URL` wird jeder Raum nach Änderungen als JSONB gespeichert und beim Start wieder geladen; ohne `DATABASE_URL` liegt alles nur im Arbeitsspeicher. Während eines Minispiels wird nicht gespeichert.
 
 ## Regeln für Änderungen

@@ -225,6 +225,7 @@ function renderRisiko() {
   $('#game').classList.add('hidden');
   $('#risiko').classList.remove('hidden');
   $('#rk-code').textContent = S.code;
+  RkAudio.init();
   $('#risiko').classList.toggle('anim-off', S.settings.animation === 'aus');
   const g = S.game;
   rkSetBanner(rkBannerHtml(S.status));
@@ -323,12 +324,16 @@ function rkSchedule(e) {
   const dur = RK_REDUCED.matches ? 0 : e.dur;
   const delay = Math.max(0, e.at - now);
   const end = now + delay + dur;
-  const ids = e.type === 'place' || e.type === 'conquer' ? [e.territory] : [e.from, e.to];
+  const ids = e.type === 'place' || e.type === 'conquer' ? [e.territory]
+    : e.type === 'battle' || e.type === 'move' ? [e.from, e.to] : [];
   for (const id of ids) rkLocks[id] = Math.max(rkLocks[id] || 0, end + 40);
   if (e.type === 'battle') rkBattleRunning++;
   setTimeout(() => {
-    try { RK_ANIMATIONS[e.type](e, dur); } catch (err) { console.warn(err); }
+    try { if (RK_ANIMATIONS[e.type]) RK_ANIMATIONS[e.type](e, dur); } catch (err) { console.warn(err); }
   }, delay);
+  // Ton zum passenden Zeitpunkt (Würfel erst, wenn der Pfeil steht und die Würfel rollen)
+  const sound = RK_SOUNDS[e.type] && RK_SOUNDS[e.type](e);
+  if (sound) setTimeout(() => RkAudio.play(sound), delay + (e.type === 'battle' ? dur * 0.24 : 0));
   // Danach den echten Stand übernehmen (falls keine weitere Animation das Gebiet hält)
   setTimeout(() => {
     if (e.type === 'battle') rkBattleRunning--;
@@ -421,6 +426,15 @@ function rkHit(id, value, ms) {
     { transform: 'translateY(0) scale(1)' },
   ], { duration: ms, easing: 'ease-out' });
 }
+
+/** Welcher Ton zu welchem Ereignis gehört (sparsam: kein Ton beim Verschieben). */
+const RK_SOUNDS = {
+  place: () => 'place',
+  battle: () => 'dice',
+  conquer: () => 'conquer',
+  trade: () => 'trade',
+  turn: (e) => (e.newRound ? 'round' : 'turn'),
+};
 
 const RK_ANIMATIONS = {
   /** Verstärkung: Marker poppt auf, die Zahl zählt hoch. */

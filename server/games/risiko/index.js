@@ -23,7 +23,9 @@ const VIEW_OPTIONS = { animation: ['normal', 'kurz', 'aus'] };
 const OPTIONS = { ...SETTING_OPTIONS, ...VIEW_OPTIONS };
 
 /** Dauer der Animationen in ms bei „normal“. */
-const ANIM_MS = { place: 700, battle: 2600, conquer: 1500, move: 900 };
+const ANIM_MS = { place: 700, battle: 2600, conquer: 1500, move: 900, trade: 600, turn: 1600 };
+/** Nur Anzeige (Ton, Banner): laufen nach den übrigen Animationen, ohne die Handys aufzuhalten. */
+const AFTER = new Set(['trade', 'turn']);
 const ANIM_FACTOR = { normal: 1, kurz: 0.45, aus: 0 };
 const ANIM_KEEP = 30;
 
@@ -132,6 +134,9 @@ class RisikoSession extends RisikoGame {
       phase: this.phase,
       territories: Object.fromEntries(Object.entries(this.territories).map(([id, t]) => [id, { ...t }])),
       battleSeq: this.lastBattle ? this.lastBattle.seq : 0,
+      tradeSeq: this.lastTrade ? this.lastTrade.seq : 0,
+      turn: this.turn,
+      round: this.round,
       occupy: this.turn && this.turn.occupy ? { ...this.turn.occupy } : null,
     };
     this._tracking = true;
@@ -177,12 +182,18 @@ class RisikoSession extends RisikoGame {
         }
       }
     }
+    const tr = this.lastTrade;
+    if (tr && tr.seq !== before.tradeSeq) events.push({ type: 'trade', playerId: tr.playerId, value: tr.value, bonusTerritory: tr.bonusTerritory });
     // Verstärkung (Setzen, Kartenbonus): Armeen wachsen ohne Besitzerwechsel
     for (const [id, t] of Object.entries(after)) {
       const old = before.territories[id];
       if (!touched.has(id) && t.owner === old.owner && t.armies > old.armies) {
         events.push({ type: 'place', territory: id, from: old.armies, to: t.armies, owner: t.owner });
       }
+    }
+    // Neuer Zug (und ggf. neue Runde) – für Banner und Ton
+    if (this.turn && this.turn !== before.turn && this.phase !== 'gameover') {
+      events.push({ type: 'turn', playerId: this.turn.playerId, round: this.round, newRound: this.round > before.round });
     }
     if (!events.length) return;
 
@@ -194,9 +205,10 @@ class RisikoSession extends RisikoGame {
     for (const e of events) {
       const dur = Math.round(ANIM_MS[e.type] * factor);
       anim.seq += 1;
-      const start = blocking ? cursor : now;
+      const after = AFTER.has(e.type);
+      const start = after ? Math.max(now, cursor) : blocking ? cursor : now;
       anim.events.push({ ...e, seq: anim.seq, at: start, dur });
-      if (blocking) cursor = start + dur;
+      if (blocking && !after) cursor = start + dur;
     }
     if (blocking) anim.until = cursor;
     if (anim.events.length > ANIM_KEEP) anim.events.splice(0, anim.events.length - ANIM_KEEP);

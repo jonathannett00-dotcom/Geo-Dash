@@ -93,6 +93,13 @@
 .rk-detail { color: var(--rk-muted); font-weight: 500; margin-left: .75em; }
 .rk-who { color: var(--rk-text); box-shadow: inset 0 -.18em 0 var(--c); }
 .rk-paused { color: var(--gold); margin-left: .6em; font-weight: 700; }
+.rk-sound { display: flex; align-items: center; gap: .5em; font-size: .75em; color: var(--rk-muted); white-space: nowrap; }
+.rk-sound button { font: inherit; color: var(--rk-text); background: transparent; border: 1px solid rgba(255, 255, 255, .22); border-radius: 999px; padding: .2em .8em; cursor: pointer; }
+.rk-sound button:hover { border-color: rgba(255, 255, 255, .5); }
+.rk-sound .rk-sound-hint { border-color: var(--rk-text); }
+.rk-sound .rk-sound-btn[aria-pressed="false"] { color: var(--rk-muted); }
+.rk-volume { width: 6em; accent-color: #c9d3dd; }
+.rk-volume:disabled { opacity: .4; }
 .rk-room { font-size: .75em; color: var(--rk-muted); white-space: nowrap; }
 .rk-room b { color: var(--rk-text); letter-spacing: .12em; }
 

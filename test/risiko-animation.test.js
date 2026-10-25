@@ -119,7 +119,7 @@ test('Animation: Kampf, Verluste und Nachrücken als Ereignisse mit Zahlen vom S
     assert.deepEqual(g.eventsSince(s3).filter((e) => e.type === 'move').map((e) => [e.from, e.to, e.count]), [[src, dst, 1]]);
   }
   // Ereignisse laufen nacheinander
-  const evs = g.eventsSince(0).filter((e) => e.type !== 'place');
+  const evs = g.eventsSince(0).filter((e) => !['place', 'turn', 'trade'].includes(e.type));
   for (let i = 1; i < evs.length; i++) assert.ok(evs[i].at >= evs[i - 1].at + evs[i - 1].dur);
 });
 

@@ -45,9 +45,8 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
 ### Betrieb
 - Persistenz (Branch `feature/persistenz`) ist implementiert: Mit `DATABASE_URL` werden Räume in Postgres (Neon) gespeichert und beim Start geladen.
   - Neon ist angebunden: `neon deploy` legt `DATABASE_URL` in `.env.local` ab.
-  - Die Datenbank-Tests (`test/db.test.js`) sind gegen den Neon-Branch `test` grün (lokaler Lauf): 2 bestanden, 0 übersprungen.
-  - Die Browser-Tests (`e2e`, `lobby.e2e`, `legacy.e2e`) sind lokal noch nicht durchgelaufen, weil Chromium unvollständig installiert war. Grün sind sie bisher nur im Cloud-Container, dort ohne Datenbank, weil der Container Neon nicht direkt erreicht.
-  - Der Neon-Branch `test` läuft am 31.10.2026 ab.
+  - Die Datenbank-Tests (`test/db.test.js`) sind lokal gegen den Neon-Branch `test` grün: 2 bestanden, 0 fehlgeschlagen, 0 übersprungen.
+  - Die Browser-Tests (`e2e`, `lobby.e2e`, `legacy.e2e`) wurden dabei nicht ausgeführt. Grün sind sie bisher nur im Cloud-Container, dort ohne Datenbank, weil der Container Neon nicht direkt erreicht.
   - Offen: Ein unterbrochenes Minispiel startet nach einem Neustart neu.
 - Nur eine Server-Instanz möglich, weil Socket.IO keinen gemeinsamen Adapter (z. B. Redis) nutzt.
 - Keine Authentifizierung: Wer den Raumcode kennt, kann die Host-Ansicht öffnen und starten. Getrennte Plätze lassen sich übernehmen.

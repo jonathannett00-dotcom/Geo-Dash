@@ -6,48 +6,61 @@
 .risiko-settings { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: 1rem; }
 .risiko-settings label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; color: var(--muted); font-size: .85rem; }
 
-/* ================= Risiko: Karte ================= */
-.risiko { --side: clamp(210px, 17vw, 340px); height: 100%; display: flex; gap: 8px; padding: 8px; }
-.rk-map-wrap {
-  position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;
-  background: #13324a radial-gradient(ellipse at center, #1d4a6b, #0e2638 75%); border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px; overflow: hidden;
+/* ================= Risiko: Karte =================
+ * Flach und ruhig: Flächen, Konturen, Zahlen-Marker. Striche bleiben
+ * unabhängig von der Bildschirmgröße gleich dick (non-scaling-stroke). */
+.risiko {
+  --rk-bg: #101c29; --rk-ocean: #1d3249; --rk-line: #1a222c; --rk-text: #e9ecef; --rk-muted: #9aa8b6;
+  height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px; padding: 8px 10px;
+  background: var(--rk-bg); color: var(--rk-text);
 }
-.rk-banner { color: #fff; font-size: clamp(14px, 2.1vh, 26px); text-align: center; min-height: 1.5em; font-weight: 600; }
-.rk-paused { color: var(--gold); margin-left: .5em; }
-.rk-map { flex: 1; min-height: 0; width: 100%; display: block; }
-.rk-lands circle { opacity: .28; }
-.rk-continent-labels text { fill: rgba(255, 255, 255, .7); font: 700 13px var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
-.rk-borders line { stroke: rgba(255, 255, 255, .45); stroke-width: 1.6; }
-.rk-borders line.wrap { stroke-dasharray: 5 5; }
-.rk-territory .rk-disc { fill: var(--owner, #9e9e9e); stroke: #fff; stroke-width: 2.5; transition: fill .4s; }
-.rk-territory.active .rk-disc { stroke: var(--gold); stroke-width: 3.5; }
-.rk-territory.attacking .rk-disc { stroke: #ff5a4f; stroke-width: 4.5; }
-.rk-territory.defending .rk-disc { stroke: #fff; stroke-width: 4.5; animation: rkPulse 1s ease-in-out infinite alternate; }
-.rk-armies { fill: #fff; font: 800 17px var(--font-body); paint-order: stroke; stroke: rgba(0, 0, 0, .55); stroke-width: 3px; }
-.rk-name { fill: #fff; font: 600 10.5px var(--font-body); paint-order: stroke; stroke: rgba(0, 0, 0, .7); stroke-width: 3px; }
-.rk-attack-line { stroke: #ff5a4f; stroke-width: 5; stroke-dasharray: 10 6; stroke-linecap: round; animation: rkDash 1s linear infinite; }
-@keyframes rkDash { to { stroke-dashoffset: -32; } }
-@keyframes rkPulse { from { stroke-opacity: .4; } to { stroke-opacity: 1; } }
+.rk-top { display: flex; align-items: baseline; gap: 1rem; min-height: 1.6em; }
+.rk-banner { flex: 1; font-size: clamp(15px, 2.2vh, 26px); font-weight: 600; }
+.rk-who { color: var(--rk-text); box-shadow: inset 0 -.2em 0 var(--c); }
+.rk-paused { color: var(--gold); margin-left: .6em; font-weight: 700; }
+.rk-room { font-size: clamp(12px, 1.5vh, 18px); color: var(--rk-muted); white-space: nowrap; }
+.rk-room b { color: var(--rk-text); letter-spacing: .12em; }
 
-.rk-battle { background: var(--panel); border-radius: 10px; padding: .5em .7em; }
-.rk-battle-head { font-weight: 800; margin-bottom: .3em; }
-.rk-battle-row { display: flex; align-items: center; gap: .35em; margin: .2em 0; }
-.rk-battle-row span:first-child { flex: 1; font-weight: 600; font-size: .85em; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.rk-die { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; flex: none; border-radius: .35em; font-weight: 800; color: #fff; }
-.rk-die.att { background: var(--red); }
-.rk-die.def { background: #1d72d8; }
-.rk-battle-foot { margin-top: .3em; color: var(--muted); font-weight: 700; }
+.rk-map-wrap { min-height: 0; display: grid; place-items: center; }
+.rk-map { width: 100%; height: 100%; display: block; }
+.rk-ocean { fill: var(--rk-ocean); }
+.rk-other-land { fill: #3b4757; stroke: var(--rk-line); stroke-width: .6px; vector-effect: non-scaling-stroke; }
+.rk-area { fill: #b5b0a4; fill-rule: evenodd; stroke: var(--rk-line); stroke-width: .7px; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: fill .5s ease; }
+.rk-continents path { fill: none; stroke: var(--rk-line); stroke-width: 1.8px; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rk-lanes line { stroke: #9fb3c7; stroke-width: 1.3px; stroke-dasharray: 5 4; stroke-linecap: round; opacity: .75; vector-effect: non-scaling-stroke; }
 
-/* ================= Risiko: Leiste ================= */
-.rk-side { overflow: hidden; }
-.rk-players { display: flex; flex-direction: column; gap: .35em; }
-.rk-player { background: var(--panel); border-radius: 10px; padding: .45em .6em; border-left: .5em solid var(--c); }
-.rk-player.current { outline: 3px solid var(--gold); }
-.rk-player.out { opacity: .45; text-decoration: line-through; }
-.rk-player.neutral { background: var(--panel-2); }
-.rk-pname { font-weight: 800; display: flex; gap: .3em; align-items: center; }
-.rk-pstats { font-size: .85em; color: var(--muted); font-weight: 600; }
-.rk-pconts { font-size: .75em; color: var(--green); font-weight: 700; }
-.rk-deck { color: #fff; font-size: .75em; opacity: .8; padding: 0 .3em; }
-.rk-log { flex: 1; min-height: 0; overflow: hidden; list-style: none; margin: 0; padding: .4em .5em; background: rgba(0, 0, 0, .25); border-radius: 10px; color: #f3ecdc; font-size: .78em; display: flex; flex-direction: column; gap: .3em; }
-.rk-log li:first-child { font-weight: 700; color: #fff; }
+.rk-territory .rk-disc { fill: #f6f4ef; stroke: var(--rk-line); stroke-width: 1.3px; vector-effect: non-scaling-stroke; }
+.rk-territory.active .rk-disc { stroke-width: 2.6px; }
+.rk-territory.attacking .rk-disc { stroke: #b3261e; stroke-width: 3px; }
+.rk-territory.defending .rk-disc { stroke: #1d1d1b; stroke-width: 3px; }
+.rk-armies { fill: #1a222c; font: 700 8.2px var(--font-body); font-variant-numeric: tabular-nums; pointer-events: none; }
+.rk-territory.wide .rk-armies { font-size: 6.6px; }
+.rk-attack-line { stroke: #b3261e; stroke-width: 2.5px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+/* ================= Risiko: Leiste unten ================= */
+.rk-bar { display: flex; gap: 1rem; align-items: stretch; font-size: clamp(12px, 1.55vh, 19px); min-height: 0; }
+.rk-players { flex: 1; display: flex; flex-wrap: wrap; gap: .4em .9em; align-content: flex-start; }
+.rk-player { display: flex; align-items: center; gap: .5em; padding: .25em .5em .25em .3em; border-radius: 6px; }
+.rk-player.current { background: rgba(255, 255, 255, .08); }
+.rk-player.out { opacity: .45; }
+.rk-swatch { width: .95em; height: 1.9em; border-radius: 3px; background: var(--c); flex: none; }
+.rk-pname { font-weight: 700; }
+.rk-player.current .rk-pname { text-decoration: underline; text-decoration-color: var(--c); text-decoration-thickness: .15em; text-underline-offset: .2em; }
+.rk-pstats { color: var(--rk-muted); font-size: .85em; font-variant-numeric: tabular-nums; }
+.rk-feed { width: clamp(260px, 30vw, 520px); display: flex; gap: .8em; min-width: 0; }
+.rk-battle { flex: none; display: grid; gap: .15em; align-content: start; font-size: .9em; }
+.rk-battle-row { display: flex; align-items: center; gap: .3em; }
+.rk-battle-row span:first-child { min-width: 7.5em; color: var(--rk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-die { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 3px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rk-die.att { background: #b3261e; color: #fff; }
+.rk-die.def { background: #e9ecef; color: #1a222c; }
+.rk-battle-foot { color: var(--rk-muted); font-size: .9em; }
+.rk-log { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; gap: .15em; align-content: start; color: var(--rk-muted); font-size: .85em; }
+.rk-log li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-log li:first-child { color: var(--rk-text); }
+
+/* Tablet (4:3): Die Karte nutzt die volle Breite, unten ist Platz für eine größere Leiste */
+@media (max-aspect-ratio: 3/2) {
+  .rk-bar { font-size: clamp(13px, 1.45vw, 20px); }
+  .rk-banner { font-size: clamp(15px, 1.8vw, 26px); }
+}

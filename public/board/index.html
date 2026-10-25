@@ -77,25 +77,27 @@
 
   <!-- ============ RISIKO ============ -->
   <section id="risiko" class="risiko hidden">
-    <div class="rk-map-wrap">
+    <header class="rk-top">
       <div id="rk-banner" class="rk-banner"></div>
-      <svg id="rk-map" class="rk-map" role="img" aria-label="Risiko-Weltkarte"></svg>
+      <div class="rk-room">Raum <b id="rk-code"></b></div>
+    </header>
+    <div class="rk-map-wrap">
+      <svg id="rk-map" class="rk-map" role="img" aria-label="Risiko-Weltkarte" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
-    <aside class="sidebar rk-side">
-      <div class="side-head">
-        <span class="brand">🗺️ Risiko</span>
-        <span>Raum <b id="rk-code"></b></span>
-      </div>
+    <footer class="rk-bar">
       <div id="rk-players" class="rk-players"></div>
-      <div id="rk-battle" class="rk-battle hidden"></div>
-      <ol id="rk-log" class="rk-log"></ol>
-    </aside>
+      <div class="rk-feed">
+        <div id="rk-battle" class="rk-battle hidden"></div>
+        <ol id="rk-log" class="rk-log"></ol>
+      </div>
+    </footer>
   </section>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/common.js"></script>
   <script src="/shared/racetrack.js"></script>
   <script src="/board/board.js"></script>
+  <script src="/risiko/map-paths.js"></script>
   <script src="/board/risiko.js"></script>
 </body>
 </html>

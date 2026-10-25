@@ -1,12 +1,31 @@
 'use strict';
 
 /* =========================================================
- *  Tablet: Risiko-Weltkarte als eigenes SVG (Daten aus server/games/risiko/map.js).
- *  Nur Anzeige – Besitz, Armeen und Würfel kommen vom Server.
+ *  Tablet/TV: Risiko-Weltkarte. Die Flächen kommen aus map-paths.js
+ *  (erzeugt aus Natural Earth von scripts/build-map.js), Gebiete und
+ *  Nachbarschaften aus map.js. Nur Anzeige – Besitz, Armeen und Würfel
+ *  kommen vom Server.
  * ========================================================= */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const RK_GREY = '#9e9e9e';
+
+/** Feste, ruhige Kartenfarbe je Spielerfarbe aus der Lobby. */
+const RK_TONES = {
+  '#e63946': '#c4605a',
+  '#1d72d8': '#5582b8',
+  '#2a9d8f': '#4f9a8d',
+  '#f4a261': '#d39a66',
+  '#8e44ad': '#8a6aa6',
+  '#e9c46a': '#cdb567',
+  '#ff6fb5': '#c9809f',
+  '#264653': '#58747c',
+  '#8ac926': '#8aad5b',
+  '#795548': '#977661',
+};
+const RK_NEUTRAL = '#b5b0a4';
+const RK_MARKER_R = 7.2;
+const RK_MARKER_MIN_PX = 11;     // Marker-Radius auf dem Bildschirm mindestens so groß (z. B. Tablet)
+
 let rkBuilt = false;
 let rkBattleSeq = 0;
 let rkBattleTimer = null;
@@ -18,68 +37,68 @@ function svgEl(tag, attrs = {}, parent = null) {
   return el;
 }
 
-/** Karte einmal aufbauen: Kontinentflächen, Grenzlinien, Gebiete. */
+/** Karte einmal aufbauen: Ozean, Land, Gebiete, Kontinentränder, Seewege, Marker. */
 function buildRisikoMap() {
-  const map = S.map;
+  const geo = window.RISIKO_MAP_PATHS;
   const svg = $('#rk-map');
-  svg.setAttribute('viewBox', `0 0 ${map.width} ${map.height}`);
+  svg.setAttribute('viewBox', `0 0 ${geo.width} ${geo.height}`);
   svg.innerHTML = '';
-  const pos = Object.fromEntries(map.territories.map((t) => [t.id, t]));
-  const colorOf = Object.fromEntries(map.continents.map((c) => [c.id, c.color]));
+  svgEl('rect', { class: 'rk-ocean', x: 0, y: 0, width: geo.width, height: geo.height }, svg);
+  svgEl('path', { class: 'rk-other-land', d: geo.otherLand }, svg);
 
-  // Kontinente als weiche Flächen aus überlappenden Kreisen
-  const lands = svgEl('g', { class: 'rk-lands' }, svg);
-  for (const t of map.territories) svgEl('circle', { cx: t.x, cy: t.y, r: 54, fill: colorOf[t.continent] }, lands);
-  const labels = svgEl('g', { class: 'rk-continent-labels' }, svg);
-  for (const c of map.continents) {
-    const label = svgEl('text', { x: c.label.x, y: c.label.y, 'text-anchor': 'middle' }, labels);
-    label.textContent = `${c.name} +${c.bonus}`;
+  const areas = svgEl('g', { class: 'rk-areas' }, svg);
+  for (const t of S.map.territories) {
+    svgEl('path', { class: 'rk-area', id: `rk-a-${t.id}`, 'data-territory': t.id, d: geo.territories[t.id].d }, areas);
   }
+  const continents = svgEl('g', { class: 'rk-continents' }, svg);
+  for (const d of Object.values(geo.continents)) svgEl('path', { d }, continents);
 
-  // Grenzen; Verbindungen über den Kartenrand (Alaska – Kamtschatka) laufen nach außen
-  const borders = svgEl('g', { class: 'rk-borders' }, svg);
-  const done = new Set();
-  for (const t of map.territories) {
-    for (const n of t.neighbors) {
-      const key = [t.id, n].sort().join('|');
-      if (done.has(key)) continue;
-      done.add(key);
-      const a = pos[t.id];
-      const b = pos[n];
-      if (Math.abs(a.x - b.x) > map.width / 2) {
-        const [left, right] = a.x < b.x ? [a, b] : [b, a];
-        svgEl('line', { x1: left.x, y1: left.y, x2: 0, y2: left.y, class: 'wrap' }, borders);
-        svgEl('line', { x1: right.x, y1: right.y, x2: map.width, y2: right.y, class: 'wrap' }, borders);
-      } else {
-        svgEl('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y }, borders);
-      }
-    }
+  const lanes = svgEl('g', { class: 'rk-lanes' }, svg);
+  for (const lane of geo.seaLanes) {
+    for (const [x1, y1, x2, y2] of lane.lines) svgEl('line', { x1, y1, x2, y2 }, lanes);
   }
 
   svgEl('line', { id: 'rk-attack-line', class: 'rk-attack-line hidden', x1: 0, y1: 0, x2: 0, y2: 0 }, svg);
 
-  const nodes = svgEl('g', { class: 'rk-nodes' }, svg);
-  for (const t of map.territories) {
-    const g = svgEl('g', { class: 'rk-territory', id: `rk-t-${t.id}`, 'data-territory': t.id, transform: `translate(${t.x} ${t.y})` }, nodes);
-    svgEl('circle', { class: 'rk-disc', r: 19 }, g);
-    const armies = svgEl('text', { class: 'rk-armies', 'text-anchor': 'middle', dy: '0.36em' }, g);
+  const markers = svgEl('g', { class: 'rk-markers' }, svg);
+  for (const t of S.map.territories) {
+    const [x, y] = geo.territories[t.id].marker;
+    const g = svgEl('g', { class: 'rk-territory', id: `rk-t-${t.id}`, 'data-territory': t.id, transform: `translate(${x} ${y})` }, markers);
+    svgEl('circle', { class: 'rk-disc', r: RK_MARKER_R }, g);
+    const armies = svgEl('text', { class: 'rk-armies', 'text-anchor': 'middle', dy: '0.35em' }, g);
     armies.textContent = '0';
-    const name = svgEl('text', { class: 'rk-name', 'text-anchor': 'middle', y: 33 }, g);
-    name.textContent = t.name;
-    const title = svgEl('title', {}, g);
-    title.textContent = t.name;
+    svgEl('title', {}, g).textContent = t.name;
   }
   rkBuilt = true;
 }
 
+/** Marker auf kleinen Bildschirmen vergrößern, damit die Zahlen lesbar bleiben. */
+function rkScaleMarkers() {
+  const geo = window.RISIKO_MAP_PATHS;
+  const svg = $('#rk-map');
+  if (!geo || !svg.clientWidth) return;
+  const k = Math.min(svg.clientWidth / geo.width, svg.clientHeight / geo.height);
+  const scale = Math.max(1, Math.min(1.8, RK_MARKER_MIN_PX / (RK_MARKER_R * k)));
+  if (scale === rkScaleMarkers.last) return;
+  rkScaleMarkers.last = scale;
+  for (const [id, t] of Object.entries(geo.territories)) {
+    const node = document.getElementById(`rk-t-${id}`);
+    if (node) node.setAttribute('transform', `translate(${t.marker[0]} ${t.marker[1]}) scale(${scale.toFixed(3)})`);
+  }
+}
+window.addEventListener('resize', () => { if (rkBuilt) rkScaleMarkers(); });
+
 const rkPlayer = (id) => S.game.players.find((p) => p.id === id);
-const rkName = (id) => (S.game.neutral && id === S.game.neutral.id ? 'Neutral' : escapeHtml(rkPlayer(id)?.name || '?'));
-const rkColor = (id) => (S.game.neutral && id === S.game.neutral.id ? S.game.neutral.color : (rkPlayer(id)?.color || RK_GREY));
+const rkIsNeutral = (id) => Boolean(S.game.neutral) && id === S.game.neutral.id;
+const rkName = (id) => (rkIsNeutral(id) ? 'Neutral' : escapeHtml(rkPlayer(id)?.name || '?'));
+const rkTone = (id) => (rkIsNeutral(id) ? RK_NEUTRAL : (RK_TONES[rkPlayer(id)?.color] || RK_NEUTRAL));
 const rkTerritoryName = (id) => escapeHtml(S.map.territories.find((t) => t.id === id)?.name || id);
+/** Ticker-Texte der Engine ohne Emojis – auf der Karte nur Text. */
+const rkPlain = (text) => String(text).replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, '').replace(/\s+/g, ' ').trim();
 
 function rkBannerHtml(g) {
   const cur = g.currentId ? rkPlayer(g.currentId) : null;
-  const who = cur ? `<b style="color:${cur.color}">${escapeHtml(cur.name)}</b>` : '';
+  const who = cur ? `<b style="--c:${rkTone(cur.id)}" class="rk-who">${escapeHtml(cur.name)}</b>` : '';
   let text;
   switch (g.phase) {
     case 'setup': {
@@ -88,40 +107,46 @@ function rkBannerHtml(g) {
       break;
     }
     case 'reinforce':
-      text = `${who} verstärkt – noch ${g.turn.reinforcements} ${g.turn.reinforcements === 1 ? 'Armee' : 'Armeen'}${cur.cards >= 5 ? ' · muss Karten tauschen' : ''}`;
+      text = `${who} verstärkt – noch ${g.turn.reinforcements} ${g.turn.reinforcements === 1 ? 'Armee' : 'Armeen'}${cur.cards >= 5 ? ', muss Karten tauschen' : ''}`;
       break;
     case 'attack': text = `${who} greift an`; break;
     case 'defend': {
       const pa = g.turn.pendingAttack;
-      text = `${who} greift ${rkTerritoryName(pa.to)} von ${rkTerritoryName(pa.from)} aus an – <b>${rkName(pa.defenderId)}</b> wählt die Würfel`;
+      text = `${who} greift ${rkTerritoryName(pa.to)} von ${rkTerritoryName(pa.from)} aus an – ${rkName(pa.defenderId)} wählt die Würfel`;
       break;
     }
     case 'occupy': text = `${who} rückt nach ${rkTerritoryName(g.turn.occupy.to)} nach`; break;
     case 'fortify': text = `${who} kann einmal verschieben`; break;
-    case 'gameover': text = g.winner ? `🏆 <b>${rkName(g.winner)}</b> erobert die Welt!` : 'Das Spiel ist vorbei.'; break;
+    case 'gameover': text = g.winner ? `${rkName(g.winner)} erobert die Welt` : 'Das Spiel ist vorbei.'; break;
     default: text = '';
   }
-  return `${text}${S.paused ? ' <span class="rk-paused">⏸ pausiert – Spieler getrennt</span>' : ''}`;
+  return `${text}${S.paused ? ' <span class="rk-paused">Pausiert – Spieler getrennt</span>' : ''}`;
 }
 
 function rkShowBattle(b) {
   const box = $('#rk-battle');
   const dice = (list, cls) => list.map((d) => `<span class="rk-die ${cls}">${d}</span>`).join('');
-  box.innerHTML = `<div class="rk-battle-head">${rkName(b.attackerId)} ⚔️ ${rkName(b.defenderId)}</div>
-    <div class="rk-battle-row"><span>${rkTerritoryName(b.from)}</span>${dice(b.attack, 'att')}</div>
+  box.innerHTML = `<div class="rk-battle-row"><span>${rkTerritoryName(b.from)}</span>${dice(b.attack, 'att')}</div>
     <div class="rk-battle-row"><span>${rkTerritoryName(b.to)}</span>${dice(b.defend, 'def')}</div>
-    <div class="rk-battle-foot">Verluste ${b.attackerLosses} : ${b.defenderLosses}${b.conquered ? ' · erobert!' : ''}</div>`;
+    <div class="rk-battle-foot">Verluste ${b.attackerLosses} : ${b.defenderLosses}${b.conquered ? ' – erobert' : ''}</div>`;
   box.classList.remove('hidden');
   clearTimeout(rkBattleTimer);
   rkBattleTimer = setTimeout(() => box.classList.add('hidden'), 6000);
 }
 
-/** Neutrale Gebiete nur zählen (Anzeige), der Server führt den Bestand. */
-function rkNeutralHtml(g) {
-  const own = Object.values(g.territories).filter((t) => t.owner === g.neutral.id);
-  const armies = own.reduce((sum, t) => sum + t.armies, 0);
-  return `<div class="rk-player neutral" style="--c:${g.neutral.color}"><div class="rk-pname">Neutral</div>
-    <div class="rk-pstats">🗺️ ${own.length} · ⚔️ ${armies}</div></div>`;
+function rkPlayersHtml(g) {
+  const row = (cls, tone, name, stats) => `<div class="rk-player ${cls}" style="--c:${tone}"><span class="rk-swatch"></span><div><div class="rk-pname">${name}</div><div class="rk-pstats">${stats}</div></div></div>`;
+  const list = g.players.map((p) => row(
+    `${p.id === g.currentId ? 'current' : ''} ${p.eliminated ? 'out' : ''}`,
+    rkTone(p.id),
+    escapeHtml(p.name),
+    p.eliminated ? 'ausgeschieden' : `${p.armies} Armeen · ${p.cards} Karten · ${p.territories} Gebiete`,
+  ));
+  if (g.neutral) {
+    const own = Object.values(g.territories).filter((t) => t.owner === g.neutral.id);
+    list.push(row('neutral', RK_NEUTRAL, 'Neutral', `${own.reduce((s, t) => s + t.armies, 0)} Armeen · ${own.length} Gebiete`));
+  }
+  return list.join('');
 }
 
 function renderRisiko() {
@@ -130,26 +155,30 @@ function renderRisiko() {
   $('#risiko').classList.remove('hidden');
   $('#rk-code').textContent = S.code;
   if (!rkBuilt) buildRisikoMap();
+  rkScaleMarkers();
   const g = S.game;
+  const geo = window.RISIKO_MAP_PATHS;
 
   for (const [id, t] of Object.entries(g.territories)) {
+    const area = document.getElementById(`rk-a-${id}`);
     const node = document.getElementById(`rk-t-${id}`);
-    if (!node) continue;
-    node.style.setProperty('--owner', rkColor(t.owner));
+    if (!area || !node) continue;
+    area.style.fill = rkTone(t.owner);
     node.dataset.owner = t.owner || '';
     const text = node.querySelector('.rk-armies');
     if (text.textContent !== String(t.armies)) text.textContent = String(t.armies);
     node.classList.toggle('active', Boolean(g.currentId) && t.owner === g.currentId);
+    node.classList.toggle('wide', t.armies >= 100);
   }
 
-  // Laufender Angriff: Pfeil zwischen den Gebieten
+  // Laufender Angriff oder Nachrücken: Linie zwischen den Markern
   const line = $('#rk-attack-line');
   const pa = g.turn && (g.turn.pendingAttack || g.turn.occupy);
   $$('.rk-territory.attacking, .rk-territory.defending').forEach((n) => n.classList.remove('attacking', 'defending'));
   if (pa) {
-    const a = S.map.territories.find((t) => t.id === pa.from);
-    const b = S.map.territories.find((t) => t.id === pa.to);
-    ['x1', 'y1', 'x2', 'y2'].forEach((k, i) => line.setAttribute(k, [a.x, a.y, b.x, b.y][i]));
+    const [x1, y1] = geo.territories[pa.from].marker;
+    const [x2, y2] = geo.territories[pa.to].marker;
+    Object.entries({ x1, y1, x2, y2 }).forEach(([k, v]) => line.setAttribute(k, v));
     line.classList.remove('hidden');
     document.getElementById(`rk-t-${pa.from}`).classList.add('attacking');
     document.getElementById(`rk-t-${pa.to}`).classList.add('defending');
@@ -163,12 +192,6 @@ function renderRisiko() {
   }
 
   patch($('#rk-banner'), rkBannerHtml(g));
-  patch($('#rk-players'), g.players.map((p) => `
-    <div class="rk-player ${p.id === g.currentId ? 'current' : ''} ${p.eliminated ? 'out' : ''}" style="--c:${p.color}">
-      <div class="rk-pname"><span class="fig">${p.figure || ''}</span>${escapeHtml(p.name)}</div>
-      <div class="rk-pstats">🗺️ ${p.territories} · ⚔️ ${p.armies} · 🃏 ${p.cards}</div>
-      ${p.continents.length ? `<div class="rk-pconts">${p.continents.map((c) => escapeHtml(S.map.continents.find((x) => x.id === c).name)).join(', ')}</div>` : ''}
-    </div>`).join('') + (g.neutral ? rkNeutralHtml(g) : '')
-    + `<div class="rk-deck">Kartenstapel: ${g.deckCount}${g.nextTradeValue ? ` · nächster Tausch: ${g.nextTradeValue} Armeen` : ''}</div>`);
-  patch($('#rk-log'), g.log.slice(-14).reverse().map((e) => `<li class="k-${e.kind}">${escapeHtml(e.text)}</li>`).join(''));
+  patch($('#rk-players'), rkPlayersHtml(g));
+  patch($('#rk-log'), g.log.slice(-3).reverse().map((e) => `<li>${escapeHtml(rkPlain(e.text))}</li>`).join(''));
 }

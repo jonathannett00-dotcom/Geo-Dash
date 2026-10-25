@@ -11,7 +11,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Gefängnis, Pasch, je 16 Ereignis- und Gemeinschaftskarten
   - Handel, Schulden und Pleite, Aufgeben, „Zug beenden“ durch den Spieler
 - **Minispiele** in Monopoly, ausgelöst durch die Würfelsumme: Pferderennen (7), Roulette (8, 12), Blackjack (2, 6). Gesetzt wird mit dem Monopoly-Konto.
-- **Risiko** (Branch `feature/risiko`): in der Lobby wählbar; Host-Ansicht mit eigener SVG-Karte (Besitzfarben, Armeezahlen, Angriffspfeil, Würfel), Handy-Controller zum Setzen, Kartentausch, Angreifen, Verteidigen, Nachrücken und Verschieben. Regel-Engine nach den klassischen Standardregeln unter `server/games/risiko/`, 2–6 Spieler.
+- **Risiko** (Branch `feature/risiko`): in der Lobby wählbar; Host-Ansicht mit realistischer Weltkarte (siehe unten), Handy-Controller zum Setzen, Kartentausch, Angreifen, Verteidigen, Nachrücken und Verschieben. Regel-Engine nach den klassischen Standardregeln unter `server/games/risiko/`, 2–6 Spieler.
   - Karte als Daten mit eigener schematischer Grafik: 42 Gebiete, 6 Kontinente, 83 Grenzen, Kontinentboni 5/2/5/3/7/2.
   - Aufbau: Gebiete werden zufällig verteilt (je 1 Armee), danach setzen alle gleichzeitig ihre restlichen Startarmeen (35/30/25/20; bei 2 Spielern je 40 plus neutrale Armee mit 40).
   - Verstärkung: Gebiete / 3 (mindestens 3) plus Kontinentboni.
@@ -19,6 +19,11 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Angriff mit bis zu 3 Würfeln. Der Verteidiger wählt auf seinem Handy 1 oder 2 Würfel (höchstens so viele wie Armeen im Gebiet), vorausgewählt ist die Höchstzahl; der Server würfelt erst danach. Gleichstand gewinnt der Verteidiger. Nachrücken mindestens mit so vielen Armeen wie Würfeln.
   - Einmal Verschieben pro Zug ins Nachbargebiet (Einstellung `verbunden`: über eigene Gebiete). Eine Karte pro Zug mit Eroberung.
   - Keine Missionen; 2010er-Variante und Hauptstadt-Modus folgen später.
+  - Weltkarte der Host-Ansicht: aus Natural Earth 1:50m (gemeinfrei) mit `scripts/build-map.js` erzeugt, Miller-Projektion, Naht im Pazifik bei 169,5° W.
+    - Länder werden zu den 42 Gebieten zusammengefasst; Kanada, USA, Russland und Australien sind entlang fester Längen- und Breitengrade geteilt. Die Schnitte sind so gewählt, dass nur Gebiete aneinandergrenzen, die laut `map.js` Nachbarn sind (59 Landgrenzen); die übrigen 24 Nachbarschaften sind gestrichelte Seewege.
+    - Dafür gehört der Süden Russlands am Amur (bis Wladiwostok) zum Gebiet Mongolei und die Zentralafrikanische Republik zu Nordafrika; Neuseeland, Pazifikinseln und andere kleine Gebiete außerhalb der 42 sind graues, unbespieltes Land.
+    - Gestaltung: flache Flächen, gleichmäßige dunkle Konturen (Kontinente und Küsten etwas stärker), runde Zahlen-Marker, ruhiges dunkles Blau als Ozean, Spielerliste unten. Feste, gedämpfte Kartenfarbe je Spielerfarbe aus der Lobby. Bildschirmfotos: `docs/screenshots/`.
+    - `x`/`y`/`label` in `map.js` gehören zur alten schematischen Karte und werden von der Host-Ansicht nicht mehr benutzt.
 - **Räume:**
   - 4-Buchstaben-Code mit QR-Beitritt
   - Wiederverbindung per Token; getrennte Spieler können ihren Platz zurückholen
@@ -29,7 +34,7 @@ Ziel: Aus dem Monopoly-Abend wird ein Spielcenter mit mehreren Spielen.
   - Vanilla-JS-Clients ohne Build-Schritt
   - Zustand im Arbeitsspeicher; mit `DATABASE_URL` zusätzlich in Postgres (Neon), siehe Betrieb
 - **Deployment:** `render.yaml` als Web Service im Free-Plan; Build mit `npm install --omit=dev`, Start mit `npm start`, Healthcheck `/healthz`.
-- **Tests:** `npm test` führt nur die Unit-Tests aus (104: Regeln von Monopoly, Risiko und Minispielen, Spiel-Schnittstelle, Spielauswahl, Neustart-Tests mit gespeicherten Räumen in Version 1 und 2, Wächter für die Testskripte). Lokal kommen dazu `npm run test:browser` (4 Playwright-Durchläufe: Monopoly mit 1 Host-Ansicht und 3 Handys, Lobby, alte Einzelversion, Risiko mit 2 Handys; braucht `CHROMIUM_PATH`) und `npm run test:db` (2 Datenbank-Tests, braucht `DATABASE_URL`). Fehlt die Umgebung, werden diese Tests mit Grund übersprungen. Zeitlimit 60 s pro Testdatei.
+- **Tests:** `npm test` führt nur die Unit-Tests aus (108: Regeln von Monopoly, Risiko und Minispielen, Spiel-Schnittstelle, Spielauswahl, Neustart-Tests mit gespeicherten Räumen in Version 1 und 2, Prüfung der erzeugten Weltkarte, Wächter für die Testskripte). Lokal kommen dazu `npm run test:browser` (4 Playwright-Durchläufe: Monopoly mit 1 Host-Ansicht und 3 Handys, Lobby, alte Einzelversion, Risiko mit 2 Handys; braucht `CHROMIUM_PATH`) und `npm run test:db` (2 Datenbank-Tests, braucht `DATABASE_URL`). Fehlt die Umgebung, werden diese Tests mit Grund übersprungen. Zeitlimit 60 s pro Testdatei.
 - **Aufräumarbeiten:** `package-lock.json` liegt im Repo. Die alte Pferderennen-Einzelversion liegt in `legacy/`.
 
 ## Entscheidungen

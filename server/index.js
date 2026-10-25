@@ -55,6 +55,8 @@ function createServer(options = {}) {
   app.get(['/board', '/board/'], sendPage('board/index.html'));
   app.get(['/play', '/play/'], sendPage('play/index.html'));
   app.use(express.static(PUBLIC_DIR, { index: false }));
+  // Realistische Risiko-Karte (erzeugt von scripts/build-map.js) als statische Daten für die Host-Ansicht
+  app.get('/risiko/map-paths.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'games', 'risiko', 'map-paths.js')));
 
   app.get('/healthz', (req, res) => res.json({ ok: true, rooms: rooms.size }));
 

@@ -85,7 +85,7 @@ test('Lobby: Spielauswahl wechselt Spiel und Einstellungen, nur vor dem Start', 
   const manager = new RoomManager({ testMode: true, seed: 'wahl', timeScale: 0.01 });
   const room = manager.create();
   assert.equal(room.gameType, 'monopoly');
-  assert.deepEqual(room.snapshot().games.map((g) => g.id), ['monopoly', 'risiko']);
+  assert.deepEqual(room.snapshot().games.map((g) => g.id), ['monopoly', 'risiko', 'poker']);
   room.setGameType('risiko');
   assert.equal(room.gameType, 'risiko');
   assert.deepEqual(room.settings, { cardValues: 'steigend', fortify: 'benachbart', animation: 'normal' });

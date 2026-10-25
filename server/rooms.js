@@ -6,7 +6,7 @@ const { GAMES, DEFAULT_GAME } = require('./games');
 const { TIMING, MINIGAMES } = require('./monopoly');
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-const MAX_PLAYERS = 10;
+const MAX_PLAYERS = 12;
 const MIN_PLAYERS = 2;
 const RECONNECT_GRACE_MS = 5 * 60 * 1000;
 const ROOM_IDLE_MS = 6 * 60 * 60 * 1000;
@@ -55,6 +55,9 @@ class Room {
 
   get minPlayers() { return this.module.minPlayers; }
 
+  /** Spielerfarben der Lobby: eigene Palette des Spiels (Poker: 12) oder die gemeinsame. */
+  get colors() { return this.module.colors || COLORS; }
+
   touch() { this.lastActivity = Date.now(); }
 
   /** Ist gerade eine Host-Ansicht verbunden? */
@@ -77,12 +80,13 @@ class Room {
     if (!name) fail('Bitte gib einen Namen ein.');
     if (name.length > 16) fail('Der Name darf höchstens 16 Zeichen lang sein.');
     if (this.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) fail(`Der Name „${name}“ ist schon vergeben.`);
-    if (!COLORS.includes(color)) fail('Bitte wähle eine Farbe.');
-    // Die Spielfigur wählt man nur bei Monopoly; sonst bekommt man die erste freie (falls später Monopoly gewählt wird)
-    if (!figure && this.gameType !== 'monopoly') figure = FIGURES.find((f) => !this.players.some((p) => p.figure === f));
-    if (!FIGURES.includes(figure)) fail('Bitte wähle eine Spielfigur.');
+    if (!this.colors.includes(color)) fail('Bitte wähle eine Farbe.');
+    // Die Spielfigur wählt man nur bei Monopoly; sonst bekommt man die erste freie (falls später Monopoly gewählt wird).
+    // Bei mehr als 10 Spielern (Poker) bleibt sie leer.
+    if (!figure && this.gameType !== 'monopoly') figure = this.freeFigure();
+    if (figure !== null && !FIGURES.includes(figure)) fail('Bitte wähle eine Spielfigur.');
     if (this.players.some((p) => p.color === color)) fail('Diese Farbe ist schon vergeben.');
-    if (this.players.some((p) => p.figure === figure)) fail('Diese Spielfigur ist schon vergeben.');
+    if (figure !== null && this.players.some((p) => p.figure === figure)) fail('Diese Spielfigur ist schon vergeben.');
 
     const player = {
       id: `p${crypto.randomBytes(4).toString('hex')}`,
@@ -98,6 +102,24 @@ class Room {
     return player;
   }
 
+  freeFigure() { return FIGURES.find((f) => !this.players.some((p) => p.figure === f)) || null; }
+
+  /**
+   * Nach einem Spielwechsel: Farben in die Palette des neuen Spiels übertragen (gleiche Stelle,
+   * sonst die erste freie) und bei Monopoly fehlende Spielfiguren ergänzen.
+   */
+  adoptPalette(oldColors) {
+    const palette = this.colors;
+    const taken = new Set();
+    for (const p of this.players) {
+      if (palette.includes(p.color) && !taken.has(p.color)) { taken.add(p.color); continue; }
+      const same = palette[oldColors.indexOf(p.color)];
+      p.color = same && !taken.has(same) && !this.players.some((q) => q !== p && q.color === same) ? same : palette.find((c) => !taken.has(c) && !this.players.some((q) => q !== p && q.color === c));
+      taken.add(p.color);
+    }
+    if (this.gameType === 'monopoly') for (const p of this.players) if (!p.figure) p.figure = this.freeFigure();
+  }
+
   resume(token) {
     const player = this.players.find((p) => p.token === token);
     if (!player) fail('Deine Sitzung ist abgelaufen. Bitte tritt neu bei.');
@@ -111,9 +133,11 @@ class Room {
     if (!mod) fail('Dieses Spiel gibt es nicht.');
     if (this.players.length > mod.maxPlayers) fail(`${mod.name} ist für höchstens ${mod.maxPlayers} Spieler – im Raum sind schon ${this.players.length}.`);
     if (gameType === this.gameType) return;
+    const oldColors = this.colors;
     this.gameType = gameType;
     this.module = mod;
     this.settings = mod.defaultSettings();
+    this.adoptPalette(oldColors);
   }
 
   updateSettings(patch) {
@@ -280,7 +304,7 @@ class Room {
       settings: this.settings,
       minPlayers: this.minPlayers,
       maxPlayers: this.maxPlayers,
-      colors: COLORS,
+      colors: this.colors,
       figures: FIGURES,
       lobby: this.players.map((p) => ({ id: p.id, name: p.name, color: p.color, figure: p.figure, connected: p.connected })),
       paused: this.isPaused(),
@@ -579,7 +603,7 @@ class RoomManager {
     handle('room:info', ({ code }) => {
       const room = this.requireRoom(code);
       const snap = room.snapshot();
-      return { started: snap.started, gameType: room.gameType, lobby: snap.lobby, colors: COLORS, figures: FIGURES, max: room.maxPlayers, full: snap.lobby.length >= room.maxPlayers };
+      return { started: snap.started, gameType: room.gameType, lobby: snap.lobby, colors: room.colors, figures: FIGURES, max: room.maxPlayers, full: snap.lobby.length >= room.maxPlayers };
     });
 
     handle('player:join', ({ code, name, color, figure }, use) => {

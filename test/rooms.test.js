@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { RoomManager, COLORS, FIGURES, MAX_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS } = require('../server/rooms');
+const { RoomManager, COLORS, FIGURES, RECONNECT_GRACE_MS, ROOM_IDLE_MS } = require('../server/rooms');
 
 function setup() {
   const manager = new RoomManager({ testMode: true, seed: 'rooms', timeScale: 0.01 });
@@ -43,7 +43,7 @@ test('maximal 10 Spieler, Start erst ab 2 Spielern', () => {
   const { manager, room } = setup();
   join(room, 0);
   assert.throws(() => room.start(), /mindestens 2/);
-  for (let i = 1; i < MAX_PLAYERS; i++) join(room, i);
+  for (let i = 1; i < room.maxPlayers; i++) join(room, i);
   assert.equal(room.players.length, 10);
   assert.throws(() => room.join({ name: 'Elf', color: COLORS[0], figure: FIGURES[0] }), /voll/);
   room.start();

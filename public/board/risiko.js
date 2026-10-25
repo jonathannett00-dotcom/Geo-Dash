@@ -273,7 +273,6 @@ function renderRisiko() {
   $('#game').classList.add('hidden');
   $('#risiko').classList.remove('hidden');
   $('#rk-code').textContent = S.code;
-  RkAudio.init();
   $('#risiko').classList.toggle('anim-off', S.settings.animation === 'aus');
   const g = S.game;
   rkSetBanner(rkBannerHtml(S.status));
@@ -383,7 +382,8 @@ function rkSchedule(e) {
   // Ton zum passenden Zeitpunkt (Würfel erst, wenn der Pfeil steht und die Würfel rollen)
   const sound = RK_SOUNDS[e.type] && RK_SOUNDS[e.type](e);
   const soundAt = e.type === 'battle' ? (e.steps ? (e.steps.wait + e.steps.arrow) * (dur / (e.dur || 1)) : dur * 0.24) : 0;
-  if (sound) setTimeout(() => RkAudio.play(sound), delay + soundAt);
+  const soundArg = e.type === 'battle' && e.steps ? e.steps.roll * (dur / (e.dur || 1)) : undefined;
+  if (sound) setTimeout(() => RkAudio.play(sound, soundArg), delay + soundAt);
   // Danach den echten Stand übernehmen (falls keine weitere Animation das Gebiet hält)
   setTimeout(() => {
     if (e.type === 'battle') rkBattleRunning--;

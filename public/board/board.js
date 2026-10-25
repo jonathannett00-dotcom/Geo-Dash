@@ -108,6 +108,8 @@ $('#start-money').addEventListener('change', (e) => {
 });
 
 $('#btn-start').addEventListener('click', () => {
+  // Ton für das Spiel freischalten (Browser erlauben ihn erst nach einer Bedienung)
+  if (typeof RkAudio !== 'undefined') RkAudio.unlock();
   socket.emit('board:start', {}, (res) => { if (!res.ok) toast(res.error, 'error'); });
 });
 

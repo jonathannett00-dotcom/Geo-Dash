@@ -61,6 +61,8 @@ class Room {
     if (name.length > 16) fail('Der Name darf höchstens 16 Zeichen lang sein.');
     if (this.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) fail(`Der Name „${name}“ ist schon vergeben.`);
     if (!COLORS.includes(color)) fail('Bitte wähle eine Farbe.');
+    // Die Spielfigur wählt man nur bei Monopoly; sonst bekommt man die erste freie (falls später Monopoly gewählt wird)
+    if (!figure && this.gameType !== 'monopoly') figure = FIGURES.find((f) => !this.players.some((p) => p.figure === f));
     if (!FIGURES.includes(figure)) fail('Bitte wähle eine Spielfigur.');
     if (this.players.some((p) => p.color === color)) fail('Diese Farbe ist schon vergeben.');
     if (this.players.some((p) => p.figure === figure)) fail('Diese Spielfigur ist schon vergeben.');
@@ -514,7 +516,7 @@ class RoomManager {
     handle('room:info', ({ code }) => {
       const room = this.requireRoom(code);
       const snap = room.snapshot();
-      return { started: snap.started, gameType: room.gameType, lobby: snap.lobby, colors: COLORS, figures: FIGURES, full: snap.lobby.length >= room.maxPlayers };
+      return { started: snap.started, gameType: room.gameType, lobby: snap.lobby, colors: COLORS, figures: FIGURES, max: room.maxPlayers, full: snap.lobby.length >= room.maxPlayers };
     });
 
     handle('player:join', ({ code, name, color, figure }, use) => {

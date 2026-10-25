@@ -45,8 +45,13 @@ async function openPage(browser, url, { viewport, label, errors, isMobile = fals
 async function joinRoom(page, name) {
   await page.waitForSelector('#join:not(.hidden)');
   await page.fill('#join-name', name);
-  await page.waitForSelector('#join-figures button:not([disabled])');
-  await page.click('#join-figures button:not([disabled])');
+  // Erst wenn der Raum bekannt ist, steht fest, ob eine Spielfigur gewählt wird (nur Monopoly)
+  await page.waitForSelector('#join-form[data-game]:not([data-game=""])', { state: 'attached' });
+  if (await page.isVisible('#join-figure-set')) {
+    await page.waitForSelector('#join-figures button:not([disabled])');
+    await page.click('#join-figures button:not([disabled])');
+  }
+  await page.waitForSelector('#join-colors button:not([disabled])');
   await page.click('#join-colors button:not([disabled])');
   await page.click('#btn-join');
   await page.waitForSelector('#app:not(.hidden)');

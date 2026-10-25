@@ -3,49 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Monopoly-Abend – Spielfeld</title>
+  <title>Spieleabend – Host</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/shared/base.css" />
   <link rel="stylesheet" href="/shared/racetrack.css" />
   <link rel="stylesheet" href="/board/board.css" />
   <link rel="stylesheet" href="/board/risiko.css" />
+  <link rel="stylesheet" href="/shared/lobby.css" />
 </head>
 <body class="board-page">
   <!-- ============ LOBBY ============ -->
-  <section id="lobby" class="lobby hidden">
-    <div class="lobby-card">
-      <h1>🎲 Monopoly-Abend</h1>
-      <p class="sub">Scannt den Code mit dem Handy, um mitzuspielen.</p>
-      <div class="lobby-grid">
-        <div class="join">
-          <img id="qr" class="qr" alt="QR-Code zum Beitreten" width="220" height="220" />
-          <div class="code-label">Raum-Code</div>
-          <div id="room-code" class="room-code">····</div>
-          <div id="join-url" class="join-url"></div>
+  <section id="lobby" class="lobby lb-theme hidden">
+    <div id="lb-bg" class="lb-bg" aria-hidden="true"></div>
+    <header class="lb-head">
+      <span class="lb-brand">Spieleabend</span>
+      <span id="lb-game-name" class="lb-head-game"></span>
+    </header>
+    <div class="lb-grid">
+      <section class="lb-join" aria-label="Beitreten">
+        <div class="lb-label">Raum-Code</div>
+        <div id="room-code" class="lb-code">····</div>
+        <div class="lb-qrrow">
+          <img id="qr" class="lb-qr" alt="QR-Code zum Beitreten" width="220" height="220" />
+          <div class="lb-howto">
+            <p>Mit der Handykamera scannen oder im Browser öffnen:</p>
+            <div id="join-url" class="lb-url"></div>
+          </div>
         </div>
-        <div class="lobby-side">
-          <h2>Spieler <span id="lobby-count" class="count"></span></h2>
-          <ul id="lobby-players" class="lobby-players"></ul>
-          <div class="game-choice" id="game-choice" role="group" aria-label="Spiel auswählen"></div>
-          <div id="settings-monopoly">
-            <label class="start-money">Startbetrag für alle
+        <div class="lb-players-head">
+          <h2>Spieler</h2>
+          <span id="lobby-count" class="lb-count"></span>
+        </div>
+        <ul id="lobby-players" class="lb-players"></ul>
+      </section>
+
+      <section class="lb-setup" aria-label="Spiel einrichten">
+        <h2 class="lb-label">Spiel wählen</h2>
+        <div id="game-choice" class="lb-games" role="group" aria-label="Spiel auswählen"></div>
+        <div class="lb-settings">
+          <h3 id="lb-settings-title">Einstellungen</h3>
+          <div id="settings-monopoly" class="lb-fields">
+            <label class="lb-field start-money"><span>Startbetrag für alle</span>
               <span class="money-input"><input id="start-money" type="number" min="100" max="100000" step="50" value="1500" /><b>M</b></span>
             </label>
           </div>
-          <div id="settings-risiko" class="risiko-settings hidden">
-            <label>Kartentausch
+          <div id="settings-risiko" class="lb-fields risiko-settings hidden">
+            <label class="lb-field"><span>Kartentausch</span>
               <select id="risiko-cardValues">
                 <option value="steigend">steigend (4, 6, 8, 10, 12, 15, …)</option>
                 <option value="fest">fest (4 / 6 / 8 / 10)</option>
               </select>
             </label>
-            <label>Verschieben
+            <label class="lb-field"><span>Verschieben</span>
               <select id="risiko-fortify">
                 <option value="benachbart">ins Nachbargebiet</option>
                 <option value="verbunden">über eigene Gebiete</option>
               </select>
             </label>
-            <label>Animationen
+            <label class="lb-field"><span>Animationen</span>
               <select id="risiko-animation">
                 <option value="normal">normal</option>
                 <option value="kurz">kurz</option>
@@ -53,10 +68,12 @@
               </select>
             </label>
           </div>
-          <button id="btn-start" class="btn primary big" disabled>Spiel starten</button>
-          <p id="lobby-hint" class="hint"></p>
         </div>
-      </div>
+        <div class="lb-startrow">
+          <button id="btn-start" class="lb-start" disabled>Spiel starten</button>
+          <p id="lobby-hint" class="lb-hint" aria-live="polite"></p>
+        </div>
+      </section>
     </div>
   </section>
 
@@ -103,6 +120,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/common.js"></script>
   <script src="/shared/racetrack.js"></script>
+  <script src="/shared/lobby.js"></script>
   <script src="/board/board.js"></script>
   <script src="/risiko/map-paths.js"></script>
   <script src="/shared/risiko-farben.js"></script>

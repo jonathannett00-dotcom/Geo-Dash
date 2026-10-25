@@ -1,11 +1,3 @@
-/* ================= Lobby: Spielauswahl ================= */
-.game-choice { display: flex; gap: .5rem; flex-wrap: wrap; margin: 0 0 1rem; }
-.game-choice .btn { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.2; border-radius: 12px; }
-.game-choice .btn small { font-weight: 600; font-size: .75rem; opacity: .75; }
-.game-choice .btn.ghost { color: var(--ink); border-color: var(--line); }
-.risiko-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin-bottom: 1rem; }
-.risiko-settings label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; color: var(--muted); font-size: .85rem; }
-
 /* ================= Risiko: Karte =================
  * Randloser Ozean im ganzen Fenster, die Karte ist eingepasst. Banner und
  * Flächen liegen halbtransparent im Ozean, im gleichen Raster (--gap) und

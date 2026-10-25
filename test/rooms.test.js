@@ -146,3 +146,14 @@ test('Wiedereinstieg ohne Token: nur getrennte Spieler können übernommen werde
   assert.throws(() => room.reclaim('gibtsnicht'), /gibt es nicht/);
   manager.shutdown();
 });
+
+test('Beitritt: Spielfigur nur bei Monopoly Pflicht, sonst wird die erste freie vergeben', () => {
+  const { manager, room } = setup();
+  assert.throws(() => room.join({ name: 'Anna', color: COLORS[0] }), /Spielfigur/);
+  room.setGameType('risiko');
+  const a = room.join({ name: 'Anna', color: COLORS[0] });
+  const b = room.join({ name: 'Ben', color: COLORS[1] });
+  assert.equal(a.figure, FIGURES[0]);
+  assert.equal(b.figure, FIGURES[1]);
+  manager.shutdown();
+});

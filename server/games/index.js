@@ -28,9 +28,12 @@
  * ========================================================= */
 
 const monopoly = require('../monopoly');
+const risiko = require('./risiko');
 
+/* Risiko hat noch keine Oberfläche; Räume dafür entstehen nur per manager.create('risiko'). */
 const GAMES = {
   [monopoly.id]: monopoly,
+  [risiko.id]: risiko,
 };
 
 const DEFAULT_GAME = monopoly.id;

@@ -13,6 +13,7 @@ Spielcenter für den Spieleabend: Ein großer Bildschirm (Tablet oder TV) zeigt 
   - `server/rooms.js`: Räume, Beitritt, Wiederverbindung, Timer; spielunabhängig
   - `server/games/index.js`: gemeinsame Spiel-Schnittstelle (`createGame`, `handleAction`, `view`, `tick`, `isOver` …) und Liste der Spielmodule
   - `server/monopoly/`: Regel-Engine, Spieldaten und Spielmodul (`index.js`)
+  - `server/games/risiko/`: Risiko-Regel-Engine, Karte als Daten (`map.js`) und Spielmodul; noch ohne Oberfläche
   - `server/games/*.js`: Minispiele mit `wallet`-Interface
   - `server/db.js`: Postgres-Speicher (Neon). Mit `DATABASE_URL` wird jeder Raum nach Änderungen als JSONB gespeichert und beim Start wieder geladen; ohne `DATABASE_URL` liegt alles nur im Arbeitsspeicher. Während eines Minispiels wird nicht gespeichert.
 

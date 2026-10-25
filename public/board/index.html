@@ -49,6 +49,38 @@
               <span class="money-input"><input id="start-money" type="number" min="100" max="100000" step="50" value="1500" /><b>M</b></span>
             </label>
           </div>
+          <div id="settings-poker" class="lb-fields two-col poker-settings hidden">
+            <label class="lb-field"><span>Startguthaben</span>
+              <span class="money-input"><input id="poker-startMoney" inputmode="decimal" autocomplete="off" value="20,00" /><b>€</b></span>
+            </label>
+            <label class="lb-field"><span>Nachkaufen</span>
+              <select id="poker-rebuy">
+                <option value="an">an</option>
+                <option value="aus">aus</option>
+              </select>
+            </label>
+            <label class="lb-field"><span>Small Blind</span>
+              <span class="money-input"><input id="poker-smallBlind" inputmode="decimal" autocomplete="off" value="0,10" /><b>€</b></span>
+            </label>
+            <label class="lb-field"><span>Zugzeit</span>
+              <select id="poker-turnTime">
+                <option value="0">aus</option>
+                <option value="30">30 Sekunden</option>
+                <option value="60">60 Sekunden</option>
+              </select>
+            </label>
+            <label class="lb-field"><span>Big Blind</span>
+              <span class="money-input"><input id="poker-bigBlind" inputmode="decimal" autocomplete="off" value="0,20" /><b>€</b></span>
+            </label>
+            <label class="lb-field"><span>Animationen</span>
+              <select id="poker-animation">
+                <option value="normal">normal</option>
+                <option value="kurz">kurz</option>
+                <option value="aus">aus</option>
+              </select>
+            </label>
+            <p class="lb-note">Spielgeld in Euro, ohne Zahlungsfunktion. Beträge mit Komma oder Punkt, z. B. 12,50.</p>
+          </div>
           <div id="settings-risiko" class="lb-fields risiko-settings hidden">
             <label class="lb-field"><span>Kartentausch</span>
               <select id="risiko-cardValues">

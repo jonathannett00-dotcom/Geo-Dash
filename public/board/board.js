@@ -119,13 +119,12 @@ function renderGameChoice() {
   if (box.dataset.ids !== ids) {
     box.dataset.ids = ids;
     box.innerHTML = games.map((g, i) => {
-      const gi = LB_GAMES[g.id] || { name: g.name, desc: '' };
+      const gi = LB_GAMES[g.id] || { name: g.name };
       return `<button type="button" id="game-${g.id}" data-game="${g.id}" class="lb-game lb-in" style="--i: ${3 + i}" aria-pressed="false">
         <span class="lb-scene" aria-hidden="true"><canvas class="lb-canvas"></canvas></span>
         <span class="lb-game-state" aria-hidden="true">Gewählt</span>
         <span class="lb-game-card lb-glass">
           <span class="lb-game-name">${escapeHtml(gi.name)}</span>
-          <span class="lb-game-desc">${escapeHtml(gi.desc)}</span>
           <span class="lb-game-meta"></span>
         </span></button>`;
     }).join('');

@@ -2,11 +2,11 @@
 
 /* Gemeinsame Teile für Host-Lobby und Beitritt am Handy (Gestaltung wie die Startseite). */
 
-/** Kurzbeschreibung der Spiele für die Auswahlkarten (Spielerzahl kommt vom Server). */
+/** Name und Dauer der Spiele für die Auswahlkarten (Spielerzahl kommt vom Server). */
 const LB_GAMES = {
-  monopoly: { name: 'Monopoly', desc: 'Straßen kaufen, Häuser bauen, Miete kassieren. Dazu Pferderennen, Roulette und Blackjack.', time: '2–3 Stunden' },
-  risiko: { name: 'Risiko', desc: 'Die Welt in 42 Gebieten: verstärken, angreifen, verteidigen. Die Würfel fallen auf dem Fernseher.', time: '1–3 Stunden' },
-  poker: { name: 'Poker', desc: 'Texas Hold’em mit Blinds und Side-Pots. Die eigenen Karten liegen verdeckt auf dem Handy.', time: 'offen, ab 30 Minuten' },
+  monopoly: { name: 'Monopoly', time: '2–3 Stunden' },
+  risiko: { name: 'Risiko', time: '1–3 Stunden' },
+  poker: { name: 'Poker', time: 'offen, ab 30 Minuten' },
 };
 
 /** Namen der Lobby-Farben (Standardpalette und Poker-Palette). */

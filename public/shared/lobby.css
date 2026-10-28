@@ -140,7 +140,7 @@ body.st-lite .lb-glass { -webkit-backdrop-filter: none; backdrop-filter: none; b
 .lb-games { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2em; min-height: 0; }
 .lb-game {
   --mood: var(--lb-gold); --deep: #111;
-  position: relative; isolation: isolate; overflow: hidden; min-height: 0; min-width: 0; container-type: size;
+  position: relative; isolation: isolate; overflow: hidden; min-height: 0; min-width: 0;
   font: inherit; color: var(--lb-text); text-align: left; cursor: pointer; padding: .7em;
   border-radius: var(--lb-r-l); border: 1px solid rgba(255, 255, 255, .08); background: var(--deep);
   display: flex; flex-direction: column; justify-content: flex-end;
@@ -188,9 +188,6 @@ body.st-lite .lb-glass { -webkit-backdrop-filter: none; backdrop-filter: none; b
 .lb-game-card { position: relative; z-index: 1; display: flex; flex-direction: column; gap: .35em; padding: 1em 1.1em 1.05em; border-radius: var(--lb-r-m); }
 .lb-game-name { font-size: 1.55em; font-weight: 800; letter-spacing: -.025em; line-height: 1.15; }
 .lb-game-name::before { content: ""; display: block; width: 1.3em; height: 3px; border-radius: 2px; background: var(--mood); margin-bottom: .55em; }
-.lb-game-desc { color: var(--lb-muted); font-size: .85em; line-height: 1.4; }
-/* Flache Karten: Beschreibung weglassen, damit die Szene sichtbar bleibt */
-@container (max-height: 21em) { .lb-game-desc { display: none; } }
 .lb-game-meta { margin-top: .35em; padding-top: .55em; border-top: 1px solid var(--lb-line); font-size: .85em; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--lb-text); }
 
 /* ---------- Einstellungen ---------- */

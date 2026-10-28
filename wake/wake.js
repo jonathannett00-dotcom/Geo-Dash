@@ -92,26 +92,79 @@ $('#btn-new').addEventListener('click', () => {
 
 $('#join-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const input = $('#join-code');
-  const code = input.value.trim().toUpperCase();
+  const group = $('#join-code');
+  const code = codeValue();
   let error = '';
   if (!code) error = 'Bitte gib den Raumcode ein.';
   else if (!/^[A-Z]{4}$/.test(code)) error = 'Der Raumcode hat 4 Buchstaben.';
   $('#join-msg').textContent = error;
-  input.setAttribute('aria-invalid', error ? 'true' : 'false');
-  if (error) { input.focus(); return; }
-  input.value = code;
+  group.setAttribute('aria-invalid', error ? 'true' : 'false');
+  if (error) { cells[firstEmpty()].focus(); return; }
   markChosen('#btn-join');
   go(`${base}/play?room=${encodeURIComponent(code)}`, `Du wirst gleich weitergeleitet und trittst Raum ${code} bei …`);
 });
 
-// Wie der Server: nur Buchstaben, höchstens 4 (auch beim Einfügen mit Leerzeichen)
-$('#join-code').addEventListener('input', () => {
-  const input = $('#join-code');
-  const clean = input.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
-  if (clean !== input.value) input.value = clean;
+/* Raumcode in vier Feldern: wie der Server nur Buchstaben, automatisch weiter,
+ * Einfügen verteilt auf die Felder, Rücktaste im leeren Feld springt zurück. */
+const cells = [...document.querySelectorAll('#join-code .cell')];
+const onlyLetters = (text) => String(text || '').toUpperCase().replace(/[^A-Z]/g, '');
+const codeValue = () => cells.map((c) => c.value).join('');
+const firstEmpty = () => { const i = cells.findIndex((c) => !c.value); return i < 0 ? cells.length - 1 : i; };
+
+function clearError() {
   $('#join-msg').textContent = '';
   $('#join-code').removeAttribute('aria-invalid');
+}
+
+/** Buchstaben ab Feld `from` verteilen. */
+function fillFrom(from, letters) {
+  let i = from;
+  for (const ch of letters) {
+    if (i >= cells.length) break;
+    cells[i].dataset.before = ch;
+    cells[i++].value = ch;
+  }
+  cells[Math.min(i, cells.length - 1)].focus();
+}
+
+cells.forEach((cell, i) => {
+  cell.addEventListener('input', () => {
+    // Ein schon belegtes Feld: nur das Neue zählt (Feld ohne maxlength, damit Einfügen ankommt)
+    let letters = onlyLetters(cell.value);
+    const before = cell.dataset.before || '';
+    if (before && letters.length > 1 && letters.startsWith(before)) letters = letters.slice(before.length);
+    clearError();
+    cell.value = '';
+    if (letters.length >= cells.length) cells.forEach((c) => { c.value = ''; });
+    if (letters) fillFrom(letters.length >= cells.length ? 0 : i, letters);
+  });
+  cell.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !cell.value && i > 0) {
+      e.preventDefault();
+      cells[i - 1].value = '';
+      cells[i - 1].focus();
+      clearError();
+    } else if (e.key === 'ArrowLeft' && i > 0) {
+      e.preventDefault(); cells[i - 1].focus();
+    } else if (e.key === 'ArrowRight' && i < cells.length - 1) {
+      e.preventDefault(); cells[i + 1].focus();
+    } else if (e.key.length === 1 && /[a-z]/i.test(e.key) && cell.value && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      cell.value = e.key.toUpperCase();
+      clearError();
+      if (i < cells.length - 1) cells[i + 1].focus();
+    }
+  });
+  cell.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const letters = onlyLetters(e.clipboardData && e.clipboardData.getData('text'));
+    if (!letters) return;
+    clearError();
+    if (letters.length >= cells.length) cells.forEach((c) => { c.value = ''; });
+    fillFrom(letters.length >= cells.length ? 0 : i, letters);
+  });
+  cell.addEventListener('focus', () => { cell.dataset.before = cell.value; cell.select(); });
+  cell.addEventListener('keyup', () => { cell.dataset.before = cell.value; });
 });
 
 $('#btn-retry').addEventListener('click', () => wake());

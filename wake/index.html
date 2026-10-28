@@ -3,56 +3,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#14181d" />
+  <meta name="theme-color" content="#0b0e13" />
   <title>Spieleabend</title>
   <meta name="robots" content="noindex" />
-  <link rel="icon" href="data:," />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0e13'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='20' font-weight='800' text-anchor='middle' fill='%23e8e3d6'%3ES%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="wake.css" />
 </head>
 <body>
-  <!-- Flaches Raster wie der Hintergrund der Startseite (lbBackground in public/shared/lobby.js) -->
-  <div class="bg" aria-hidden="true">
-    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-      <path class="grid-line" d="M0 0V900M120 0V900M240 0V900M360 0V900M480 0V900M600 0V900M720 0V900M840 0V900M960 0V900M1080 0V900M1200 0V900M1320 0V900M1440 0V900M1560 0V900M0 0H1600M0 180H1600M0 360H1600M0 540H1600M0 720H1600M0 900H1600" />
-    </svg>
-  </div>
+  <!-- Ruhiges Standbild statt der animierten Hintergründe der Startseite -->
+  <div class="ambient" aria-hidden="true"></div>
 
-  <main class="wrap">
-    <header class="head">
-      <h1 class="title">Spieleabend</h1>
-      <p class="sub">Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly und Risiko – ohne Anmeldung.</p>
+  <main class="page">
+    <header class="hero">
+      <div class="intro">
+        <p class="eyebrow">Spielcenter für den Spieleabend</p>
+        <h1 class="mark">Spieleabend</h1>
+        <p class="lead">Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly, Risiko und Poker&nbsp;– ohne Anmeldung, ohne App.</p>
+        <div class="cta">
+          <button id="btn-new" class="btn btn-primary" type="button">Neues Spiel starten</button>
+          <a class="btn btn-ghost" href="#join-title">Spiel beitreten</a>
+        </div>
+        <p class="note">Neues Spiel: auf dem Fernseher, Laptop oder Tablet öffnen. Das Spiel wählt ihr danach in der Lobby.</p>
+
+        <div id="status" class="status glass" data-state="waking">
+          <div class="bar" role="progressbar" aria-label="Server startet" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="bar-fill" class="bar-fill"></div>
+          </div>
+          <p id="status-text" class="status-text" aria-live="polite">Der Server startet, das dauert bis zu einer Minute.</p>
+          <p id="pending" class="pending hidden"></p>
+          <button id="btn-retry" class="btn btn-ghost retry hidden" type="button">Erneut versuchen</button>
+        </div>
+      </div>
+
+      <section class="join glass" aria-labelledby="join-title">
+        <p class="kicker">Mit dem Handy</p>
+        <h2 id="join-title" class="join-title">Spiel beitreten</h2>
+        <p class="join-text">Gib den Raumcode vom großen Bildschirm ein.</p>
+        <form id="join-form" novalidate autocomplete="off">
+          <div class="code-label" id="code-label">Raumcode</div>
+          <div id="join-code" class="code" role="group" aria-labelledby="code-label" aria-describedby="join-msg">
+            <input class="cell" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Raumcode, Buchstabe 1 von 4" />
+            <input class="cell" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Raumcode, Buchstabe 2 von 4" />
+            <input class="cell" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Raumcode, Buchstabe 3 von 4" />
+            <input class="cell" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Raumcode, Buchstabe 4 von 4" />
+          </div>
+          <p id="join-msg" class="msg" role="alert"></p>
+          <button id="btn-join" class="btn btn-primary block" type="submit">Beitreten</button>
+        </form>
+      </section>
     </header>
 
-    <div class="actions">
-      <section class="card card-new" aria-labelledby="new-title">
-        <h2 id="new-title">Neues Spiel starten</h2>
-        <p>Für den Fernseher, Laptop oder das Tablet. Hier erscheinen Raumcode und QR-Code, das Spiel wählt ihr in der Lobby.</p>
-        <button id="btn-new" class="btn primary" type="button">Neues Spiel starten</button>
-      </section>
-
-      <section class="card card-join" aria-labelledby="join-title">
-        <h2 id="join-title">Spiel beitreten</h2>
-        <p>Mit dem Handy: den Raumcode vom großen Bildschirm eingeben.</p>
-        <form id="join-form" class="join-form" novalidate>
-          <label class="sr-only" for="join-code">Raumcode</label>
-          <input id="join-code" class="code" name="room" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
-                 spellcheck="false" placeholder="ABCD" aria-describedby="join-msg" />
-          <button id="btn-join" class="btn" type="submit">Beitreten</button>
-        </form>
-        <p id="join-msg" class="msg" role="alert"></p>
-      </section>
-    </div>
-
-    <div id="status" class="status" data-state="waking">
-      <div class="wait">
-        <div class="bar" role="progressbar" aria-label="Server startet" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div id="bar-fill" class="bar-fill"></div>
-        </div>
-        <p id="status-text" class="status-text" aria-live="polite">Der Server startet, das dauert bis zu einer Minute.</p>
-      </div>
-      <p id="pending" class="pending hidden"></p>
-      <button id="btn-retry" class="btn retry hidden" type="button">Erneut versuchen</button>
-    </div>
+    <ul class="games" aria-label="Spiele">
+      <li class="game" data-game="monopoly"><span class="game-name">Monopoly</span><span class="game-facts">2 bis 10 Spieler · 2 bis 3 Std.</span></li>
+      <li class="game" data-game="risiko"><span class="game-name">Risiko</span><span class="game-facts">2 bis 6 Spieler · 1 bis 3 Std.</span></li>
+      <li class="game" data-game="poker"><span class="game-name">Poker</span><span class="game-facts">2 bis 12 Spieler · offen</span></li>
+    </ul>
   </main>
   <script src="wake.js"></script>
 </body>

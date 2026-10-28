@@ -1,26 +1,69 @@
 /* =========================================================
- *  Poker: flache Spielkarten und Sitzmarken (Fernseher und Handy).
- *  Größe über --cw (Kartenbreite); alles andere skaliert mit.
+ *  Poker: Spielkarten, Chips und Sitzmarken (Fernseher und Handy).
+ *  Flach: klare Typografie, feine Linien, keine Schatten oder Effekte.
+ *  Größe über --cw (Kartenbreite); alles andere skaliert mit. 5:7.
  * ========================================================= */
 
 .pk-card {
-  --cw: 3rem;
+  --cw: 3rem; --ink: #1d1d1b;
   position: relative; display: inline-block; flex: none; width: var(--cw); height: calc(var(--cw) * 1.4);
-  border-radius: calc(var(--cw) * .1); background: #fbfaf6; color: #1d1d1b;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .14); font-family: var(--font-body); line-height: 1;
-  user-select: none; -webkit-user-select: none; vertical-align: middle;
+  border-radius: calc(var(--cw) * .085); background: #fbfaf6; color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .16); font-family: var(--font-body); line-height: 1;
+  user-select: none; -webkit-user-select: none; vertical-align: middle; overflow: hidden;
 }
-.pk-card .pk-r { position: absolute; left: 9%; top: 6%; font-size: calc(var(--cw) * .42); font-weight: 800; letter-spacing: -.04em; }
-.pk-card .pk-s { position: absolute; left: 10%; top: 38%; font-size: calc(var(--cw) * .3); }
-.pk-card .pk-big { position: absolute; right: 8%; bottom: 5%; font-size: calc(var(--cw) * .58); }
-.pk-card.s-s { color: #1d1d1b; }
-.pk-card.s-h { color: #c62828; }
-.pk-card.s-d { color: #1559b0; }
-.pk-card.s-c { color: #23793a; }
-.pk-card.back { background: #24496b; box-shadow: inset 0 0 0 calc(var(--cw) * .07) #fbfaf6, inset 0 0 0 calc(var(--cw) * .1) #24496b, inset 0 0 0 calc(var(--cw) * .12) rgba(255, 255, 255, .35); }
-.pk-card.slot { background: transparent; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .18); }
-.pk-card.dim { opacity: .38; }
-.pk-card.best { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .14), 0 0 0 calc(var(--cw) * .06) #f2c94c; }
+.pk-card.s-s { --ink: #1d1d1b; }
+.pk-card.s-h { --ink: #c0302e; }
+.pk-card.s-d { --ink: #1f5fae; }
+.pk-card.s-c { --ink: #26773d; }
+
+/* Ecken: Rang über Farbe, unten rechts um 180° gedreht */
+.pk-ix { position: absolute; display: grid; justify-items: center; width: calc(var(--cw) * .24); }
+.pk-ix b { font-size: calc(var(--cw) * .26); font-weight: 800; letter-spacing: -.04em; line-height: 1; }
+.pk-ix i { font-style: normal; font-size: calc(var(--cw) * .2); line-height: 1.05; }
+.pk-ix.tl { left: calc(var(--cw) * .05); top: calc(var(--cw) * .07); }
+.pk-ix.br { right: calc(var(--cw) * .05); bottom: calc(var(--cw) * .07); transform: rotate(180deg); }
+
+/* Mitte: großes Farbsymbol (Ass noch größer) */
+.pk-pip { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--cw) * .58); line-height: 1; }
+.pk-pip.ace { font-size: calc(var(--cw) * .78); }
+
+/* Bildkarten: feiner Rahmen, großer Buchstabe in Antiqua, Farbe darunter – ohne Figuren */
+.pk-face {
+  position: absolute; inset: calc(var(--cw) * .2) calc(var(--cw) * .25); display: grid; place-content: center; justify-items: center;
+  border: 1px solid currentColor; border-radius: calc(var(--cw) * .04); opacity: .95;
+  background: repeating-linear-gradient(0deg, transparent 0 calc(var(--cw) * .06), rgba(0, 0, 0, .035) calc(var(--cw) * .06) calc(var(--cw) * .065));
+}
+.pk-face b { font-family: Georgia, "Times New Roman", serif; font-weight: 700; font-size: calc(var(--cw) * .5); line-height: .95; }
+.pk-face i { font-style: normal; font-size: calc(var(--cw) * .22); line-height: 1; }
+
+/* Kleine Karten am Platz: nur obere Ecke und Mitte */
+.pk-card.mini .pk-ix.br { display: none; }
+.pk-card.mini .pk-ix b { font-size: calc(var(--cw) * .34); }
+.pk-card.mini .pk-ix i { font-size: calc(var(--cw) * .26); }
+.pk-card.mini .pk-ix { width: calc(var(--cw) * .32); }
+.pk-card.mini .pk-pip { padding: calc(var(--cw) * .32) 0 0 calc(var(--cw) * .3); font-size: calc(var(--cw) * .58); }
+.pk-card.mini .pk-face { inset: calc(var(--cw) * .5) calc(var(--cw) * .12) calc(var(--cw) * .1) calc(var(--cw) * .36); }
+.pk-card.mini .pk-face b { font-size: calc(var(--cw) * .42); }
+.pk-card.mini .pk-face i { display: none; }
+
+/* Rückseite: flaches Rautengitter in Marineblau mit hellem Rahmen */
+.pk-card.back { background: #fbfaf6; }
+.pk-back {
+  position: absolute; inset: calc(var(--cw) * .06); border-radius: calc(var(--cw) * .05);
+  background-color: #23466b;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(251, 250, 246, .2) 0 1px, transparent 1px calc(var(--cw) * .11)),
+    repeating-linear-gradient(-45deg, rgba(251, 250, 246, .2) 0 1px, transparent 1px calc(var(--cw) * .11));
+  box-shadow: inset 0 0 0 calc(var(--cw) * .035) #23466b, inset 0 0 0 calc(var(--cw) * .045) rgba(251, 250, 246, .55);
+}
+
+.pk-card.slot { background: transparent; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+.pk-card.dim { opacity: .42; }
+.pk-card.best { transform: translateY(calc(var(--cw) * -.1)); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .16), 0 0 0 2px #e2c46b; }
+
+/* Chips */
+.pk-chips { display: block; flex: none; overflow: visible; font-family: var(--font-body); }
+.pk-chip-top { display: block; width: 100%; height: 100%; }
 
 .pk-seat {
   display: inline-grid; place-items: center; flex: none; width: 1.7em; height: 1.7em; border-radius: 50%;

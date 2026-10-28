@@ -3,50 +3,126 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#14181d" />
+  <meta name="theme-color" content="#0b0e13" />
   <title>Spieleabend</title>
-  <meta name="description" content="Spieleabend: Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly und Risiko, ohne Anmeldung." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="/shared/base.css" />
-  <link rel="stylesheet" href="/shared/lobby.css" />
+  <meta name="description" content="Spieleabend: Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly, Risiko und Poker, ohne Anmeldung." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0e13'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='20' font-weight='800' text-anchor='middle' fill='%23e8e3d6'%3ES%3C/text%3E%3C/svg%3E" />
+  <script>document.documentElement.classList.add('js');</script>
   <link rel="stylesheet" href="/start/start.css" />
 </head>
-<body class="start-page lb-theme">
-  <div id="st-bg" class="lb-bg" aria-hidden="true"></div>
-  <main class="st-wrap">
-    <header class="st-head">
-      <h1 class="st-title">Spieleabend</h1>
-      <p class="st-sub">Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly und Risiko – ohne Anmeldung.</p>
-    </header>
+<body class="st">
+  <div class="st-ambient" aria-hidden="true">
+    <span class="st-light st-light-a"></span>
+    <span class="st-light st-light-b"></span>
+    <span class="st-light st-light-c"></span>
+  </div>
 
-    <div class="st-actions">
-      <section class="st-card st-new" aria-labelledby="st-new-title">
-        <h2 id="st-new-title">Neues Spiel starten</h2>
-        <p>Für den Fernseher, Laptop oder das Tablet. Hier erscheinen Raumcode und QR-Code, das Spiel wählt ihr in der Lobby.</p>
-        <button id="st-create" class="st-btn primary" type="button">Neues Spiel starten</button>
-      </section>
+  <main class="st-page">
+    <header class="st-hero">
+      <div class="st-intro">
+        <p class="st-eyebrow st-in" style="--i: 0">Spielcenter für den Spieleabend</p>
+        <h1 class="st-mark" id="st-mark">Spieleabend</h1>
+        <p class="st-lead st-in" style="--i: 2">Ein großer Bildschirm zeigt das Spiel, jeder spielt mit seinem Handy. Monopoly, Risiko und Poker&nbsp;– ohne Anmeldung, ohne App.</p>
+        <div class="st-cta st-in" style="--i: 3">
+          <button id="st-create" class="st-btn st-btn-primary" type="button"><span class="st-btn-label">Neues Spiel starten</span></button>
+          <a id="st-to-join" class="st-btn st-btn-ghost" href="#beitreten"><span class="st-btn-label">Spiel beitreten</span></a>
+        </div>
+        <p class="st-cta-note st-in" style="--i: 4">Neues Spiel: auf dem Fernseher, Laptop oder Tablet öffnen. Das Spiel wählt ihr danach in der Lobby.</p>
+        <p id="st-msg" class="st-msg" role="alert"></p>
+      </div>
 
-      <section class="st-card st-join" aria-labelledby="st-join-title">
-        <h2 id="st-join-title">Spiel beitreten</h2>
-        <p>Mit dem Handy: den Raumcode vom großen Bildschirm eingeben.</p>
-        <form id="st-join-form" class="st-join-form" autocomplete="off">
-          <label class="sr-only" for="st-code">Raumcode</label>
-          <input id="st-code" class="st-code" maxlength="4" inputmode="text" autocapitalize="characters" placeholder="ABCD" aria-label="Raumcode" />
-          <button id="st-join" class="st-btn" type="submit">Beitreten</button>
+      <section id="beitreten" class="st-join st-glass st-in" style="--i: 3" aria-labelledby="st-join-title">
+        <p class="st-kicker">Mit dem Handy</p>
+        <h2 id="st-join-title" class="st-join-title">Spiel beitreten</h2>
+        <p class="st-join-text">Gib den Raumcode vom großen Bildschirm ein.</p>
+        <form id="st-join-form" class="st-join-form" autocomplete="off" novalidate>
+          <div class="st-code-label" id="st-code-label">Raumcode</div>
+          <div id="st-code" class="st-code" role="group" aria-labelledby="st-code-label" aria-describedby="st-code-msg">
+            <input id="st-code-1" class="st-cell" maxlength="1" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Raumcode, Buchstabe 1 von 4" />
+            <input id="st-code-2" class="st-cell" maxlength="1" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Raumcode, Buchstabe 2 von 4" />
+            <input id="st-code-3" class="st-cell" maxlength="1" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Raumcode, Buchstabe 3 von 4" />
+            <input id="st-code-4" class="st-cell" maxlength="1" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Raumcode, Buchstabe 4 von 4" />
+          </div>
+          <p id="st-code-msg" class="st-field-msg" aria-live="polite"></p>
+          <button id="st-join" class="st-btn st-btn-primary st-btn-block" type="submit"><span class="st-btn-label">Beitreten</span></button>
         </form>
       </section>
-    </div>
+    </header>
 
-    <div id="st-status" class="st-status" aria-live="polite">
-      <p id="st-msg" class="st-msg"></p>
-      <div id="st-wait" class="st-wait hidden">
-        <span class="st-bar" aria-hidden="true"><span></span></span>
-        <span>Der Server startet, das dauert bis zu einer Minute.</span>
+    <section class="st-games" aria-labelledby="st-games-title">
+      <div class="st-section-head st-in" style="--i: 5">
+        <h2 id="st-games-title" class="st-section-title">Drei Spiele, ein Abend</h2>
+        <p class="st-section-text">Gewählt wird in der Lobby. Wechseln geht jederzeit vor dem Start.</p>
       </div>
-    </div>
+      <div class="st-grid">
+        <article class="st-game st-in" style="--i: 6" data-game="monopoly" tabindex="0" aria-labelledby="st-g-monopoly">
+          <div class="st-scene" aria-hidden="true"><canvas class="st-canvas"></canvas></div>
+          <div class="st-game-card st-glass">
+            <h3 id="st-g-monopoly" class="st-game-name">Monopoly</h3>
+            <p class="st-game-text">Straßen kaufen, Häuser bauen, Miete kassieren. Dazwischen Pferderennen, Roulette und Blackjack.</p>
+            <dl class="st-facts">
+              <div><dt>Spieler</dt><dd>2 bis 10</dd></div>
+              <div><dt>Dauer</dt><dd>2 bis 3 Std.</dd></div>
+            </dl>
+          </div>
+        </article>
+        <article class="st-game st-in" style="--i: 7" data-game="risiko" tabindex="0" aria-labelledby="st-g-risiko">
+          <div class="st-scene" aria-hidden="true"><canvas class="st-canvas"></canvas></div>
+          <div class="st-game-card st-glass">
+            <h3 id="st-g-risiko" class="st-game-name">Risiko</h3>
+            <p class="st-game-text">42 Gebiete auf einer echten Weltkarte. Verstärken, angreifen, Kontinente halten.</p>
+            <dl class="st-facts">
+              <div><dt>Spieler</dt><dd>2 bis 6</dd></div>
+              <div><dt>Dauer</dt><dd>1 bis 3 Std.</dd></div>
+            </dl>
+          </div>
+        </article>
+        <article class="st-game st-in" style="--i: 8" data-game="poker" tabindex="0" aria-labelledby="st-g-poker">
+          <div class="st-scene" aria-hidden="true"><canvas class="st-canvas"></canvas></div>
+          <div class="st-game-card st-glass">
+            <h3 id="st-g-poker" class="st-game-name">Poker</h3>
+            <p class="st-game-text">Texas Hold’em als Cash-Game. Die eigenen Karten sieht nur das eigene Handy.</p>
+            <dl class="st-facts">
+              <div><dt>Spieler</dt><dd>2 bis 12</dd></div>
+              <div><dt>Dauer</dt><dd>offen</dd></div>
+            </dl>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="st-steps" aria-labelledby="st-steps-title">
+      <h2 id="st-steps-title" class="st-section-title st-in" style="--i: 9">So geht’s</h2>
+      <ol class="st-step-list">
+        <li class="st-step st-in" style="--i: 10">
+          <span class="st-step-num" aria-hidden="true">01</span>
+          <span class="st-step-title">Fernseher öffnen</span>
+          <span class="st-step-text">„Neues Spiel starten“ auf dem großen Bildschirm. Dort erscheinen Raumcode und QR-Code.</span>
+        </li>
+        <li class="st-step st-in" style="--i: 11">
+          <span class="st-step-num" aria-hidden="true">02</span>
+          <span class="st-step-title">Handy: Code eingeben</span>
+          <span class="st-step-text">Jeder gibt die vier Buchstaben ein oder scannt den QR-Code, wählt Namen und Farbe.</span>
+        </li>
+        <li class="st-step st-in" style="--i: 12">
+          <span class="st-step-num" aria-hidden="true">03</span>
+          <span class="st-step-title">Spielen</span>
+          <span class="st-step-text">Gewürfelt, gemischt und gerechnet wird auf dem Server. Ihr spielt einfach.</span>
+        </li>
+      </ol>
+    </section>
+
+    <footer class="st-foot">Keine Anmeldung, keine App, keine Werbung.</footer>
   </main>
 
-  <script src="/shared/lobby.js"></script>
+  <div id="st-status" class="st-status" aria-live="polite">
+    <div id="st-wait" class="st-wait st-glass hidden">
+      <span class="st-pulse" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span class="st-wait-text">Der Server startet, das dauert bis zu einer Minute.</span>
+    </div>
+  </div>
+
   <script src="/start/start.js"></script>
+  <script src="/start/hintergrund.js" defer></script>
 </body>
 </html>

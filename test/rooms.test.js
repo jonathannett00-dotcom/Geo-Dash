@@ -28,12 +28,12 @@ test('Raumcode hat 4 Buchstaben und ist eindeutig', () => {
   manager.shutdown();
 });
 
-test('Beitritt: Name, Farbe und Figur sind Pflicht und eindeutig', () => {
+test('Beitritt: Name und Farbe sind Pflicht und eindeutig, Avatar muss gültig sein', () => {
   const { manager, room } = setup();
   join(room, 0, { name: 'Anna' });
   assert.throws(() => join(room, 1, { name: 'anna' }), /schon vergeben/);
   assert.throws(() => join(room, 1, { color: COLORS[0] }), /Farbe ist schon vergeben/);
-  assert.throws(() => join(room, 1, { figure: FIGURES[0] }), /Spielfigur ist schon vergeben/);
+  assert.throws(() => join(room, 1, { avatar: 'gibtsnicht' }), /Avatar/);
   assert.throws(() => join(room, 1, { name: '   ' }), /Namen/);
   assert.throws(() => join(room, 1, { color: '#000000' }), /Farbe/);
   manager.shutdown();
@@ -147,13 +147,15 @@ test('Wiedereinstieg ohne Token: nur getrennte Spieler können übernommen werde
   manager.shutdown();
 });
 
-test('Beitritt: Spielfigur nur bei Monopoly Pflicht, sonst wird die erste freie vergeben', () => {
+test('Beitritt: Avatar frei wählbar (auch doppelt), ohne Wahl Monogramm; keine Emoji-Figur mehr', () => {
   const { manager, room } = setup();
-  assert.throws(() => room.join({ name: 'Anna', color: COLORS[0] }), /Spielfigur/);
-  room.setGameType('risiko');
   const a = room.join({ name: 'Anna', color: COLORS[0] });
-  const b = room.join({ name: 'Ben', color: COLORS[1] });
-  assert.equal(a.figure, FIGURES[0]);
-  assert.equal(b.figure, FIGURES[1]);
+  assert.equal(a.avatar, 'monogramm');
+  const b = room.join({ name: 'Ben', color: COLORS[1], avatar: 'stern' });
+  const c = room.join({ name: 'Cem', color: COLORS[2], avatar: 'stern', figure: FIGURES[0] });
+  assert.equal(b.avatar, 'stern');
+  assert.equal(c.avatar, 'stern', 'gleicher Avatar in anderer Farbe ist erlaubt');
+  assert.equal(c.figure, undefined, 'neue Spieler bekommen keine Emoji-Figur');
+  assert.ok(room.snapshot().lobby.every((p) => !('figure' in p)));
   manager.shutdown();
 });

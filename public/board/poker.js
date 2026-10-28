@@ -34,11 +34,10 @@ function pkBuildTable(g) {
   const table = $('#pkt-table');
   table.innerHTML = `
     <div class="pkt-felt" id="pkt-felt"></div>
-    <div class="pkt-center" id="pkt-center">
-      <div class="pkt-board" id="pkt-board"></div>
-      <div class="pkt-pot" id="pkt-pot"></div>
-      <div class="pkt-msg" id="pkt-msg" aria-live="polite"></div>
-    </div>
+    <div class="pkt-zone pkt-ring" id="pkt-ring"><div class="pkt-board" id="pkt-board"></div></div>
+    <div class="pkt-zone pkt-blinds" id="pkt-blinds"></div>
+    <div class="pkt-zone pkt-potbox" id="pkt-potbox"><div class="pkt-pot" id="pkt-pot"></div></div>
+    <div class="pkt-zone pkt-name" id="pkt-name"><div class="pkt-msg" id="pkt-msg" aria-live="polite"></div></div>
     ${g.players.map((p) => `<div class="pkt-bet hidden" id="pkt-b-${p.id}"></div>`).join('')}
     <div class="pkt-dealer hidden" id="pkt-dealer" aria-label="Dealer">D</div>
     ${g.players.map((p) => `<div class="pkt-seat" id="pkt-s-${p.id}" style="--c:${p.color};--ink:${lbInkOn(p.color)}"></div>`).join('')}
@@ -46,9 +45,14 @@ function pkBuildTable(g) {
   $('#poker').classList.toggle('many', g.players.length >= 9);
 }
 
+/** Element genau auf ein Rechteck (Pixel) setzen. */
+function pkPlace(el, r) {
+  Object.assign(el.style, { left: `${r.x.toFixed(1)}px`, top: `${r.y.toFixed(1)}px`, width: `${r.w.toFixed(1)}px`, height: `${r.h.toFixed(1)}px` });
+}
+
 /**
- * Plätze gleichmäßig auf einer Ellipse: Platz 1 unten in der Mitte, dann im Uhrzeigersinn.
- * Die Größe richtet sich nach der Tischfläche; ab 9 Spielern kleinere Karten und Schrift.
+ * Plätze, Einsätze, Dealer-Button und Sperrzonen aus poker-layout.js. Plätze gleichmäßig auf einer
+ * Ellipse (Platz 1 unten, dann im Uhrzeigersinn); ab 9 Spielern kleinere Plätze und Karten.
  */
 function pkLayout(force = false) {
   const table = $('#pkt-table');
@@ -58,54 +62,34 @@ function pkLayout(force = false) {
   const key = `${W}x${H}:${n}`;
   if (!W || !H || (!force && key === pkLayoutKey)) return;
   pkLayoutKey = key;
-  const many = n >= 9;
-  const u = Math.max(9, Math.min(W / (many ? 66 : 58), H / (many ? 47 : 42)));
+  const L = pkComputeLayout(W, H, n);
+  const u = L.u;
   table.style.setProperty('--u', `${u.toFixed(2)}px`);
-  const seatW = u * (many ? 8.6 : 10);
-  const seatH = u * (many ? 6.4 : 7.4);
-  const cx = W / 2;
-  const cy = H / 2;
-  const rx = W / 2 - seatW / 2 - u * 0.4;
-  const ry = H / 2 - seatH / 2 - u * 0.4;
-  const felt = $('#pkt-felt');
-  Object.assign(felt.style, { left: `${cx - rx}px`, top: `${cy - ry}px`, width: `${2 * rx}px`, height: `${2 * ry}px` });
+  pkPlace($('#pkt-felt'), { x: L.cx - L.rx, y: L.cy - L.ry, w: 2 * L.rx, h: 2 * L.ry });
+  pkPlace($('#pkt-ring'), L.zones.ring);
+  pkPlace($('#pkt-blinds'), L.zones.blinds);
+  pkPlace($('#pkt-potbox'), L.zones.pot);
+  pkPlace($('#pkt-name'), L.zones.name);
   const pos = {};
   S.game.players.forEach((p, i) => {
-    const t = Math.PI / 2 + (i * 2 * Math.PI) / n;
-    const c = Math.cos(t);
-    const s = Math.sin(t);
-    const seat = { x: cx + rx * c, y: cy + ry * s };
-    // Einsatz vor dem Platz Richtung Mitte: Abstand so, dass er den Platz in jeder Richtung freilässt
-    const len = Math.hypot(cx - seat.x, cy - seat.y) || 1;
-    const ux = (cx - seat.x) / len;
-    const uy = (cy - seat.y) / len;
-    const dist = Math.abs(ux) * (seatW / 2 + u * 3.6) + Math.abs(uy) * (seatH / 2 + u * 1.3);
-    const bet = { x: seat.x + ux * dist, y: seat.y + uy * dist };
-    // Nicht in die Mitte (Karten und Pot) ragen: notfalls näher an den Platz
-    const half = { w: u * (many ? 10.6 : 12.2) + u * 3, h: u * 6.2 + u * 0.9 };
-    const minDist = Math.abs(ux) * (seatW / 2 + u * 2.9) + Math.abs(uy) * (seatH / 2 + u * 0.9);
-    let d2 = dist;
-    while (d2 > minDist && Math.abs(bet.x - cx) < half.w && Math.abs(bet.y - cy) < half.h) {
-      d2 -= u * 0.2;
-      bet.x = seat.x + ux * d2;
-      bet.y = seat.y + uy * d2;
-    }
-    // Dealer-Button neben dem Einsatz, quer zur Richtung zur Mitte (im Uhrzeigersinn)
-    const side = u * (Math.abs(uy) > 0.6 ? 4.6 : 2.2);
-    const dealer = { x: bet.x - uy * side, y: bet.y + ux * side };
-    pos[p.id] = { seat, bet, dealer };
+    const seat = L.seats[i];
+    const bet = L.bets[i];
     const el = document.getElementById(`pkt-s-${p.id}`);
-    el.style.left = `${seat.x}px`;
-    el.style.top = `${seat.y}px`;
-    el.style.setProperty('--dx', `${(cx - seat.x).toFixed(1)}px`);
-    el.style.setProperty('--dy', `${(cy - seat.y).toFixed(1)}px`);
+    pkPlace(el, seat);
+    el.style.setProperty('--dx', `${(L.cx - seat.cx).toFixed(1)}px`);
+    el.style.setProperty('--dy', `${(L.cy - seat.cy).toFixed(1)}px`);
+    // Einsatz: volle Größe, bei Platzmangel verkleinert (scale) – gemessen wird die sichtbare Größe
     const b = document.getElementById(`pkt-b-${p.id}`);
-    b.style.left = `${bet.x}px`;
-    b.style.top = `${bet.y}px`;
-    b.style.setProperty('--dx', `${(seat.x - bet.x).toFixed(1)}px`);
-    b.style.setProperty('--dy', `${(seat.y - bet.y).toFixed(1)}px`);
+    const fw = bet.w / bet.scale;
+    const fh = bet.h / bet.scale;
+    pkPlace(b, { x: bet.cx - fw / 2, y: bet.cy - fh / 2, w: fw, h: fh });
+    b.style.transform = bet.scale < 1 ? `scale(${bet.scale})` : '';
+    b.style.setProperty('--dx', `${(seat.cx - bet.cx).toFixed(1)}px`);
+    b.style.setProperty('--dy', `${(seat.cy - bet.cy).toFixed(1)}px`);
+    pos[p.id] = { seat: { x: seat.cx, y: seat.cy }, bet: { x: bet.cx, y: bet.cy }, dealer: L.dealers[i] };
   });
-  pkGeom = { cx, cy, pos, u };
+  const pot = L.zones.pot;
+  pkGeom = { ...L, pos, potAt: { x: pot.x + pot.w * 0.28, y: pot.y + pot.h / 2 } };
 }
 window.addEventListener('resize', () => { if (pkBuiltFor && S && S.gameType === 'poker' && S.game) { pkLayout(); renderPoker(); } });
 
@@ -204,7 +188,7 @@ function pkRenderTable(g, d) {
   const dealer = $('#pkt-dealer');
   const pos = g.buttonId && pkGeom && pkGeom.pos[g.buttonId];
   dealer.classList.toggle('hidden', !pos);
-  if (pos) { dealer.style.left = `${pos.dealer.x}px`; dealer.style.top = `${pos.dealer.y}px`; }
+  if (pos) pkPlace(dealer, pos.dealer);
   // Mitte: Gemeinschaftskarten, Pot, Gewinn
   const best = new Set(d.win && d.win.cards ? d.win.cards : []);
   const cards = d.board.map((c) => pkCardHtml(c, best.has(c) ? 'best' : best.size ? 'dim' : ''));
@@ -212,7 +196,8 @@ function pkRenderTable(g, d) {
   patch($('#pkt-board'), cards.join(''));
   const bets = Object.values(d.players).reduce((s, v) => s + Math.max(0, v.bet), 0);
   // Pot einschließlich der Einsätze dieser Setzrunde (die Chips liegen noch vor den Spielern)
-  patch($('#pkt-pot'), d.pot + bets > 0 ? `Pot <b>${pkEuro(d.pot + bets)}</b>` : '');
+  patch($('#pkt-pot'), `<span class="pkt-field-label">Pot</span><b>${pkEuro(d.pot + bets)}</b>`);
+  patch($('#pkt-blinds'), `<span class="pkt-field-label">Blinds</span><b>${pkEuroPlain(g.settings.smallBlind)} / ${pkEuro(g.settings.bigBlind)}</b>`);
   patch($('#pkt-msg'), pkWinText(g, d));
 }
 
@@ -277,7 +262,7 @@ function renderPoker() {
   const d = pkDisplay(g, now);
   pkRenderTable(g, d);
   patch($('#pkt-banner'), pkBannerHtml(g, d));
-  patch($('#pkt-meta'), `Blinds <b>${pkEuroPlain(g.settings.smallBlind)} / ${pkEuro(g.settings.bigBlind)}</b><span>Runde ${d.handNo}</span><span>Start ${pkEuro(g.settings.startMoney)}${g.settings.rebuy ? ', Nachkaufen an' : ''}</span>`);
+  patch($('#pkt-meta'), `<span>Runde <b>${d.handNo}</b></span><span>Start ${pkEuro(g.settings.startMoney)}${g.settings.rebuy ? ', Nachkaufen an' : ''}</span>`);
   patch($('#pkt-list'), pkSideHtml(g, d));
   patch($('#pkt-log'), g.log.slice(-4).reverse().map((e) => `<li>${escapeHtml(e.text)}</li>`).join(''));
   const finalBox = $('#pkt-final');
@@ -307,6 +292,26 @@ function pkRunEffects(now) {
   }
 }
 
+/** Ein Chip fliegt von a nach b – um Kartenring und Blinds-Feld herum (pkFlightPath). */
+function pkFly(from, to, duration, delay = 0) {
+  const pts = pkFlightPath(from, to, pkGeom);
+  const lengths = pts.map((p, i) => (i ? Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0));
+  const total = lengths.reduce((a, b) => a + b, 0) || 1;
+  let run = 0;
+  const frames = pts.map((p, i) => {
+    run += lengths[i];
+    return { transform: `translate(${(p.x - from.x).toFixed(1)}px, ${(p.y - from.y).toFixed(1)}px)`, offset: run / total };
+  });
+  const chip = document.createElement('i');
+  chip.className = 'pkt-chip flying';
+  const size = PK_CHIP * pkGeom.u;
+  pkPlace(chip, { x: from.x - size / 2, y: from.y - size / 2, w: size, h: size });
+  $('#pkt-fx').appendChild(chip);
+  const a = chip.animate(frames, { duration, delay, easing: 'ease-in-out', fill: 'both' });
+  a.onfinish = () => chip.remove();
+  return a;
+}
+
 function pkEffect(e) {
   const motion = pkMotion();
   const fx = $('#pkt-fx');
@@ -331,7 +336,8 @@ function pkEffect(e) {
       if (e.amount > 0) PkAudio.play('chips');
       if (!motion || !e.amount) return;
       const b = document.getElementById(`pkt-b-${e.playerId}`);
-      if (b) b.animate([{ transform: 'translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.6)', opacity: 0 }, { transform: 'translate(-50%, -50%)', opacity: 1 }], { duration: Math.min(500, e.dur * 0.8), easing: 'cubic-bezier(.2,.7,.3,1)' });
+      const at = geo && geo.pos[e.playerId];
+      if (b && at) b.animate([{ translate: `${at.seat.x - at.bet.x}px ${at.seat.y - at.bet.y}px`, opacity: 0 }, { translate: '0px 0px', opacity: 1 }], { duration: Math.min(500, e.dur * 0.8), easing: 'cubic-bezier(.2,.7,.3,1)' });
       return;
     }
     case 'collect':
@@ -339,20 +345,11 @@ function pkEffect(e) {
     case 'win': {
       if (e.type === 'win') PkAudio.play('win'); else PkAudio.play('chips');
       if (!motion || !geo) return;
-      const moves = e.type === 'collect' ? Object.keys(e.bets || {}).map((id) => [geo.pos[id].bet, { x: geo.cx, y: geo.cy + geo.u * 4.2 }])
+      const moves = e.type === 'collect' ? Object.keys(e.bets || {}).map((id) => [geo.pos[id].bet, geo.potAt])
         : e.type === 'return' ? [[geo.pos[e.playerId].bet, geo.pos[e.playerId].seat]]
-          : e.winners.map((w) => [{ x: geo.cx, y: geo.cy + geo.u * 4.2 }, geo.pos[w.id].seat]);
+          : e.winners.map((w) => [geo.potAt, geo.pos[w.id].seat]);
       const delay = e.type === 'win' ? e.dur * 0.35 : 0;
-      for (const [from, to] of moves) {
-        const chip = document.createElement('i');
-        chip.className = 'pkt-chip flying';
-        chip.style.left = `${from.x}px`;
-        chip.style.top = `${from.y}px`;
-        fx.appendChild(chip);
-        const a = chip.animate([{ transform: 'translate(-50%, -50%)', opacity: 1 }, { transform: `translate(calc(-50% + ${to.x - from.x}px), calc(-50% + ${to.y - from.y}px))`, opacity: 1 }, { transform: `translate(calc(-50% + ${to.x - from.x}px), calc(-50% + ${to.y - from.y}px))`, opacity: 0 }],
-          { duration: Math.max(300, e.dur * (e.type === 'win' ? 0.5 : 0.85)), delay, easing: 'ease-in-out', fill: 'both' });
-        a.onfinish = () => chip.remove();
-      }
+      for (const [from, to] of moves) pkFly(from, to, Math.max(300, e.dur * (e.type === 'win' ? 0.5 : 0.85)), delay);
       if (e.type === 'win' && motion) {
         for (const w of e.winners) {
           const seat = document.querySelector(`#pkt-s-${w.id} .pkt-plate`);

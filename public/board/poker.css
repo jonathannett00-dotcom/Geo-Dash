@@ -30,18 +30,21 @@
 /* ---------- Tisch ---------- */
 .pkt-table { grid-area: table; position: relative; min-height: 0; font-size: var(--u, 14px); }
 .pkt-felt { position: absolute; border-radius: 50%; background: var(--pk-felt); box-shadow: inset 0 0 0 1.1em var(--pk-rail); }
-.pkt-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: .55em; z-index: 1; }
-.pkt-board { display: flex; gap: .4em; perspective: 40em; }
+/* Sperrzonen in der Mitte: Plätze werden von poker-layout.js gesetzt (left/top/width/height) */
+.pkt-zone { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; }
+.pkt-ring { border-radius: .7em; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22); }
+.pkt-board { display: flex; gap: .45em; perspective: 40em; }
 .pkt-board .pk-card { --cw: 4.3em; }
-.pkt-pot { font-size: 1.35em; font-weight: 600; min-height: 1.3em; display: flex; align-items: baseline; gap: .45em; }
-.pkt-pot b { font-variant-numeric: tabular-nums; }
-.pkt-pot small { font-size: .62em; color: rgba(238, 243, 239, .75); }
-.pkt-msg { min-height: 2.6em; display: grid; justify-items: center; gap: .1em; text-align: center; max-width: 30em; }
+.pkt-blinds, .pkt-potbox { border-radius: .5em; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); flex-direction: column; gap: .1em; }
+.pkt-field-label { font-size: .72em; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(238, 243, 239, .7); }
+.pkt-blinds b, .pkt-pot b { font-variant-numeric: tabular-nums; font-size: 1.05em; }
+.pkt-pot { display: flex; flex-direction: column; align-items: center; gap: .1em; font-size: 1.15em; }
+.pkt-msg { display: grid; justify-items: center; gap: .1em; text-align: center; }
 .pkt-win { font-size: 1.15em; font-weight: 700; }
 .pkt-label { font-size: 1.15em; font-weight: 800; color: var(--pk-gold); }
 
 .pkt-seat {
-  position: absolute; transform: translate(-50%, -50%); width: 10em; display: grid; justify-items: center; z-index: 2;
+  position: absolute; display: grid; grid-template-rows: auto 1fr; justify-items: center; align-content: end; z-index: 2;
   transition: opacity .4s ease;
 }
 .pkt-cards { display: flex; justify-content: center; gap: .25em; height: 3.64em; margin-bottom: -.9em; position: relative; z-index: 1; perspective: 30em; }
@@ -49,7 +52,7 @@
 .pkt-cards .pk-card.deal { animation: pkDeal .42s cubic-bezier(.2, .7, .3, 1) both; animation-delay: var(--delay, 0ms); }
 @keyframes pkDeal { from { transform: translate(var(--dx), var(--dy)) scale(.5); opacity: 0; } 30% { opacity: 1; } to { transform: none; opacity: 1; } }
 .pkt-plate {
-  width: 100%; background: #0e261c; border-radius: .6em; padding: 1.05em .55em .4em; text-align: center;
+  width: 100%; background: #0e261c; border-radius: .6em; padding: 1em .55em .35em; text-align: center; line-height: 1.2;
   box-shadow: inset 0 .28em 0 var(--c), inset 0 0 0 1px rgba(255, 255, 255, .08); transition: box-shadow .3s ease, background-color .3s ease;
 }
 .pkt-name { display: flex; align-items: center; justify-content: center; gap: .35em; font-weight: 700; font-size: 1.02em; min-width: 0; }
@@ -66,26 +69,27 @@
 .pkt-seat.out { opacity: .35; }
 
 .pkt-bet {
-  position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: .35em; z-index: 1;
-  font-weight: 700; font-variant-numeric: tabular-nums; background: rgba(0, 0, 0, .28); border-radius: 999px; padding: .15em .6em .15em .2em; white-space: nowrap;
+  position: absolute; display: flex; align-items: center; justify-content: center; gap: .35em; z-index: 1; transform-origin: center;
+  font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .pkt-chip { display: inline-block; width: 1.1em; height: 1.1em; border-radius: 50%; background: #e8b923; box-shadow: inset 0 0 0 .2em #f6e7b0, inset 0 0 0 .32em #e8b923; flex: none; }
-.pkt-chip.flying { position: absolute; width: 1.3em; height: 1.3em; z-index: 4; pointer-events: none; }
+.pkt-chip.flying { position: absolute; z-index: 4; pointer-events: none; }
 .pkt-fx { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
 .pkt-dealer {
-  position: absolute; transform: translate(-50%, -50%); width: 1.8em; height: 1.8em; border-radius: 50%; z-index: 2;
+  position: absolute; border-radius: 50%; z-index: 2;
   display: grid; place-items: center; background: #f6f4ef; color: #17202a; font-weight: 800; font-size: .95em;
   transition: left .6s ease, top .6s ease;
 }
 
 /* Ab 9 Spielern: kleinere Plätze und Karten, ein Ring */
-.poker.many .pkt-seat { width: 8.6em; }
 .poker.many .pkt-cards { height: 3.08em; margin-bottom: -.8em; }
 .poker.many .pkt-cards .pk-card { --cw: 2.2em; }
-.poker.many .pkt-plate { padding: .95em .45em .35em; }
-.poker.many .pkt-name { font-size: .95em; }
-.poker.many .pkt-stack { font-size: 1em; }
-.poker.many .pkt-board .pk-card { --cw: 3.7em; }
+.poker.many .pkt-plate { padding: .8em .4em .3em; }
+.poker.many .pkt-name { font-size: .9em; }
+.poker.many .pkt-stack { font-size: .95em; }
+.poker.many .pkt-act { font-size: .78em; }
+.poker.many .pkt-board .pk-card { --cw: 3.6em; }
+.poker.many .pkt-board { gap: .4em; }
 
 /* ---------- Spielerliste und Ticker ---------- */
 .pkt-side { grid-area: side; display: flex; flex-direction: column; gap: var(--pad); min-height: 0; }

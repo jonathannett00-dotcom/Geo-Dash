@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const { createRng } = require('./rng');
 const { GAMES, DEFAULT_GAME } = require('./games');
 const { TIMING, MINIGAMES } = require('./monopoly');
+const { AV_IDS, AV_MOTIVE } = require('../public/shared/avatare');
+const { checkFoto } = require('./foto');
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const MAX_PLAYERS = 12;
@@ -21,7 +23,18 @@ const EMPTY_ROOM_MS = 30 * 60 * 1000;
 const EMPTY_EVICT_MS = 2 * 60 * 1000;
 
 const COLORS = ['#e63946', '#1d72d8', '#2a9d8f', '#f4a261', '#8e44ad', '#e9c46a', '#ff6fb5', '#264653', '#8ac926', '#795548'];
+/** Alte Emoji-Spielfiguren: nur noch, um gespeicherte Räume zu lesen (werden zu Avataren). */
 const FIGURES = ['🎩', '🚗', '🐕', '🚢', '👢', '🐈', '🦆', '🦖', '✈️', '🎸'];
+const DEFAULT_AVATAR = 'monogramm';
+/** Fotos: höchstens 3 Wechsel pro Spieler und Minute, höchstens 12 je Raum. */
+const FOTO_CHANGES_PER_MINUTE = 3;
+const MAX_FOTOS_PER_ROOM = 12;
+
+/** Avatar für einen alten Spieler mit Emoji-Figur (gleiche Stelle im Avatar-Set). */
+function legacyAvatar(figure) {
+  const i = FIGURES.indexOf(figure);
+  return i >= 0 ? AV_MOTIVE[i].id : DEFAULT_AVATAR;
+}
 
 /** Fehler, deren Text dem Spieler angezeigt wird. */
 class UserError extends Error {
@@ -73,7 +86,7 @@ class Room {
 
   /* ---------- Lobby ---------- */
 
-  join({ name, color, figure }) {
+  join({ name, color, avatar }) {
     if (this.started) fail('Das Spiel läuft bereits – neue Spieler können nicht mehr beitreten.');
     if (this.players.length >= this.maxPlayers) fail(`Der Raum ist voll (maximal ${this.maxPlayers} Spieler).`);
     name = String(name || '').trim().replace(/\s+/g, ' ');
@@ -81,19 +94,22 @@ class Room {
     if (name.length > 16) fail('Der Name darf höchstens 16 Zeichen lang sein.');
     if (this.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) fail(`Der Name „${name}“ ist schon vergeben.`);
     if (!this.colors.includes(color)) fail('Bitte wähle eine Farbe.');
-    // Die Spielfigur wählt man nur bei Monopoly; sonst bekommt man die erste freie (falls später Monopoly gewählt wird).
-    // Bei mehr als 10 Spielern (Poker) bleibt sie leer.
-    if (!figure && this.gameType !== 'monopoly') figure = this.freeFigure();
-    if (figure !== null && !FIGURES.includes(figure)) fail('Bitte wähle eine Spielfigur.');
+    // Farbe und Avatar sind getrennt wählbar; ohne Wahl gilt das Monogramm
+    avatar = avatar === undefined || avatar === null || avatar === '' ? DEFAULT_AVATAR : String(avatar);
+    if (!AV_IDS.includes(avatar)) fail('Bitte wähle einen Avatar.');
     if (this.players.some((p) => p.color === color)) fail('Diese Farbe ist schon vergeben.');
-    if (figure !== null && this.players.some((p) => p.figure === figure)) fail('Diese Spielfigur ist schon vergeben.');
+    // Gleicher Avatar ist erlaubt, aber nicht in gleicher Farbe
+    if (this.players.some((p) => p.color === color && p.avatar === avatar)) fail('Diesen Avatar gibt es in dieser Farbe schon.');
 
     const player = {
       id: `p${crypto.randomBytes(4).toString('hex')}`,
       token: crypto.randomBytes(16).toString('hex'),
       name,
       color,
-      figure,
+      avatar,
+      photo: null,          // { type, data: Buffer, v } – nur im Raumzustand, nie im Snapshot
+      photoHidden: false,   // vom Host ausgeblendet
+      photoTimes: [],
       connected: false,
       sockets: new Set(),
       leaveTimer: null,
@@ -102,11 +118,9 @@ class Room {
     return player;
   }
 
-  freeFigure() { return FIGURES.find((f) => !this.players.some((p) => p.figure === f)) || null; }
-
   /**
    * Nach einem Spielwechsel: Farben in die Palette des neuen Spiels übertragen (gleiche Stelle,
-   * sonst die erste freie) und bei Monopoly fehlende Spielfiguren ergänzen.
+   * sonst die erste freie).
    */
   adoptPalette(oldColors) {
     const palette = this.colors;
@@ -117,7 +131,41 @@ class Room {
       p.color = same && !taken.has(same) && !this.players.some((q) => q !== p && q.color === same) ? same : palette.find((c) => !taken.has(c) && !this.players.some((q) => q !== p && q.color === c));
       taken.add(p.color);
     }
-    if (this.gameType === 'monopoly') for (const p of this.players) if (!p.figure) p.figure = this.freeFigure();
+  }
+
+  /* ---------- Fotos ---------- */
+
+  /** Eigenes Foto setzen (geprüft: Format, Maße, Größe) oder mit null entfernen. */
+  setFoto(playerId, foto, now = Date.now()) {
+    const player = this.playerById(playerId);
+    if (!player) fail('Diesen Spieler gibt es nicht.');
+    player.photoTimes = (player.photoTimes || []).filter((t) => now - t < 60 * 1000);
+    if (player.photoTimes.length >= FOTO_CHANGES_PER_MINUTE) fail('Du hast dein Foto gerade oft gewechselt. Bitte warte eine Minute.');
+    if (foto === null || foto === undefined) {
+      player.photoTimes.push(now);
+      player.photo = null;
+      return;
+    }
+    const others = this.players.filter((p) => p !== player && p.photo).length;
+    if (others >= MAX_FOTOS_PER_ROOM) fail(`In diesem Raum gibt es schon ${MAX_FOTOS_PER_ROOM} Fotos.`);
+    const { type, data } = checkFoto(foto, fail);
+    player.photoTimes.push(now);
+    // Höchstens ein Foto pro Spieler: das neue ersetzt das alte
+    player.photo = { type, data, v: ((player.photo && player.photo.v) || 0) + 1 };
+    player.photoHidden = false;
+  }
+
+  /** Host blendet das Foto eines Spielers aus (Rückfall auf Avatar bzw. Monogramm) oder wieder ein. */
+  hideFoto(playerId, hidden = true) {
+    const player = this.playerById(playerId);
+    if (!player) fail('Diesen Spieler gibt es nicht.');
+    player.photoHidden = Boolean(hidden);
+  }
+
+  /** Sichtbares Foto eines Spielers (für /api/avatar) – sonst null. */
+  fotoOf(playerId) {
+    const player = this.playerById(playerId);
+    return player && player.photo && !player.photoHidden ? player.photo : null;
   }
 
   resume(token) {
@@ -161,7 +209,7 @@ class Room {
     if (this.players.length < this.minPlayers) fail(`Es werden mindestens ${this.minPlayers} Spieler gebraucht.`);
     this.game = this.module.createGame({
       ...this.gameHooks(),
-      players: this.players.map(({ id, name, color, figure }) => ({ id, name, color, figure })),
+      players: this.players.map(({ id, name, color }) => ({ id, name, color })),
       settings: this.settings,
       forcedDice: this.pendingDice,
     });
@@ -334,8 +382,7 @@ class Room {
       minPlayers: this.minPlayers,
       maxPlayers: this.maxPlayers,
       colors: this.colors,
-      figures: FIGURES,
-      lobby: this.players.map((p) => ({ id: p.id, name: p.name, color: p.color, figure: p.figure, connected: p.connected })),
+      lobby: this.lobbyList(),
       paused: this.isPaused(),
       role,
       board: null,
@@ -345,6 +392,20 @@ class Room {
       // Endstand nach Spielende (vom Host beendet oder regulär) – nur Anzeige
       final: this.game && this.game.isOver() && this.game.summary ? this.game.summary() : null,
     };
+  }
+
+  /** Spieler für Lobby und Anzeigen: Avatar und nur ein Verweis aufs Foto (nie das Bild selbst). */
+  lobbyList() {
+    return this.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      avatar: p.avatar,
+      photo: p.photo && !p.photoHidden ? `/api/avatar/${this.code}/${p.id}?v=${p.photo.v}` : null,
+      hasPhoto: Boolean(p.photo),
+      photoHidden: Boolean(p.photo && p.photoHidden),
+      connected: p.connected,
+    }));
   }
 
   broadcast() {
@@ -374,7 +435,11 @@ class Room {
       settings: this.settings,
       started: this.started,
       lastActivity: this.lastActivity,
-      players: this.players.map(({ id, token, name, color, figure }) => ({ id, token, name, color, figure })),
+      players: this.players.map(({ id, token, name, color, figure, avatar, photo, photoHidden }) => ({
+        id, token, name, color, avatar, ...(figure ? { figure } : {}),
+        photo: photo ? { type: photo.type, data: photo.data.toString('base64'), v: photo.v } : null,
+        photoHidden: Boolean(photoHidden),
+      })),
       game: this.game ? this.game.toJSON() : null,
     };
   }
@@ -388,7 +453,15 @@ class Room {
     room.settings = { ...room.settings, ...data.settings };
     room.started = Boolean(data.started);
     room.lastActivity = data.lastActivity || Date.now();
-    room.players = (data.players || []).map((p) => ({ ...p, connected: false, sockets: new Set(), leaveTimer: null }));
+    room.players = (data.players || []).map((p) => ({
+      ...p,
+      // Alte Räume: Emoji-Figur statt Avatar (Feld bleibt lesbar)
+      avatar: AV_IDS.includes(p.avatar) ? p.avatar : legacyAvatar(p.figure),
+      photo: restoreFoto(p.photo),
+      photoHidden: Boolean(p.photoHidden),
+      photoTimes: [],
+      connected: false, sockets: new Set(), leaveTimer: null,
+    }));
     if (data.game) {
       // Version 1 (nur Monopoly): Engine-Zustand und Blackjack-Schuh lagen getrennt
       const gameData = (data.version || 1) < 2 ? { engine: data.game, shoe: data.shoe } : data.game;
@@ -401,6 +474,17 @@ class Room {
       });
     }
     return room;
+  }
+}
+
+/** Gespeichertes Foto wieder einlesen; beschädigte Daten fallen weg (Rückfall auf den Avatar). */
+function restoreFoto(photo) {
+  if (!photo || typeof photo.data !== 'string') return null;
+  try {
+    const { type, data } = checkFoto(photo.data, (msg) => { throw new Error(msg); });
+    return { type, data, v: Number(photo.v) || 1 };
+  } catch (_) {
+    return null;
   }
 }
 
@@ -670,12 +754,12 @@ class RoomManager {
     handle('room:info', ({ code }) => {
       const room = this.requireRoom(code);
       const snap = room.snapshot();
-      return { started: snap.started, gameType: room.gameType, lobby: snap.lobby, colors: room.colors, figures: FIGURES, max: room.maxPlayers, full: snap.lobby.length >= room.maxPlayers };
+      return { started: snap.started, gameType: room.gameType, lobby: snap.lobby, colors: room.colors, max: room.maxPlayers, full: snap.lobby.length >= room.maxPlayers };
     });
 
-    handle('player:join', ({ code, name, color, figure }, use) => {
+    handle('player:join', ({ code, name, color, avatar }, use) => {
       const room = this.requireRoom(code);
-      const player = room.join({ name, color, figure });
+      const player = room.join({ name, color, avatar });
       room.attach(socket, player);
       use(room);
       return { token: player.token, playerId: player.id, code: room.code };
@@ -695,6 +779,20 @@ class RoomManager {
       room.attach(socket, player);
       use(room);
       return { token: player.token, playerId: player.id, code: room.code };
+    });
+
+    // Eigenes Foto (128 × 128, WebP oder JPEG, höchstens 24 KB) oder null zum Entfernen
+    handle('avatar:foto', ({ foto } = {}, use) => {
+      const room = ownRoom();
+      if (socket.data.role !== 'player') fail('Nur Spieler können ein Foto hochladen.');
+      room.setFoto(socket.data.playerId, foto);
+      use(room);
+    });
+
+    handle('board:foto', ({ playerId, hidden }, use) => {
+      const room = hostRoom('Fotos ausblenden');
+      room.hideFoto(String(playerId || ''), hidden !== false);
+      use(room);
     });
 
     handle('act', (action, use) => {
@@ -729,6 +827,6 @@ class RoomManager {
 }
 
 module.exports = {
-  RoomManager, Room, UserError, MINIGAMES, TIMING, COLORS, FIGURES, MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS,
+  RoomManager, Room, UserError, MINIGAMES, TIMING, COLORS, FIGURES, DEFAULT_AVATAR, FOTO_CHANGES_PER_MINUTE, MAX_FOTOS_PER_ROOM, MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS,
   MAX_ACTIVE_ROOMS, ROOMS_PER_MINUTE_PER_IP, EMPTY_ROOM_MS,
 };

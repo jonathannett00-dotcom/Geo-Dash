@@ -225,7 +225,7 @@ function rkFinalHtml(g) {
   const rows = players.map((p) => {
     const st = { ...(p.stats || {}), territories: p.territories, armies: p.armies };
     return `<tr class="${p.id === g.winner ? 'winner' : ''}" style="--c:${rkTone(p.id)}">
-      <th scope="row"><span class="rk-swatch"></span>${escapeHtml(p.name)}<small>${status(p)}</small></th>
+      <th scope="row">${avatarHtml(p, 'M', S.lobby)} ${escapeHtml(p.name)}<small>${status(p)}</small></th>
       ${cols.map(([k]) => `<td>${st[k] ?? 0}</td>`).join('')}</tr>`;
   }).join('');
   const rounds = g.round === 1 ? 'nach 1 Runde' : `nach ${g.round} Runden`;
@@ -253,14 +253,15 @@ function rkShowBattle(b) {
 }
 
 function rkPlayersHtml(g) {
-  const row = (cls, tone, name, cells) => `<div class="rk-player ${cls}" style="--c:${tone}">
-    <span class="rk-swatch"></span><span class="rk-pname">${name}</span>${cells.map((c) => `<span class="rk-num">${c}</span>`).join('')}</div>`;
+  const row = (cls, tone, name, cells, av = '') => `<div class="rk-player ${cls}" style="--c:${tone}">
+    ${av || '<span class="rk-swatch"></span>'}<span class="rk-pname">${name}</span>${cells.map((c) => `<span class="rk-num">${c}</span>`).join('')}</div>`;
   const head = '<div class="rk-player rk-head"><span></span><span></span><span class="rk-num">Armeen</span><span class="rk-num">Karten</span><span class="rk-num">Gebiete</span></div>';
   const list = g.players.map((p) => row(
     `${p.id === g.currentId ? 'current' : ''} ${p.eliminated ? 'out' : ''}`,
     rkTone(p.id),
     escapeHtml(p.name),
     p.eliminated ? ['–', '–', '–'] : [p.armies, p.cards, p.territories],
+    avatarHtml(p, 'S', S.lobby),
   ));
   if (g.neutral) {
     const own = Object.values(g.territories).filter((t) => t.owner === g.neutral.id);

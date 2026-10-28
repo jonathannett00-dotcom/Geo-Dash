@@ -91,6 +91,17 @@ function createServer(options = {}) {
     res.json({ exists: true, code: room.code, gameType: room.gameType, started: room.started });
   });
 
+  // Spielerfoto: nur solange der Raum existiert und der Host es nicht ausgeblendet hat; nie gelistet
+  app.get('/api/avatar/:raum/:spieler', (req, res) => {
+    const code = String(req.params.raum || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+    const room = code.length === 4 && rooms.get(code);
+    const foto = room && room.fotoOf(String(req.params.spieler || ''));
+    res.set('X-Content-Type-Options', 'nosniff');
+    if (!foto) return res.status(404).set('Cache-Control', 'no-store').type('text/plain').send('Kein Foto.');
+    res.set({ 'Content-Type': foto.type, 'Cache-Control': 'private, max-age=60', 'Content-Security-Policy': "default-src 'none'", 'Content-Disposition': 'inline' });
+    res.end(foto.data);
+  });
+
   app.get('/api/join-url', (req, res) => {
     const code = roomCode(req);
     if (!rooms.get(code)) return res.status(404).json({ error: 'Raum nicht gefunden.' });

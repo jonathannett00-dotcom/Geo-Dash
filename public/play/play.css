@@ -11,37 +11,7 @@ label { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; f
 fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; margin-bottom: .3rem; }
 
-/* ---------- Beitreten (Gestaltung wie die Host-Lobby, siehe shared/lobby.css) ---------- */
-.join-screen { position: relative; min-height: 100vh; min-height: 100dvh; overflow: hidden; }
-.jn-wrap { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 20px 16px 28px; }
-.jn-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1.4rem; }
-.jn-head .lb-head-game { font-size: .9rem; text-align: right; }
-.jn-form { display: grid; gap: 1.15rem; }
-.jn-field { display: grid; gap: .35rem; color: var(--lb-text); font-size: 1rem; font-weight: 600; }
-.jn-field .lb-label { font-size: .8rem; margin: 0; }
-.jn-field input {
-  background: var(--lb-panel-2); color: var(--lb-text); border: 2px solid transparent; border-radius: 12px;
-  min-height: 52px; font-size: 1.15rem; padding: .6rem .8rem;
-}
-.jn-field input::placeholder { color: var(--lb-muted); opacity: .7; }
-.jn-field input:focus { border-color: var(--lb-accent); }
-.jn-code { text-transform: uppercase; letter-spacing: .3em; font-weight: 800; font-size: 2.2rem !important; text-align: center; min-height: 72px !important; }
-.pick-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .5rem; }
-.pick-grid button {
-  aspect-ratio: 1; border: 0; background: var(--lb-panel-2); border-radius: 12px; font-size: 1.5rem;
-  cursor: pointer; padding: 0; display: grid; place-items: center; min-width: 0; min-height: 44px;
-  box-shadow: inset 0 0 0 2px transparent; transition: box-shadow .2s ease, opacity .2s ease;
-}
-.pick-grid button.sel { box-shadow: 0 0 0 3px var(--lb-bg), 0 0 0 6px var(--lb-accent); }
-.pick-grid button:disabled { opacity: .2; cursor: not-allowed; }
-.pick-grid.colors button { background: var(--c); }
-.jn-submit {
-  font: inherit; font-size: 1.25rem; font-weight: 800; border: 0; border-radius: 12px; min-height: 56px; cursor: pointer;
-  background: var(--lb-accent); color: var(--lb-accent-ink); margin-top: .3rem;
-}
-.jn-submit:active { transform: scale(.985); }
-.jn-msg { min-height: 1.3em; margin: 0; color: #f0b4ad; font-weight: 600; }
-.join-screen .rejoin p { color: var(--lb-text); }
+/* Beitreten: Gestaltung wie Startseite und Host-Lobby, siehe shared/lobby.css */
 
 /* ---------- App-Rahmen ---------- */
 .app { min-height: 100vh; display: flex; flex-direction: column; }
@@ -52,7 +22,8 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 }
 .me { display: flex; align-items: center; gap: .5rem; min-width: 0; }
 .me-fig:empty { display: none; }
-.me-fig { font-size: 1.8rem; width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; background: var(--me, #333); flex: none; }
+.me-fig { font-size: 1rem; display: grid; place-items: center; flex: none; }
+.me-fig .av { width: 2.4rem; height: 2.4rem; }
 .me-name { font-weight: 700; font-size: .85rem; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
 .me-money-wrap { position: relative; }
 .me-money { font-size: 1.45rem; font-weight: 800; font-variant-numeric: tabular-nums; transition: color .3s; }

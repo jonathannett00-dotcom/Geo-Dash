@@ -130,7 +130,7 @@ function pkTableHtml(g) {
     if (lp && !lp.connected && p.status !== 'left') tags.push('<i class="pk-tag muted">getrennt</i>');
     const active = (g.actorId || g.decider) === p.id;
     return `<div class="pk-row ${active ? 'active' : ''} ${p.folded || p.status !== 'playing' ? 'out' : ''} ${p.id === me ? 'me' : ''}">
-      ${pkSeatHtml(p)}<span class="pk-row-name">${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</span>
+      ${pkSeatHtml(p)}${avatarHtml(p, 'S', S.lobby)}<span class="pk-row-name">${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</span>
       <span class="pk-row-tags">${tags.join('')}</span>
       <span class="pk-row-bet">${p.bet ? pkEuro(p.bet) : ''}</span>
       <span class="pk-row-stack">${pkEuro(p.stack)}${p.rebuys ? `<small>${p.rebuys}× nachgekauft</small>` : ''}</span></div>`;

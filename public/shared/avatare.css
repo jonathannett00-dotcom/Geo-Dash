@@ -1,0 +1,15 @@
+/* Avatar-Anzeige: runde Maske, feiner Rand in der Spielerfarbe, Größen S / M / L.
+   Die Größen hängen an der Schriftgröße der Umgebung (em). */
+.av {
+  position: relative; display: inline-grid; place-items: center; flex: none; vertical-align: middle;
+  width: 2.2em; height: 2.2em; border-radius: 50%; overflow: hidden;
+  background: var(--c, #777); box-shadow: 0 0 0 .1em var(--c, #777), 0 0 0 .16em rgba(255, 255, 255, .55);
+}
+.av-S { width: 1.5em; height: 1.5em; box-shadow: 0 0 0 1.5px var(--c, #777), 0 0 0 2.5px rgba(255, 255, 255, .5); }
+.av-M { width: 2.2em; height: 2.2em; }
+.av-L { width: 3.6em; height: 3.6em; }
+.av > svg, .av > .av-foto { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.av > .av-foto { object-fit: cover; background: var(--c, #777); }
+.av-mono { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 800; line-height: 1; color: var(--ink-av, #fff); font-size: 1.05em; }
+.av-S .av-mono { font-size: .75em; }
+.av-L .av-mono { font-size: 1.7em; }

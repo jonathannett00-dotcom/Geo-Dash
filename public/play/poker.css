@@ -5,7 +5,7 @@
 
 body.poker-mode { background: #0e2a1f; }
 body.poker-mode .topbar { background: #0b2219; }
-body.poker-mode .me-fig { font-size: 1.15rem; font-weight: 800; }
+body.poker-mode .me-fig .av { width: 2.1rem; height: 2.1rem; }
 body.poker-mode .main { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 body.poker-mode.pk-bar-open .main { padding-bottom: calc(330px + env(safe-area-inset-bottom, 0px)); }
 
@@ -60,10 +60,11 @@ body.poker-mode.pk-bar-open .main { padding-bottom: calc(330px + env(safe-area-i
 /* ---------- Spieler am Tisch ---------- */
 .pk-table { display: grid; gap: .3rem; }
 .pk-row {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "seat name bet stack" "seat tags tags stack";
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; grid-template-areas: "seat av name bet stack" "seat av tags tags stack";
   align-items: center; column-gap: .55rem; background: #143428; border-radius: 10px; padding: .4rem .6rem;
 }
 .pk-row .pk-seat { grid-area: seat; font-size: .95rem; }
+.pk-row .av { grid-area: av; font-size: 1rem; }
 .pk-row-name { grid-area: name; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pk-row-tags { grid-area: tags; display: flex; flex-wrap: wrap; gap: .25rem; min-height: 0; }
 .pk-row-tags:empty { display: none; }

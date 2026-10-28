@@ -57,6 +57,8 @@ function renderLobby() {
   $('#poker').classList.add('hidden');
   const lobby = $('#lobby');
   lobby.dataset.game = S.gameType;
+  lbSplitMark($('#lb-mark'));
+  lbEnter(lobby);
   lbBackground($('#lb-bg'), S.gameType);
   $('#room-code').textContent = S.code;
   if (qrFor !== S.code) {
@@ -68,17 +70,9 @@ function renderLobby() {
   const info = LB_GAMES[S.gameType] || { name: S.gameType };
   $('#lb-game-name').textContent = info.name;
   const list = S.lobby;
-  $('#lobby-count').innerHTML = `<b>${list.length}</b> von ${S.maxPlayers}${list.length ? '' : ' · noch niemand da'}`;
+  $('#lobby-count').innerHTML = `<b>${list.length}</b> von ${S.maxPlayers}`;
   renderLobbyPlayers(list, S.maxPlayers);
-  patch($('#game-choice'), (S.games || []).map((g) => {
-    const gi = LB_GAMES[g.id] || { name: g.name, desc: '', time: '' };
-    const sel = g.id === S.gameType;
-    return `<button type="button" id="game-${g.id}" data-game="${g.id}" class="lb-game ${sel ? 'sel' : ''}" aria-pressed="${sel}">
-      ${sel ? '<span class="lb-game-state">Gewählt</span>' : ''}
-      <span class="lb-game-name">${escapeHtml(gi.name)}</span>
-      <span class="lb-game-desc">${escapeHtml(gi.desc)}</span>
-      <span class="lb-game-meta">${g.minPlayers} bis ${g.maxPlayers} Spieler${gi.time ? ` · ${gi.time}` : ''}</span></button>`;
-  }).join(''));
+  renderGameChoice();
   const risiko = S.gameType === 'risiko';
   const poker = S.gameType === 'poker';
   $('#lb-settings-title').textContent = `Einstellungen für ${info.name}`;
@@ -113,31 +107,82 @@ function renderLobby() {
           : `Alle starten mit ${fmtM(S.settings.startMoney)}.`}`;
 }
 
-/** Spielerkarten: neue werden sanft eingeblendet, freie Plätze bleiben als ruhige Umrisse sichtbar. */
+/**
+ * Spielauswahl: Die Karten mit ihren animierten Hintergründen werden nur einmal gebaut
+ * (sonst würden die Canvas-Flächen bei jedem Zustand neu starten); danach wechseln nur
+ * Markierung und Texte.
+ */
+function renderGameChoice() {
+  const box = $('#game-choice');
+  const games = S.games || [];
+  const ids = games.map((g) => g.id).join(',');
+  if (box.dataset.ids !== ids) {
+    box.dataset.ids = ids;
+    box.innerHTML = games.map((g, i) => {
+      const gi = LB_GAMES[g.id] || { name: g.name, desc: '' };
+      return `<button type="button" id="game-${g.id}" data-game="${g.id}" class="lb-game lb-in" style="--i: ${3 + i}" aria-pressed="false">
+        <span class="lb-scene" aria-hidden="true"><canvas class="lb-canvas"></canvas></span>
+        <span class="lb-game-state" aria-hidden="true">Gewählt</span>
+        <span class="lb-game-card lb-glass">
+          <span class="lb-game-name">${escapeHtml(gi.name)}</span>
+          <span class="lb-game-desc">${escapeHtml(gi.desc)}</span>
+          <span class="lb-game-meta"></span>
+        </span></button>`;
+    }).join('');
+    try { if (window.stHintergrund) window.stHintergrund.scan(); } catch (_) { /* Hintergrund ist Zierde */ }
+  }
+  games.forEach((g) => {
+    const b = $(`#game-${g.id}`);
+    const gi = LB_GAMES[g.id] || {};
+    const sel = g.id === S.gameType;
+    b.classList.toggle('sel', sel);
+    b.setAttribute('aria-pressed', String(sel));
+    const meta = `${g.minPlayers} bis ${g.maxPlayers} Spieler${gi.time ? ` · ${gi.time}` : ''}`;
+    const m = b.querySelector('.lb-game-meta');
+    if (m.textContent !== meta) m.textContent = meta;
+    if (sel) { try { if (window.stHintergrund) window.stHintergrund.prefer(b); } catch (_) { /* Zierde */ } }
+  });
+}
+
+/**
+ * Spielerkarten in ihrer Farbe: neue gleiten sanft herein, freie Plätze bleiben als
+ * dezente Umrisse mit Nummer sichtbar. Das Raster richtet sich nach der Platzzahl.
+ */
 function renderLobbyPlayers(list, max) {
   const ul = $('#lobby-players');
+  const slots = Math.max(list.length, max);
+  ul.dataset.slots = String(slots);
+  ul.style.setProperty('--cols', slots <= 4 ? 2 : 3);
+  ul.style.setProperty('--rows', Math.ceil(slots / (slots <= 4 ? 2 : 3)));
   const want = list.map((p) => p.id);
   [...ul.querySelectorAll('li[data-id]')].forEach((li) => { if (!want.includes(li.dataset.id)) li.remove(); });
-  ul.querySelectorAll('li.empty').forEach((li) => li.remove());
+  const monopoly = S.gameType === 'monopoly';
   list.forEach((p, i) => {
     let li = ul.querySelector(`li[data-id="${p.id}"]`);
     if (!li) {
       li = document.createElement('li');
       li.dataset.id = p.id;
-      li.className = 'enter';
+      li.className = 'lb-player enter';
+      li.addEventListener('animationend', () => li.classList.remove('enter'), { once: true });
     }
     li.style.setProperty('--c', p.color);
     li.style.setProperty('--ink-on', lbInkOn(p.color));
     li.classList.toggle('off', !p.connected);
-    const html = `<span class="lb-pname">${escapeHtml(p.name)}</span>${p.connected ? '' : '<small>getrennt</small>'}`;
+    const badge = monopoly && p.figure ? `<span class="lb-pfig">${escapeHtml(p.figure)}</span>` : `<span class="lb-pnum">${i + 1}</span>`;
+    const sub = p.connected ? escapeHtml(lbFarbname(p.color)) : 'getrennt';
+    const html = `${badge}<span class="lb-ptext"><span class="lb-pname">${escapeHtml(p.name)}</span><small>${sub}</small></span>`;
     if (li._html !== html) { li.innerHTML = html; li._html = html; }
     if (ul.children[i] !== li) ul.insertBefore(li, ul.children[i] || null);
   });
-  for (let i = list.length; i < max; i++) {
-    const li = document.createElement('li');
-    li.className = 'empty';
+  // Freie Plätze nach den Spielern, mit Nummer
+  const empties = [...ul.querySelectorAll('li.empty')];
+  for (let i = list.length; i < slots; i++) {
+    let li = empties.shift();
+    if (!li) { li = document.createElement('li'); li.className = 'empty'; }
+    li.innerHTML = `<span class="lb-pnum">${i + 1}</span><span class="lb-ptext"><small>frei</small></span>`;
     ul.appendChild(li);
   }
+  empties.forEach((li) => li.remove());
 }
 
 $('#game-choice').addEventListener('click', (e) => {

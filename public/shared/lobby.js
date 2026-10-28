@@ -1,6 +1,6 @@
 'use strict';
 
-/* Gemeinsame Teile für Startseite, Host-Lobby und Beitritt am Handy. */
+/* Gemeinsame Teile für Host-Lobby und Beitritt am Handy (Gestaltung wie die Startseite). */
 
 /** Kurzbeschreibung der Spiele für die Auswahlkarten (Spielerzahl kommt vom Server). */
 const LB_GAMES = {
@@ -8,6 +8,16 @@ const LB_GAMES = {
   risiko: { name: 'Risiko', desc: 'Die Welt in 42 Gebieten: verstärken, angreifen, verteidigen. Die Würfel fallen auf dem Fernseher.', time: '1–3 Stunden' },
   poker: { name: 'Poker', desc: 'Texas Hold’em mit Blinds und Side-Pots. Die eigenen Karten liegen verdeckt auf dem Handy.', time: 'offen, ab 30 Minuten' },
 };
+
+/** Namen der Lobby-Farben (Standardpalette und Poker-Palette). */
+const LB_FARBNAMEN = {
+  '#e63946': 'Rot', '#1d72d8': 'Blau', '#2a9d8f': 'Petrol', '#f4a261': 'Apricot', '#8e44ad': 'Violett',
+  '#e9c46a': 'Gelb', '#ff6fb5': 'Pink', '#264653': 'Nachtblau', '#8ac926': 'Grün', '#795548': 'Braun',
+  '#d1495b': 'Rot', '#2e86de': 'Blau', '#f0a202': 'Gelb', '#7e57c2': 'Violett', '#26a69a': 'Petrol',
+  '#ef6c9a': 'Pink', '#8d6e63': 'Braun', '#9ccc65': 'Grün', '#00acc1': 'Türkis', '#f57c00': 'Orange',
+  '#5c6bc0': 'Indigo', '#e0e0e0': 'Weiß',
+};
+const lbFarbname = (hex) => LB_FARBNAMEN[String(hex).toLowerCase()] || '';
 
 /** Lesbare Schriftfarbe auf einer Spielerfarbe. */
 function lbInkOn(hex) {
@@ -20,50 +30,42 @@ function lbInkOn(hex) {
   return lum > 0.32 ? '#17202a' : '#ffffff';
 }
 
-const LB_SVG = 'http://www.w3.org/2000/svg';
-
 /**
- * Ruhiger Hintergrund: bei Risiko die Weltkarte als dunkle Fläche (langsam treibend),
- * bei Monopoly ein flaches Feldraster wie am Spielbrettrand, bei Poker ein flaches
- * Rautenmuster in Tischgrün.
+ * Gesamthintergrund: je Spiel eine Stimmungsfläche (Monopoly warmes Grün, Risiko tiefes
+ * Blau, Poker Tischgrün), dazu langsam treibende Lichter wie auf der Startseite.
+ * Der Wechsel ist eine Überblendung (nur opacity), die Lichter bewegen sich nur per transform.
  */
 function lbBackground(el, game) {
-  if (!el || el.dataset.game === game) return;
-  el.dataset.game = game;
-  el.innerHTML = '';
-  const svg = document.createElementNS(LB_SVG, 'svg');
-  svg.setAttribute('aria-hidden', 'true');
-  const geo = window.RISIKO_MAP_PATHS;
-  if (game === 'risiko' && geo) {
-    svg.setAttribute('viewBox', `0 0 ${geo.width} ${geo.height}`);
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-    svg.classList.add('drift');
-    const d = [geo.otherLand, ...Object.values(geo.territories).map((t) => t.d)].join(' ');
-    const land = document.createElementNS(LB_SVG, 'path');
-    land.setAttribute('class', 'lb-land');
-    land.setAttribute('d', d);
-    svg.appendChild(land);
-  } else if (game === 'monopoly') {
-    // Raster aus Feldern: große Quadrate mit schmalen Zwischenfeldern, wie Straßen am Brettrand
-    svg.setAttribute('viewBox', '0 0 1600 900');
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-    const path = document.createElementNS(LB_SVG, 'path');
-    let d = '';
-    for (let x = 0; x <= 1600; x += 120) d += `M${x} 0V900`;
-    for (let y = 0; y <= 900; y += 180) d += `M0 ${y}H1600`;
-    path.setAttribute('d', d);
-    path.setAttribute('class', 'lb-grid-line');
-    svg.appendChild(path);
-  } else if (game === 'poker') {
-    // Feines Rautengitter wie auf einem Kartenrücken, ohne Motive
-    svg.setAttribute('viewBox', '0 0 1600 900');
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-    const path = document.createElementNS(LB_SVG, 'path');
-    let d = '';
-    for (let x = -900; x <= 1600; x += 80) d += `M${x} 0L${x + 900} 900M${x + 900} 0L${x} 900`;
-    path.setAttribute('d', d);
-    path.setAttribute('class', 'lb-grid-line thin');
-    svg.appendChild(path);
+  if (!el) return;
+  if (!el.firstChild) {
+    el.innerHTML = ['neutral', 'monopoly', 'risiko', 'poker'].map((g) => `<span class="lb-mood" data-mood="${g}"></span>`).join('')
+      + '<span class="lb-light lb-light-a"></span><span class="lb-light lb-light-b"></span><span class="lb-light lb-light-c"></span>';
   }
-  el.appendChild(svg);
+  const mood = ['monopoly', 'risiko', 'poker'].includes(game) ? game : 'neutral';
+  if (el.dataset.game === mood) return;
+  el.dataset.game = mood;
+  el.querySelectorAll('.lb-mood').forEach((m) => m.classList.toggle('on', m.dataset.mood === mood));
+}
+
+/** Wortmarke in Buchstaben teilen (für das gestaffelte Einblenden); der Text bleibt lesbar. */
+function lbSplitMark(mark) {
+  if (!mark || mark.dataset.split) return;
+  const text = mark.textContent;
+  mark.dataset.split = '1';
+  mark.setAttribute('aria-label', text);
+  mark.textContent = '';
+  [...text].forEach((ch, i) => {
+    const span = document.createElement('span');
+    span.className = 'lb-ch';
+    span.style.setProperty('--c', i);
+    span.setAttribute('aria-hidden', 'true');
+    span.textContent = ch;
+    mark.appendChild(span);
+  });
+}
+
+/** Eingangsanimation einmal starten, sobald der Bereich sichtbar ist. */
+function lbEnter(section) {
+  if (!section || section.classList.contains('lb-go')) return;
+  requestAnimationFrame(() => section.classList.add('lb-go'));
 }

@@ -54,6 +54,8 @@ socket.on('state', (state) => {
 function showJoin(msg) {
   $('#app').classList.add('hidden');
   $('#join').classList.remove('hidden');
+  lbSplitMark($('#jn-mark'));
+  lbEnter($('#join'));
   $('#join-code').value = code;
   $('#join-msg').textContent = msg || '';
   refreshJoinInfo();
@@ -105,7 +107,7 @@ function renderPickers() {
   if (takenF.has(pick.figure)) pick.figure = null;
   if (takenC.has(pick.color)) pick.color = null;
   patch($('#join-figures'), figures.map((f) => `<button type="button" data-figure="${f}" class="${pick.figure === f ? 'sel' : ''}" ${takenF.has(f) ? 'disabled' : ''} aria-label="Figur ${f}">${f}</button>`).join(''));
-  patch($('#join-colors'), colors.map((c) => `<button type="button" data-color="${c}" style="--c:${c}" class="${pick.color === c ? 'sel' : ''}" ${takenC.has(c) ? 'disabled' : ''} aria-label="Farbe"></button>`).join(''));
+  patch($('#join-colors'), colors.map((c) => `<button type="button" data-color="${c}" style="--c:${c}" class="${pick.color === c ? 'sel' : ''}" ${takenC.has(c) ? 'disabled' : ''} aria-label="Farbe ${lbFarbname(c)}"></button>`).join(''));
 }
 
 $('#join-rejoin').addEventListener('click', (e) => {

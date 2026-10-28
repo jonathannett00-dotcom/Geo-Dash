@@ -81,7 +81,12 @@ $s('#st-create').addEventListener('click', async () => {
   busy(btn, true);
   say('');
   const res = await request('/api/rooms', { method: 'POST' });
-  if (res.ok && res.data.code) { leave(`/board?room=${encodeURIComponent(res.data.code)}`); return; }
+  if (res.ok && res.data.code) {
+    // Host-Token nur in localStorage (gleiche Origin wie /board), nie in der Adresse
+    try { if (res.data.hostToken) localStorage.setItem(`spieleabend-host:${res.data.code}`, res.data.hostToken); } catch (_) { /* privat-Modus: „Host übernehmen“ bleibt als Ausweg */ }
+    leave(`/board?room=${encodeURIComponent(res.data.code)}`);
+    return;
+  }
   busy(btn, false);
   say(res.data.error || 'Das hat nicht geklappt. Bitte versuche es noch einmal.');
 });

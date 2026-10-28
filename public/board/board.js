@@ -5,9 +5,12 @@
  * ========================================================= */
 
 const BOARD_KEY = 'monopoly-board-room';
+/** Host-Token pro Raumcode (nur in localStorage, nie in der Adresse); die Startseite legt es hier ab. */
+const HOST_KEY = 'spieleabend-host:';
 const socket = io();
 let S = null;
 let roomCode = null;
+let hostToken = null;   // nur gesetzt, wenn dieses Gerät der Host ist
 
 /* ---------------- Verbindung ---------------- */
 
@@ -19,9 +22,30 @@ function remember(code) {
   history.replaceState(null, '', url);
 }
 
+function storedToken(code) {
+  try { return localStorage.getItem(HOST_KEY + code); } catch (_) { return null; }
+}
+
+/** Host-Rolle setzen (mit Token) oder abgeben (ohne Token: Zuschauer). */
+function setHost(code, token) {
+  hostToken = token || null;
+  try {
+    if (token) localStorage.setItem(HOST_KEY + code, token);
+    else localStorage.removeItem(HOST_KEY + code);
+  } catch (_) { /* privat-Modus: Host bleibt bis zum Neuladen */ }
+  document.body.classList.toggle('zuschauer', !hostToken);
+  if (!hostToken) closeHostDialog();
+  render();
+}
+
+/** Host-Aktion: das Token geht bei jeder Aktion mit, der Server prüft es. */
+function hostEmit(event, payload, cb) {
+  socket.emit(event, { ...payload, hostToken }, cb || ((res) => { if (!res.ok) toast(res.error, 'error'); }));
+}
+
 function createRoom() {
   socket.emit('board:create', {}, (res) => {
-    if (res.ok) remember(res.code);
+    if (res.ok) { remember(res.code); setHost(res.code, res.hostToken); }
     // Grenze erreicht: zurück zur Startseite, dort steht die Meldung
     else location.replace(`/?fehler=${encodeURIComponent(res.error)}`);
   });
@@ -31,10 +55,23 @@ socket.on('connect', () => {
   let code = new URLSearchParams(location.search).get('room');
   if (!code) { try { code = localStorage.getItem(BOARD_KEY); } catch (_) { code = null; } }
   if (!code) { createRoom(); return; }
-  socket.emit('board:watch', { code }, (res) => {
-    if (res.ok) remember(res.code);
-    else createRoom();
+  code = code.toUpperCase();
+  // Nach einer Unterbrechung oder einem Neustart des Servers gilt das gespeicherte Token weiter
+  const token = hostToken || storedToken(code);
+  socket.emit('board:watch', { code, hostToken: token || undefined }, (res) => {
+    if (!res.ok) { createRoom(); return; }
+    remember(res.code);
+    if (res.host) setHost(res.code, res.hostToken || token);
+    else {
+      setHost(res.code, null);
+      if (res.tokenInvalid) toast('Ein anderes Gerät ist jetzt Host. Dieses Gerät sieht nur zu.', 'error');
+    }
   });
+});
+
+socket.on('host:revoked', ({ message } = {}) => {
+  if (roomCode) setHost(roomCode, null);
+  toast(message || 'Dieses Gerät ist nicht mehr Host.', 'error');
 });
 
 socket.on('state', (state) => {
@@ -44,7 +81,31 @@ socket.on('state', (state) => {
 });
 
 /** Nur für automatische Tests: Würfel vorgeben (der Server ignoriert das außerhalb des Testmodus). */
-window.__debugDice = (dice) => new Promise((resolve) => socket.emit('debug:dice', { dice }, resolve));
+window.__debugDice = (dice) => new Promise((resolve) => socket.emit('debug:dice', { dice, hostToken }, resolve));
+
+/* ---------------- Host übernehmen (Zuschauer) ---------------- */
+
+/** Kopf der Lobby: Host oder Zuschauer mit „Host übernehmen“. */
+function renderHostBox() {
+  const box = $('#lb-host');
+  const html = hostToken
+    ? '<span class="lb-host-label">Dieses Gerät ist Host</span>'
+    : '<span class="lb-host-label">Zuschauer · nur ansehen</span><button type="button" class="lb-host-takeover" data-viewer="takeover">Host übernehmen</button>';
+  if (box._html !== html) { box.innerHTML = html; box._html = html; }
+}
+
+// Klappt nur, wenn kein Host-Gerät verbunden ist (sonst „Der Host ist verbunden.“)
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-viewer="takeover"]');
+  if (!b || hostToken || b.disabled) return;
+  b.disabled = true;
+  socket.emit('host:takeover', {}, (res) => {
+    b.disabled = false;
+    if (!res.ok) { toast(res.error, 'error'); return; }
+    setHost(roomCode, res.hostToken);
+    toast('Dieses Gerät ist jetzt der Host.');
+  });
+});
 
 /* ---------------- Lobby ---------------- */
 
@@ -61,6 +122,7 @@ function renderLobby() {
   lbEnter(lobby);
   lbBackground($('#lb-bg'), S.gameType);
   $('#room-code').textContent = S.code;
+  renderHostBox();
   if (qrFor !== S.code) {
     qrFor = S.code;
     $('#qr').src = `/api/qr.svg?room=${S.code}`;
@@ -97,8 +159,12 @@ function renderLobby() {
   }
   const missing = S.minPlayers - list.length;
   const tooMany = list.length > S.maxPlayers;
-  $('#btn-start').disabled = missing > 0 || tooMany;
-  $('#lobby-hint').innerHTML = tooMany
+  $('#btn-start').disabled = !hostToken || missing > 0 || tooMany;
+  // Zuschauer: Einstellungen nur ansehen
+  $$('.lb-settings input, .lb-settings select').forEach((el) => { el.disabled = !hostToken; });
+  $('#lobby-hint').innerHTML = !hostToken
+    ? 'Nur der Host kann das Spiel wählen, einstellen und starten.'
+    : tooMany
     ? `${escapeHtml(info.name)} ist für höchstens ${S.maxPlayers} Spieler – im Raum sind ${list.length}.`
     : missing > 0
       ? `Noch <b>${missing === 1 ? '1 Spieler' : `${missing} Spieler`}</b> ${missing === 1 ? 'fehlt' : 'fehlen'} – ${escapeHtml(info.name)} braucht mindestens ${S.minPlayers}.`
@@ -136,6 +202,7 @@ function renderGameChoice() {
     const sel = g.id === S.gameType;
     b.classList.toggle('sel', sel);
     b.setAttribute('aria-pressed', String(sel));
+    b.disabled = !hostToken;
     const meta = `${g.minPlayers} bis ${g.maxPlayers} Spieler${gi.time ? ` · ${gi.time}` : ''}`;
     const m = b.querySelector('.lb-game-meta');
     if (m.textContent !== meta) m.textContent = meta;
@@ -168,7 +235,7 @@ function renderLobbyPlayers(list, max) {
     li.classList.toggle('off', !p.connected);
     const sub = p.connected ? escapeHtml(lbFarbname(p.color)) : 'getrennt';
     // Host kann Fotos ausblenden (Rückfall auf Avatar bzw. Monogramm) und wieder zeigen
-    const fotoBtn = p.hasPhoto ? `<button type="button" class="lb-pact" data-foto="${p.id}" data-hidden="${p.photoHidden ? '1' : ''}">${p.photoHidden ? 'Foto zeigen' : 'Foto ausblenden'}</button>` : '';
+    const fotoBtn = p.hasPhoto && hostToken ? `<button type="button" class="lb-pact" data-foto="${p.id}" data-hidden="${p.photoHidden ? '1' : ''}">${p.photoHidden ? 'Foto zeigen' : 'Foto ausblenden'}</button>` : '';
     const html = `${avatarHtml(p, 'M')}<span class="lb-ptext"><span class="lb-pname">${escapeHtml(p.name)}</span><small>${sub}</small>${fotoBtn}</span>`;
     if (li._html !== html) { li.innerHTML = html; li._html = html; }
     if (ul.children[i] !== li) ul.insertBefore(li, ul.children[i] || null);
@@ -187,18 +254,18 @@ function renderLobbyPlayers(list, max) {
 $('#lobby-players').addEventListener('click', (e) => {
   const b = e.target.closest('[data-foto]');
   if (!b) return;
-  socket.emit('board:foto', { playerId: b.dataset.foto, hidden: !b.dataset.hidden }, (res) => { if (!res.ok) toast(res.error, 'error'); });
+  hostEmit('board:foto', { playerId: b.dataset.foto, hidden: !b.dataset.hidden });
 });
 
 $('#game-choice').addEventListener('click', (e) => {
   const b = e.target.closest('[data-game]');
   if (!b || b.dataset.game === S?.gameType) return;
-  socket.emit('board:game', { gameType: b.dataset.game }, (res) => { if (!res.ok) toast(res.error, 'error'); });
+  hostEmit('board:game', { gameType: b.dataset.game });
 });
 
 ['cardValues', 'fortify', 'animation'].forEach((k) => {
   $(`#risiko-${k}`).addEventListener('change', (e) => {
-    socket.emit('board:settings', { [k]: e.target.value }, (res) => {
+    hostEmit('board:settings', { [k]: e.target.value }, (res) => {
       if (!res.ok) { toast(res.error, 'error'); e.target.value = S.settings[k]; }
     });
   });
@@ -207,7 +274,7 @@ $('#game-choice').addEventListener('click', (e) => {
 // Poker: Beträge gehen als Text an den Server (Komma oder Punkt); er prüft und rechnet in Cent
 ['startMoney', 'smallBlind', 'bigBlind', 'rebuy', 'turnTime', 'animation'].forEach((k) => {
   $(`#poker-${k}`).addEventListener('change', (e) => {
-    socket.emit('board:settings', { [k]: e.target.value }, (res) => {
+    hostEmit('board:settings', { [k]: e.target.value }, (res) => {
       if (res.ok) return;
       toast(res.error, 'error');
       const v = S.settings[k];
@@ -217,7 +284,7 @@ $('#game-choice').addEventListener('click', (e) => {
 });
 
 $('#start-money').addEventListener('change', (e) => {
-  socket.emit('board:settings', { startMoney: Number(e.target.value) }, (res) => {
+  hostEmit('board:settings', { startMoney: Number(e.target.value) }, (res) => {
     if (!res.ok) { toast(res.error, 'error'); e.target.value = S.settings.startMoney; }
   });
 });
@@ -226,7 +293,7 @@ $('#btn-start').addEventListener('click', () => {
   // Ton für das Spiel freischalten (Browser erlauben ihn erst nach einer Bedienung)
   if (typeof RkAudio !== 'undefined') RkAudio.unlock();
   if (typeof PkAudio !== 'undefined') PkAudio.unlock();
-  socket.emit('board:start', {}, (res) => { if (!res.ok) toast(res.error, 'error'); });
+  hostEmit('board:start', {});
 });
 
 /* ---------------- Spiel: Brett ---------------- */
@@ -1009,13 +1076,16 @@ let hostFocus = null;
 /** „Spiel beenden“ nur während des Spiels; nach dem Ende Endstand und die Knöpfe für den Host. */
 function renderHost() {
   const over = Boolean(S.started && S.game && S.final);
-  $$('.host-end').forEach((b) => { b.hidden = !S.started || !S.game || over; });
+  const playing = Boolean(S.started && S.game);
+  // Zuschauer (ohne gültiges Token) sehen keine Host-Knöpfe, nur „Host übernehmen“
+  $$('.host-end').forEach((b) => { b.hidden = !hostToken || !playing || over; });
+  $$('.host-mini[data-viewer="takeover"]').forEach((b) => { b.hidden = Boolean(hostToken) || !playing; });
   clearTimeout(renderHost.t);
   // Erst nach der letzten Animation (z. B. dem Gewinn im Poker)
   const wait = (S.animUntil || 0) - clock.now();
   const ready = over && wait <= 0;
   if (over && wait > 0) renderHost.t = setTimeout(renderHost, wait + 60);
-  $('#host-after').classList.toggle('hidden', !ready);
+  $('#host-after').classList.toggle('hidden', !ready || !hostToken);
   // Monopoly hat kein eigenes Abschlussbild: allgemeiner Endstand (Risiko und Poker zeigen ihren eigenen)
   const generic = ready && S.gameType === 'monopoly';
   $('#host-final').classList.toggle('hidden', !generic);
@@ -1044,13 +1114,14 @@ document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-host]');
   if (!b) return;
   const kind = b.dataset.host;
-  if (kind === 'end' || kind === 'close') { openHostDialog(kind); return; }
   if (kind === 'cancel') { closeHostDialog(); return; }
-  if (kind === 'lobby') { socket.emit('board:lobby', {}, (res) => { if (!res.ok) toast(res.error, 'error'); }); return; }
+  if (!hostToken) return;
+  if (kind === 'end' || kind === 'close') { openHostDialog(kind); return; }
+  if (kind === 'lobby') { hostEmit('board:lobby', {}); return; }
   if (kind === 'confirm' && hostPending) {
     const event = hostPending === 'end' ? 'board:end' : 'board:close';
     closeHostDialog();
-    socket.emit(event, {}, (res) => { if (!res.ok) toast(res.error, 'error'); });
+    hostEmit(event, {});
   }
 });
 
@@ -1060,6 +1131,6 @@ document.addEventListener('keydown', (e) => {
 
 // Raum geschlossen: zurück zur Startseite (der gemerkte Raum wird vergessen)
 socket.on('room:closed', ({ message } = {}) => {
-  try { localStorage.removeItem(BOARD_KEY); } catch (_) { /* privat-Modus */ }
+  try { localStorage.removeItem(BOARD_KEY); if (roomCode) localStorage.removeItem(HOST_KEY + roomCode); } catch (_) { /* privat-Modus */ }
   location.replace(`/?fehler=${encodeURIComponent(message || 'Der Raum wurde geschlossen.')}`);
 });

@@ -32,6 +32,14 @@
   border: 1px solid currentColor; border-radius: 999px; padding: .2em .8em; white-space: nowrap;
 }
 .host-end:hover, .host-end:focus-visible { opacity: 1; }
+/* Host-Knöpfe im Kopf jedes Spiels: bleiben zusammen und rücken bei Platzmangel gemeinsam in die nächste Zeile */
+.host-tools { margin-left: auto; display: inline-flex; align-items: center; gap: .3em; white-space: nowrap; }
+/* „Host übernehmen“ für Zuschauer – so unauffällig wie „Spiel beenden“ */
+.host-mini {
+  font: inherit; font-size: .78em; font-weight: 600; color: inherit; opacity: .6; background: transparent; cursor: pointer;
+  border: 0; border-radius: 999px; padding: .2em .6em; white-space: nowrap; text-decoration: underline; text-underline-offset: .2em;
+}
+.host-mini:hover, .host-mini:focus-visible { opacity: 1; }
 .host-dialog { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(8, 14, 12, .62); font-size: clamp(14px, 1.3vw, 24px); }
 .host-dialog-box { background: #f8f6f0; color: #1d1d1b; border-radius: 14px; padding: 1.4em 1.6em; width: min(26em, 92vw); }
 .host-dialog-box h2 { margin: 0 0 .35em; font-size: 1.35em; }

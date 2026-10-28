@@ -29,6 +29,19 @@ const DEFAULT_AVATAR = 'monogramm';
 /** Fotos: höchstens 3 Wechsel pro Spieler und Minute, höchstens 12 je Raum. */
 const FOTO_CHANGES_PER_MINUTE = 3;
 const MAX_FOTOS_PER_ROOM = 12;
+/** „Host übernehmen“: höchstens 5 Versuche pro Minute und IP. */
+const TAKEOVERS_PER_MINUTE_PER_IP = 5;
+/** So lange gilt ein getrennter Host noch als verbunden (kurzes Neuladen verdrängt ihn nicht). */
+const HOST_GRACE_MS = 15 * 1000;
+
+/** Neues Host-Token (24 Zufallsbytes, Base64url) – verlässt den Server nur in der Antwort an den Host. */
+const newHostToken = () => crypto.randomBytes(24).toString('base64url');
+const digest = (value) => crypto.createHash('sha256').update(String(value)).digest();
+/** Zeitkonstanter Vergleich; gleiche Länge über den Hash, falsche Typen zählen als falsch. */
+function sameSecret(given, expected) {
+  if (typeof given !== 'string' || !given || given.length > 200 || typeof expected !== 'string' || !expected) return false;
+  return crypto.timingSafeEqual(digest(given), digest(expected));
+}
 
 /** Avatar für einen alten Spieler mit Emoji-Figur (gleiche Stelle im Avatar-Set). */
 function legacyAvatar(figure) {
@@ -58,6 +71,13 @@ class Room {
     this.game = null;
     this.timers = {};
     this.pendingDice = [];
+    // Host: Token im Raumzustand, nie im Snapshot
+    this.hostToken = newHostToken();
+    this.hostClaimable = false;   // Übergangsregel für alte Räume ohne Token
+    this.hostSockets = new Set(); // Sockets, die gerade als Host verbunden sind
+    // Wann die letzte Host-Verbindung abbrach (für die Toleranz); ab dem Anlegen, damit das
+    // anlegende Gerät (Startseite → /board) Zeit hat, sich zu verbinden
+    this.hostLeftAt = Date.now();
   }
 
   get timeScale() { return this.config.timeScale ?? 1; }
@@ -83,6 +103,41 @@ class Room {
   isEmpty() { return !this.players.length && !this.hasHost(); }
 
   playerById(id) { return this.players.find((p) => p.id === id); }
+
+  /* ---------- Host ---------- */
+
+  /** Ist das das gültige Host-Token dieses Raums? (zeitkonstant verglichen) */
+  isHostToken(token) { return sameSecret(token, this.hostToken); }
+
+  get hostGraceMs() { return this.config.hostGraceMs ?? HOST_GRACE_MS; }
+
+  /** Ist ein Host-Gerät mit gültigem Token verbunden (oder erst vor weniger als 15 s getrennt)? */
+  hostConnected(now = Date.now()) {
+    return this.hostSockets.size > 0 || now - this.hostLeftAt < this.hostGraceMs;
+  }
+
+  /** Eine Host-Verbindung endet; ab der letzten läuft die Toleranz. */
+  leaveHost(socketId, now = Date.now()) {
+    if (!this.hostSockets.delete(socketId)) return;
+    if (!this.hostSockets.size) this.hostLeftAt = now;
+  }
+
+  /** „Host übernehmen“: nur ohne verbundenen Host; neues Token, das alte wird ungültig. */
+  takeOverHost(now = Date.now()) {
+    if (this.hostConnected(now)) fail('Der Host ist verbunden.');
+    this.renewHost();
+  }
+
+  /** Neues Token; Geräte mit dem alten Token sind ab sofort nur noch Zuschauer. */
+  renewHost() {
+    this.hostToken = newHostToken();
+    this.hostClaimable = false;
+    if (this.io && this.hostSockets.size) {
+      this.io.to([...this.hostSockets]).emit('host:revoked', { message: 'Ein anderes Gerät hat die Host-Rolle übernommen. Dieses Gerät sieht jetzt nur noch zu.' });
+    }
+    this.hostSockets.clear();
+    this.hostLeftAt = 0;
+  }
 
   /* ---------- Lobby ---------- */
 
@@ -323,6 +378,7 @@ class Room {
   /* ---------- Verbindungen ---------- */
 
   attach(socket, player) {
+    this.leaveHost(socket.id);
     socket.join(`${this.code}:players`);
     socket.data.code = this.code;
     socket.data.role = 'player';
@@ -435,6 +491,8 @@ class Room {
       settings: this.settings,
       started: this.started,
       lastActivity: this.lastActivity,
+      hostToken: this.hostToken,
+      ...(this.hostClaimable ? { hostClaimable: true } : {}),
       players: this.players.map(({ id, token, name, color, figure, avatar, photo, photoHidden }) => ({
         id, token, name, color, avatar, ...(figure ? { figure } : {}),
         photo: photo ? { type: photo.type, data: photo.data.toString('base64'), v: photo.v } : null,
@@ -453,6 +511,15 @@ class Room {
     room.settings = { ...room.settings, ...data.settings };
     room.started = Boolean(data.started);
     room.lastActivity = data.lastActivity || Date.now();
+    // Nach dem Neustart hat der Host 15 s Zeit, sich mit seinem Token wieder zu melden
+    room.hostLeftAt = Date.now();
+    if (typeof data.hostToken === 'string' && data.hostToken) {
+      room.hostToken = data.hostToken;
+      room.hostClaimable = Boolean(data.hostClaimable);
+    } else {
+      // Alter Raum ohne Token: frisches Token (im Konstruktor erzeugt); die erste Host-Ansicht übernimmt es
+      room.hostClaimable = true;
+    }
     room.players = (data.players || []).map((p) => ({
       ...p,
       // Alte Räume: Emoji-Figur statt Avatar (Feld bleibt lesbar)
@@ -503,6 +570,7 @@ class RoomManager {
     this.io = null;
     this.rooms = new Map();
     this.recentCreates = new Map();      // IP → Zeitpunkte der letzten Raum-Erstellungen
+    this.takeoversByIp = new Map();      // IP → Zeitpunkte der Versuche „Host übernehmen“ (letzte Minute)
     this.maxRooms = config.maxRooms ?? MAX_ACTIVE_ROOMS;
     this.sweeper = setInterval(() => this.sweep(), SWEEP_INTERVAL_MS);
     this.sweeper.unref?.();
@@ -573,9 +641,21 @@ class RoomManager {
       const idle = now - room.lastActivity;
       if (idle > ROOM_IDLE_MS || (idle > EMPTY_ROOM_MS && room.isEmpty())) this.remove(code);
     }
-    for (const [ip, list] of this.recentCreates) {
-      if (!list.some((t) => now - t < RATE_WINDOW_MS)) this.recentCreates.delete(ip);
+    for (const map of [this.recentCreates, this.takeoversByIp]) {
+      for (const [ip, list] of map) {
+        if (!list.some((t) => now - t < RATE_WINDOW_MS)) map.delete(ip);
+      }
     }
+  }
+
+  /** „Host übernehmen“ mit Rate-Limit: höchstens 5 Versuche pro Minute und IP (jeder Versuch zählt). */
+  takeOverHost(room, { ip = 'unbekannt', now = Date.now() } = {}) {
+    const recent = (this.takeoversByIp.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+    this.takeoversByIp.set(ip, recent);
+    if (recent.length >= TAKEOVERS_PER_MINUTE_PER_IP) fail('Zu viele Versuche, die Host-Rolle zu übernehmen. Bitte warte eine Minute.');
+    recent.push(now);
+    room.takeOverHost(now);
+    return { hostToken: room.hostToken };
   }
 
   /* ---------- Speichern in der Datenbank ---------- */
@@ -688,65 +768,100 @@ class RoomManager {
       return room;
     };
 
+    /** Host-Ansicht des Raums betreten; `host` sagt, ob dieses Gerät steuern darf. */
+    const joinBoard = (room, host) => {
+      if (socket.data.code && socket.data.code !== room.code) this.get(socket.data.code)?.leaveHost(socket.id);
+      socket.join(`${room.code}:board`);
+      socket.data.code = room.code;
+      socket.data.role = 'board';
+      if (host) room.hostSockets.add(socket.id);
+      else room.leaveHost(socket.id);
+    };
+
+    // Neuer Raum aus der Host-Ansicht: das Token geht nur in dieser Antwort an das anlegende Gerät
     handle('board:create', (_, use) => {
       const room = this.open({ ip: socketIp(socket) });
-      socket.join(`${room.code}:board`);
-      socket.data.code = room.code;
-      socket.data.role = 'board';
+      joinBoard(room, true);
       use(room);
-      return { code: room.code };
+      return { code: room.code, host: true, hostToken: room.hostToken };
     });
 
-    handle('board:watch', ({ code }, use) => {
+    // Host-Ansicht öffnen: mit gültigem Token als Host, sonst als Zuschauer (nur ansehen)
+    handle('board:watch', ({ code, hostToken }, use) => {
       const room = this.requireRoom(code);
-      socket.join(`${room.code}:board`);
-      socket.data.code = room.code;
-      socket.data.role = 'board';
+      if (room.isHostToken(hostToken) && !room.hostClaimable) {
+        joinBoard(room, true);
+        use(room);
+        return { code: room.code, host: true };
+      }
+      if (room.hostClaimable) {
+        // Übergangsregel: alter Raum ohne Token – die erste Host-Ansicht nach dem Neustart übernimmt
+        room.hostClaimable = false;
+        joinBoard(room, true);
+        use(room);
+        return { code: room.code, host: true, hostToken: room.hostToken };
+      }
+      joinBoard(room, false);
       use(room);
-      return { code: room.code };
+      return { code: room.code, host: false, ...(hostToken ? { tokenInvalid: true } : {}) };
     });
 
-    handle('board:settings', (patch, use) => {
+    // „Host übernehmen“: nur aus einer Host-Ansicht mit Zuschauer-Rolle und nur, wenn kein Host verbunden ist
+    handle('host:takeover', (_, use) => {
       const room = ownRoom();
-      if (socket.data.role !== 'board') fail('Nur das Tablet kann das Spiel einstellen.');
+      if (socket.data.role !== 'board') fail('Nur eine Host-Ansicht kann die Host-Rolle übernehmen.');
+      if (room.hostSockets.has(socket.id)) fail('Dieses Gerät ist schon der Host.');
+      const res = this.takeOverHost(room, { ip: socketIp(socket) });
+      joinBoard(room, true);
+      use(room);
+      return { host: true, ...res };
+    });
+
+    /**
+     * Raum für eine Host-Aktion: nur aus der Host-Ansicht und nur mit dem gültigen Host-Token
+     * (Handys und Zuschauer werden abgelehnt, ohne dass sich etwas ändert).
+     */
+    const hostRoom = (what, payload) => {
+      const room = ownRoom();
+      if (socket.data.role !== 'board') fail(`Nur die Host-Ansicht kann ${what}.`);
+      if (!room.isHostToken(payload && payload.hostToken)) {
+        fail(`Nur der Host kann ${what}. Dieses Gerät sieht nur zu.`);
+      }
+      return room;
+    };
+
+    handle('board:settings', ({ hostToken, ...patch }, use) => {
+      const room = hostRoom('das Spiel einstellen', { hostToken });
       room.updateSettings(patch);
       use(room);
     });
 
-    handle('board:game', ({ gameType }, use) => {
-      const room = ownRoom();
-      if (socket.data.role !== 'board') fail('Nur das Tablet kann das Spiel auswählen.');
-      room.setGameType(String(gameType || ''));
+    handle('board:game', (payload, use) => {
+      const room = hostRoom('das Spiel auswählen', payload);
+      room.setGameType(String(payload.gameType || ''));
       use(room);
     });
 
-    const hostRoom = (what) => {
-      const room = ownRoom();
-      if (socket.data.role !== 'board') fail(`Nur die Host-Ansicht kann ${what}.`);
-      return room;
-    };
-
-    handle('board:end', (_, use) => {
-      const room = hostRoom('das Spiel beenden');
+    handle('board:end', (payload, use) => {
+      const room = hostRoom('das Spiel beenden', payload);
       room.endGame();
       use(room);
     });
 
-    handle('board:lobby', (_, use) => {
-      const room = hostRoom('zur Lobby zurückkehren');
+    handle('board:lobby', (payload, use) => {
+      const room = hostRoom('zur Lobby zurückkehren', payload);
       room.backToLobby();
       use(room);
     });
 
-    handle('board:close', () => {
-      const room = hostRoom('den Raum schließen');
+    handle('board:close', (payload) => {
+      const room = hostRoom('den Raum schließen', payload);
       this.close(room.code);
       return { closed: true };
     });
 
-    handle('board:start', (_, use) => {
-      const room = ownRoom();
-      if (socket.data.role !== 'board') fail('Nur das Tablet kann das Spiel starten.');
+    handle('board:start', (payload, use) => {
+      const room = hostRoom('das Spiel starten', payload);
       room.start();
       use(room);
     });
@@ -789,8 +904,8 @@ class RoomManager {
       use(room);
     });
 
-    handle('board:foto', ({ playerId, hidden }, use) => {
-      const room = hostRoom('Fotos ausblenden');
+    handle('board:foto', ({ playerId, hidden, hostToken }, use) => {
+      const room = hostRoom('Fotos ausblenden', { hostToken });
       room.hideFoto(String(playerId || ''), hidden !== false);
       use(room);
     });
@@ -804,8 +919,8 @@ class RoomManager {
 
     if (this.config.testMode) {
       // Nur im Testmodus: Würfel vorgeben, damit Browser-Tests reproduzierbar sind.
-      handle('debug:dice', ({ dice }, use) => {
-        const room = ownRoom();
+      handle('debug:dice', ({ dice, hostToken }, use) => {
+        const room = hostRoom('Würfel vorgeben', { hostToken });
         const list = (Array.isArray(dice) ? dice : []).map((d) => [Number(d[0]), Number(d[1])]);
         if (!room.game) room.pendingDice.push(...list);
         else if (room.game.debugDice) room.game.debugDice(list);
@@ -818,7 +933,7 @@ class RoomManager {
       const room = this.get(socket.data.code);
       if (!room) return;
       // Ab jetzt zählt die Zeit, nach der ein leerer Raum verschwindet
-      if (socket.data.role === 'board') { room.touch(); return; }
+      if (socket.data.role === 'board') { room.leaveHost(socket.id); room.touch(); return; }
       if (socket.data.role !== 'player') return;
       room.detach(socket);
       room.broadcast();
@@ -828,5 +943,5 @@ class RoomManager {
 
 module.exports = {
   RoomManager, Room, UserError, MINIGAMES, TIMING, COLORS, FIGURES, DEFAULT_AVATAR, FOTO_CHANGES_PER_MINUTE, MAX_FOTOS_PER_ROOM, MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS,
-  MAX_ACTIVE_ROOMS, ROOMS_PER_MINUTE_PER_IP, EMPTY_ROOM_MS,
+  MAX_ACTIVE_ROOMS, ROOMS_PER_MINUTE_PER_IP, EMPTY_ROOM_MS, HOST_GRACE_MS, TAKEOVERS_PER_MINUTE_PER_IP,
 };

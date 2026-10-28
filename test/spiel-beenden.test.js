@@ -36,7 +36,8 @@ function fakeIo() {
       id: `s${++n}`, data: {}, rooms: new Set(), handshake: { headers: {}, address: '127.0.0.1' }, nsp: { server: io },
       on: (ev, fn) => { handlers[ev] = fn; },
       join: (r) => s.rooms.add(r),
-      call: (ev, payload = {}) => new Promise((resolve) => handlers[ev](payload, resolve)),
+      // Die Host-Ansicht schickt ihr Host-Token bei jeder Aktion mit (wie public/board/board.js)
+      call: (ev, payload = {}) => new Promise((resolve) => handlers[ev](s.hostToken ? { hostToken: s.hostToken, ...payload } : payload, resolve)),
     };
     manager.bindSocket(s);
     return s;
@@ -52,7 +53,8 @@ async function setup(gameType, store = null) {
   const net = fakeIo();
   manager.io = net.io;
   const host = net.socket(manager);
-  const { code } = await host.call('board:create');
+  const { code, hostToken } = await host.call('board:create');
+  host.hostToken = hostToken;
   const room = manager.get(code);
   await host.call('board:game', { gameType });
   const colors = room.colors;
@@ -120,7 +122,8 @@ test('Spiel beenden: Spielstand übersteht einen Neustart, dann zurück zur Lobb
   const net = fakeIo();
   manager.io = net.io;
   const host = net.socket(manager);
-  await host.call('board:watch', { code: room.code });
+  host.hostToken = first.host.hostToken;   // gespeichertes Token aus localStorage
+  assert.equal((await host.call('board:watch', { code: room.code })).host, true, 'Host ist nach dem Neustart nicht ausgesperrt');
   const res = await host.call('board:lobby');
   assert.ok(res.ok, res.error);
   assert.equal(room.started, false);
@@ -231,7 +234,7 @@ test('Spiel beenden: ohne laufendes Spiel gibt es eine Meldung', async () => {
   const net = fakeIo();
   manager.io = net.io;
   const host = net.socket(manager);
-  await host.call('board:create');
+  host.hostToken = (await host.call('board:create')).hostToken;
   assert.match((await host.call('board:end')).error, /Es läuft gerade kein Spiel/);
   manager.shutdown();
   assert.ok(COLORS.length >= 10);

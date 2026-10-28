@@ -41,6 +41,7 @@ function createServer(options = {}) {
     seed: options.seed ?? process.env.MONOPOLY_SEED,
     timeScale: options.timeScale ?? (testMode ? 0.25 : 1),
     store: options.store || null,
+    hostGraceMs: options.hostGraceMs,   // nur Tests: kürzere Toleranz für „Host übernehmen“
   };
   const { store } = config;
   // Origin der Weckseite (Netlify), die /healthz abfragen darf – nur genau diese, kein Stern
@@ -72,10 +73,12 @@ function createServer(options = {}) {
   const roomCode = (req) => String(req.query.room || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
 
   // Neuen Raum anlegen (Startseite). Grenzen: 20 Räume gleichzeitig, 5 pro Minute und IP.
+  // Das Host-Token steht nur in dieser Antwort (nie in einer Adresse); die Startseite legt es in localStorage ab.
   app.post('/api/rooms', (req, res) => {
+    res.set('Cache-Control', 'no-store');
     try {
       const room = rooms.open({ ip: req.ip });
-      res.status(201).json({ code: room.code });
+      res.status(201).json({ code: room.code, hostToken: room.hostToken });
     } catch (err) {
       if (err.name !== 'UserError') { console.error(err); return res.status(500).json({ error: 'Interner Fehler – bitte nochmal versuchen.' }); }
       res.status(err.status || 400).json({ error: err.message });

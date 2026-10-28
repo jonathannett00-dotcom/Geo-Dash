@@ -65,6 +65,7 @@
 .pkt-name { display: flex; align-items: center; justify-content: center; gap: .35em; font-weight: 700; font-size: 1em; min-width: 0; max-width: 100%; }
 .pkt-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; letter-spacing: .01em; }
 .pkt-name .pk-seat { font-size: .78em; width: 1.6em; height: 1.6em; }
+.pkt-name .av { width: 1.3em; height: 1.3em; }
 .pkt-stack { font-size: 1.15em; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
 .pkt-act { display: flex; align-items: center; justify-content: center; gap: .3em; height: 1.25em; font-size: .8em; color: var(--pk-muted); font-weight: 700; white-space: nowrap; overflow: hidden; max-width: 100%; }
 .pkt-act span { overflow: hidden; text-overflow: ellipsis; }
@@ -119,8 +120,9 @@
 .pkt-side-head b { color: var(--pk-text); margin-left: .3em; letter-spacing: .08em; }
 .pkt-side-head .host-end { margin-left: auto; }
 .pkt-list { list-style: none; margin: 0; padding: .4em; background: var(--pk-panel); border-radius: 10px; display: grid; gap: .2em; overflow: hidden; flex: 1; align-content: start; }
-.pkt-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "seat name stack" "seat sub sub"; column-gap: .5em; align-items: center; padding: .25em .4em; border-radius: 8px; }
+.pkt-list li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "seat av name stack" "seat av sub sub"; column-gap: .5em; align-items: center; padding: .25em .4em; border-radius: 8px; }
 .pkt-list li .pk-seat { grid-area: seat; }
+.pkt-list li .av { grid-area: av; width: 1.7em; height: 1.7em; }
 .pkt-l-name { grid-area: name; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pkt-l-stack { grid-area: stack; font-weight: 700; font-variant-numeric: tabular-nums; }
 .pkt-list small { grid-area: sub; color: var(--pk-muted); font-size: .78em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

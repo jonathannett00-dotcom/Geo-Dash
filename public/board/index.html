@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/shared/poker-karten.css" />
   <link rel="stylesheet" href="/board/poker.css" />
   <link rel="stylesheet" href="/shared/lobby.css" />
+  <link rel="stylesheet" href="/shared/avatare.css" />
   <link rel="stylesheet" href="/shared/endstand.css" />
 </head>
 <body class="board-page">
@@ -19,92 +20,122 @@
   <section id="lobby" class="lobby lb-theme hidden">
     <div id="lb-bg" class="lb-bg" aria-hidden="true"></div>
     <header class="lb-head">
-      <span class="lb-brand">Spieleabend</span>
-      <span id="lb-game-name" class="lb-head-game"></span>
+      <h1 class="lb-mark" id="lb-mark">Spieleabend</h1>
+      <p class="lb-eyebrow lb-in" style="--i: 0">Lobby<span id="lb-game-name" class="lb-head-game"></span></p>
     </header>
     <div class="lb-grid">
       <section class="lb-join" aria-label="Beitreten">
-        <div class="lb-label">Raum-Code</div>
-        <div id="room-code" class="lb-code">····</div>
-        <div class="lb-qrrow">
-          <img id="qr" class="lb-qr" alt="QR-Code zum Beitreten" width="220" height="220" />
-          <div class="lb-howto">
-            <p>Mit der Handykamera scannen oder im Browser öffnen:</p>
+        <div class="lb-joinrow">
+          <div class="lb-codecard lb-glass lb-in" style="--i: 1">
+            <div class="lb-label">Raumcode</div>
+            <div id="room-code" class="lb-code">····</div>
+            <p class="lb-codehint">Auf dem Handy die Adresse öffnen oder den QR-Code scannen, dann diesen Code eingeben.</p>
+          </div>
+          <div class="lb-qrcard lb-glass lb-in" style="--i: 2">
+            <img id="qr" class="lb-qr" alt="QR-Code zum Beitreten" width="220" height="220" />
             <div id="join-url" class="lb-url"></div>
           </div>
         </div>
-        <div class="lb-players-head">
-          <h2>Spieler</h2>
-          <span id="lobby-count" class="lb-count"></span>
+        <div class="lb-playercard lb-glass lb-in" style="--i: 3">
+          <div class="lb-players-head">
+            <h2>Spieler</h2>
+            <span id="lobby-count" class="lb-count"></span>
+          </div>
+          <ul id="lobby-players" class="lb-players"></ul>
         </div>
-        <ul id="lobby-players" class="lb-players"></ul>
       </section>
 
       <section class="lb-setup" aria-label="Spiel einrichten">
-        <h2 class="lb-label">Spiel wählen</h2>
+        <h2 class="lb-label lb-in" style="--i: 2">Spiel wählen</h2>
         <div id="game-choice" class="lb-games" role="group" aria-label="Spiel auswählen"></div>
-        <div class="lb-settings">
+        <div class="lb-settings lb-glass lb-in" style="--i: 6">
           <h3 id="lb-settings-title">Einstellungen</h3>
-          <div id="settings-monopoly" class="lb-fields">
-            <label class="lb-field start-money"><span>Startbetrag für alle</span>
-              <span class="money-input"><input id="start-money" type="number" min="100" max="100000" step="50" value="1500" /><b>M</b></span>
-            </label>
+          <div id="settings-monopoly" class="lb-fields lb-groups">
+            <div class="lb-group">
+              <div class="lb-group-title">Geld</div>
+              <label class="lb-field start-money"><span>Startbetrag</span>
+                <span class="money-input"><input id="start-money" type="number" min="100" max="100000" step="50" value="1500" /><b>M</b></span>
+              </label>
+              <p class="lb-note">Gilt für alle Spieler. Regeln der deutschen Standardausgabe: Versteigerung, Hypotheken, Handel, Häuserlimit der Bank (32 Häuser, 12 Hotels).</p>
+            </div>
+            <div class="lb-group">
+              <div class="lb-group-title">Minispiele</div>
+              <ul class="lb-facts">
+                <li><span>Pferderennen</span><b>Würfelsumme 7</b></li>
+                <li><span>Roulette</span><b>8 und 12</b></li>
+                <li><span>Blackjack</span><b>2 und 6</b></li>
+              </ul>
+              <p class="lb-note">Gesetzt wird mit dem Monopoly-Konto.</p>
+            </div>
           </div>
-          <div id="settings-poker" class="lb-fields two-col poker-settings hidden">
-            <label class="lb-field"><span>Startguthaben</span>
-              <span class="money-input"><input id="poker-startMoney" inputmode="decimal" autocomplete="off" value="20,00" /><b>€</b></span>
-            </label>
-            <label class="lb-field"><span>Nachkaufen</span>
-              <select id="poker-rebuy">
-                <option value="an">an</option>
-                <option value="aus">aus</option>
-              </select>
-            </label>
-            <label class="lb-field"><span>Small Blind</span>
-              <span class="money-input"><input id="poker-smallBlind" inputmode="decimal" autocomplete="off" value="0,10" /><b>€</b></span>
-            </label>
-            <label class="lb-field"><span>Zugzeit</span>
-              <select id="poker-turnTime">
-                <option value="0">aus</option>
-                <option value="30">30 Sekunden</option>
-                <option value="60">60 Sekunden</option>
-              </select>
-            </label>
-            <label class="lb-field"><span>Big Blind</span>
-              <span class="money-input"><input id="poker-bigBlind" inputmode="decimal" autocomplete="off" value="0,20" /><b>€</b></span>
-            </label>
-            <label class="lb-field"><span>Animationen</span>
-              <select id="poker-animation">
-                <option value="normal">normal</option>
-                <option value="kurz">kurz</option>
-                <option value="aus">aus</option>
-              </select>
-            </label>
-            <p class="lb-note">Spielgeld in Euro, ohne Zahlungsfunktion. Beträge mit Komma oder Punkt, z. B. 12,50.</p>
+          <div id="settings-poker" class="lb-fields lb-groups poker-settings hidden">
+            <div class="lb-group">
+              <div class="lb-group-title">Geld</div>
+              <label class="lb-field"><span>Startguthaben</span>
+                <span class="money-input"><input id="poker-startMoney" inputmode="decimal" autocomplete="off" value="20,00" /><b>€</b></span>
+              </label>
+              <label class="lb-field"><span>Small Blind</span>
+                <span class="money-input"><input id="poker-smallBlind" inputmode="decimal" autocomplete="off" value="0,10" /><b>€</b></span>
+              </label>
+              <label class="lb-field"><span>Big Blind</span>
+                <span class="money-input"><input id="poker-bigBlind" inputmode="decimal" autocomplete="off" value="0,20" /><b>€</b></span>
+              </label>
+            </div>
+            <div class="lb-group">
+              <div class="lb-group-title">Ablauf</div>
+              <label class="lb-field"><span>Nachkaufen</span>
+                <select id="poker-rebuy">
+                  <option value="an">an</option>
+                  <option value="aus">aus</option>
+                </select>
+              </label>
+              <label class="lb-field"><span>Zugzeit</span>
+                <select id="poker-turnTime">
+                  <option value="0">aus</option>
+                  <option value="30">30 Sekunden</option>
+                  <option value="60">60 Sekunden</option>
+                </select>
+              </label>
+              <label class="lb-field"><span>Animationen</span>
+                <select id="poker-animation">
+                  <option value="normal">normal</option>
+                  <option value="kurz">kurz</option>
+                  <option value="aus">aus</option>
+                </select>
+              </label>
+            </div>
+            <p class="lb-note lb-note-wide">Spielgeld in Euro, ohne Zahlungsfunktion. Beträge mit Komma oder Punkt, z. B. 12,50.</p>
           </div>
-          <div id="settings-risiko" class="lb-fields risiko-settings hidden">
-            <label class="lb-field"><span>Kartentausch</span>
-              <select id="risiko-cardValues">
-                <option value="steigend">steigend (4, 6, 8, 10, 12, 15, …)</option>
-                <option value="fest">fest (4 / 6 / 8 / 10)</option>
-              </select>
-            </label>
-            <label class="lb-field"><span>Verschieben</span>
-              <select id="risiko-fortify">
-                <option value="benachbart">ins Nachbargebiet</option>
-                <option value="verbunden">über eigene Gebiete</option>
-              </select>
-            </label>
-            <label class="lb-field"><span>Animationen</span>
-              <select id="risiko-animation">
-                <option value="normal">normal</option>
-                <option value="kurz">kurz</option>
-                <option value="aus">aus</option>
-              </select>
-            </label>
+          <div id="settings-risiko" class="lb-fields lb-groups risiko-settings hidden">
+            <div class="lb-group">
+              <div class="lb-group-title">Regeln</div>
+              <label class="lb-field"><span>Kartentausch</span>
+                <select id="risiko-cardValues">
+                  <option value="steigend">steigend (4, 6, 8, 10, 12, 15, …)</option>
+                  <option value="fest">fest (4 / 6 / 8 / 10)</option>
+                </select>
+              </label>
+              <label class="lb-field"><span>Verschieben</span>
+                <select id="risiko-fortify">
+                  <option value="benachbart">ins Nachbargebiet</option>
+                  <option value="verbunden">über eigene Gebiete</option>
+                </select>
+              </label>
+            </div>
+            <div class="lb-group">
+              <div class="lb-group-title">Darstellung</div>
+              <label class="lb-field"><span>Animationen</span>
+                <select id="risiko-animation">
+                  <option value="normal">normal</option>
+                  <option value="kurz">kurz</option>
+                  <option value="aus">aus</option>
+                </select>
+              </label>
+              <p class="lb-note">Die Gebiete werden beim Start zufällig verteilt.</p>
+            </div>
           </div>
         </div>
-        <div class="lb-startrow">
+        <div class="lb-startrow lb-in" style="--i: 7">
           <button id="btn-start" class="lb-start" disabled>Spiel starten</button>
           <p id="lobby-hint" class="lb-hint" aria-live="polite"></p>
         </div>
@@ -189,6 +220,7 @@
   <script src="/shared/common.js"></script>
   <script src="/shared/racetrack.js"></script>
   <script src="/shared/lobby.js"></script>
+  <script src="/shared/avatare.js"></script>
   <script src="/shared/endstand.js"></script>
   <script src="/board/board.js"></script>
   <script src="/risiko/map-paths.js"></script>
@@ -199,5 +231,6 @@
   <script src="/board/poker-layout.js"></script>
   <script src="/board/poker-audio.js"></script>
   <script src="/board/poker.js"></script>
+  <script src="/shared/hintergrund.js"></script>
 </body>
 </html>

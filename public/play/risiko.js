@@ -554,7 +554,7 @@ function renderRisiko() {
   document.body.classList.add('risiko-mode');
   rkEnsureLayout();
   document.documentElement.style.setProperty('--me', p.color);
-  $('#me-fig').textContent = p.figure;
+  setMeAvatar(p);
   $('#me-name').textContent = p.name;
   $('#me-money').textContent = `${mine.territories} Gebiete · ${mine.armies} Armeen`;
   const cur = g.currentId ? rkP(g.currentId) : null;

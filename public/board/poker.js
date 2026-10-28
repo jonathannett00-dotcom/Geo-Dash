@@ -217,7 +217,7 @@ function pkSeatInner(g, p, v, d) {
   }
   return `<div class="pkt-cards">${cards}</div>
     <div class="pkt-plate">
-      <div class="pkt-name">${pkSeatHtml(p)}<span class="pkt-nm">${escapeHtml(p.name)}</span></div>
+      <div class="pkt-name">${pkSeatHtml(p)}${avatarHtml(p, 'S', S.lobby)}<span class="pkt-nm">${escapeHtml(p.name)}</span></div>
       <div class="pkt-stack">${pkEuro(v.stack)}</div>
       <div class="pkt-act">${plaques.join('')}${won ? `<span class="pkt-won">+${pkEuro(won)}</span>` : action ? `<span>${action}</span>` : ''}</div>
       ${ring}
@@ -275,7 +275,7 @@ function pkSideHtml(g, d) {
     const state = p.status === 'left' ? 'gegangen' : p.status === 'out' ? 'pleite' : (p.status === 'sitout' || p.pendingRebuy) ? 'setzt aus'
       : lp && !lp.connected ? 'getrennt' : '';
     const cur = (g.actorId || g.decider) === p.id && !d.busy;
-    return `<li class="${cur ? 'cur' : ''} ${state ? 'dim' : ''}">${pkSeatHtml(p)}<span class="pkt-l-name">${escapeHtml(p.name)}</span>
+    return `<li class="${cur ? 'cur' : ''} ${state ? 'dim' : ''}">${pkSeatHtml(p)}${avatarHtml(p, 'S', S.lobby)}<span class="pkt-l-name">${escapeHtml(p.name)}</span>
       <span class="pkt-l-stack">${pkEuro(v.stack)}</span>
       <small>${p.rebuys ? `${p.rebuys}× nachgekauft` : 'kein Nachkauf'}${state ? ` · ${state}` : ''}</small></li>`;
   });
@@ -316,7 +316,7 @@ function renderPoker() {
   const finalBox = $('#pkt-final');
   const showFinal = g.phase === 'gameover' && !d.busy;
   finalBox.classList.toggle('hidden', !showFinal);
-  if (showFinal) patch(finalBox, endstandHtml(S.final, { heading: 'Endstand' }));
+  if (showFinal) patch(finalBox, endstandHtml(S.final, { heading: 'Endstand', lobby: S.lobby }));
   pkRunEffects(now);
   clearTimeout(pkTimer);
   if (d.nextAt !== null) pkTimer = setTimeout(renderPoker, Math.max(0, d.nextAt - clock.now()) + 15);

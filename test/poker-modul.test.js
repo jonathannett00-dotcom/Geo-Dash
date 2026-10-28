@@ -120,7 +120,7 @@ test('Poker: Raum – 12 Spieler mit eigener Farbpalette, der 13. ist zu viel', 
   assert.deepEqual(room.snapshot().colors, poker.colors);
   for (let i = 0; i < 12; i++) room.join({ name: `Spieler ${i + 1}`, color: poker.colors[i] });
   assert.throws(() => room.join({ name: 'Dreizehn', color: poker.colors[0] }), /voll \(maximal 12 Spieler\)/);
-  assert.equal(room.players.filter((p) => !p.figure).length, 2, 'ab dem 11. Spieler ohne Spielfigur');
+  assert.ok(room.players.every((p) => p.avatar === 'monogramm'), 'ohne Wahl: Monogramm für alle 12');
   assert.throws(() => room.setGameType('monopoly'), /höchstens 10 Spieler/);
   room.start();
   assert.equal(room.game.players.length, 12);
@@ -138,7 +138,7 @@ test('Poker: Spielwechsel in der Lobby übernimmt die Farben in die neue Palette
   assert.deepEqual(room.players.map((p) => p.color), [poker.colors[2], poker.colors[0]]);
   room.setGameType('monopoly');
   assert.deepEqual(room.players.map((p) => p.color), [colors[2], colors[0]]);
-  assert.ok(room.players.every((p) => p.figure), 'Monopoly: alle haben eine Spielfigur');
+  assert.ok(room.players.every((p) => p.avatar), 'Avatar bleibt beim Spielwechsel erhalten');
   manager.shutdown();
 });
 

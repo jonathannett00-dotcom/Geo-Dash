@@ -1,7 +1,9 @@
 'use strict';
 
 /* =========================================================
- *  Animierte Hintergründe der drei Spielflächen (nur Canvas, ohne Bibliothek).
+ *  Animierte Hintergründe der drei Spiele (nur Canvas, ohne Bibliothek).
+ *  Gemeinsam für Startseite (.st-game) und Host-Lobby (.lb-game); jede
+ *  Fläche braucht data-game und ein <canvas> darin.
  *
  *  Jede Szene ist eine reine Funktion der Zeit: draw(ctx, w, h, t, q).
  *  Damit sind Standbilder (reduzierte Bewegung, Rückfall) einfach ein
@@ -9,7 +11,8 @@
  *
  *  Steuerung:
  *   - Es läuft höchstens eine Szene mit voller Bildrate (die unter Maus
- *     oder Fokus, sonst die am weitesten sichtbare), die übrigen sichtbaren
+ *     oder Fokus, sonst die bevorzugte – in der Lobby das gewählte Spiel –,
+ *     sonst die am weitesten sichtbare), die übrigen sichtbaren
  *     mit halber Bildrate; unsichtbare und Szenen im Hintergrund-Tab ruhen.
  *   - Hover/Fokus beschleunigt die Szene weich.
  *   - Adaptive Qualität: Bleibt die Bildzeit einige Sekunden schlecht,
@@ -231,6 +234,7 @@
   let lastNow = 0;
   let frame = 0;
   let pointer = null;     // Fläche unter Maus oder Fokus
+  let preferred = null;   // bevorzugte Fläche (gewähltes Spiel in der Lobby)
 
   function applyQuality() {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -269,6 +273,7 @@
 
   function lead() {
     if (pointer && pointer.visible) return pointer;
+    if (preferred && preferred.visible && preferred.draw) return preferred;
     let best = null;
     for (const tile of tiles) if (tile.visible && tile.draw && (!best || tile.ratio > best.ratio)) best = tile;
     return best;
@@ -328,32 +333,68 @@
     if (isStill()) still(tile); else start();
   }
 
-  function init() {
-    applyQuality();
-    for (const el of document.querySelectorAll('.st-game')) {
+  const SELECTOR = '.st-game, .lb-game';
+  let io = null;
+  let ro = null;
+  let globe = null;       // Punktdatei nur einmal laden
+
+  function loadGlobe() {
+    if (!globe) {
+      globe = fetch('/start/globe-points.json')
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Punktdatei fehlt'))))
+        .then((data) => (data && Array.isArray(data.points) && data.points.length ? data : null))
+        .catch(() => null);
+    }
+    return globe;
+  }
+
+  /** Neue Flächen aufnehmen (die Lobby baut ihre Karten erst nach dem ersten Zustand). */
+  function scan() {
+    for (const el of document.querySelectorAll(SELECTOR)) {
+      if (tiles.some((x) => x.el === el)) continue;
       const canvas = el.querySelector('canvas');
       const ctx = canvas && canvas.getContext && canvas.getContext('2d');
       if (!ctx) continue;
       const game = el.dataset.game;
-      tiles.push({ el, canvas, ctx, game, draw: null, visible: false, ratio: 0, speed: 1, time: STILL_T[game] || 0, stride: 1 });
+      const tile = { el, canvas, ctx, game, draw: null, visible: false, ratio: 0, speed: 1, time: STILL_T[game] || 0, stride: 1 };
+      tiles.push(tile);
+      io.observe(el);
+      if (ro) ro.observe(canvas);
+      el.addEventListener('pointerenter', () => { pointer = tile; });
+      el.addEventListener('pointerleave', () => { if (pointer === tile) pointer = null; });
+      el.addEventListener('focus', () => { pointer = tile; });
+      el.addEventListener('blur', () => { if (pointer === tile) pointer = null; });
+      // Szenen laden; jede für sich, ein Fehler lässt das CSS-Standbild stehen
+      if (game === 'risiko') loadGlobe().then((data) => { if (data) setup(tile, globeScene(data)); });
+      else if (SCENES[game]) setup(tile, SCENES[game]());
     }
-    if (!tiles.length) return;
+  }
 
-    const io = new IntersectionObserver((entries) => {
+  /** Bevorzugte Fläche (läuft mit voller Bildrate, wenn keine unter der Maus ist). */
+  function prefer(el) { preferred = tiles.find((x) => x.el === el) || null; }
+
+  function init() {
+    applyQuality();
+    io = new IntersectionObserver((entries) => {
       for (const e of entries) {
         const tile = tiles.find((x) => x.el === e.target);
+        if (!tile) continue;
+        const was = tile.visible;
         tile.visible = e.isIntersecting;
         tile.ratio = e.intersectionRatio;
+        // Wieder sichtbar (z. B. Lobby nach dem Spiel): Größe und Bild auffrischen
+        if (tile.visible && !was && tile.draw) { if (isStill()) still(tile); else { resize(tile); paint(tile, tile.time); } }
       }
       if (tiles.some((x) => x.visible)) start(); else stop();
     }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
-    tiles.forEach((tile) => io.observe(tile.el));
-
-    for (const tile of tiles) {
-      tile.el.addEventListener('pointerenter', () => { pointer = tile; });
-      tile.el.addEventListener('pointerleave', () => { if (pointer === tile) pointer = null; });
-      tile.el.addEventListener('focus', () => { pointer = tile; });
-      tile.el.addEventListener('blur', () => { if (pointer === tile) pointer = null; });
+    // Größenänderung der Fläche selbst (Raster der Lobby, Fenster)
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver((entries) => {
+        for (const e of entries) {
+          const tile = tiles.find((x) => x.canvas === e.target);
+          if (tile && tile.draw) { if (isStill()) still(tile); else { resize(tile); paint(tile, tile.time); } }
+        }
+      });
     }
 
     document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else start(); });
@@ -364,19 +405,7 @@
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => { applyQuality(); tiles.forEach((tile) => (isStill() ? still(tile) : resize(tile))); }, 120);
     });
-
-    // Szenen laden; jede für sich, ein Fehler lässt das CSS-Standbild stehen
-    const risiko = tiles.find((x) => x.game === 'risiko');
-    if (risiko) {
-      fetch('/start/globe-points.json')
-        .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Punktdatei fehlt'))))
-        .then((data) => { if (data && Array.isArray(data.points) && data.points.length) setup(risiko, globeScene(data)); })
-        .catch(() => { /* Standbild bleibt */ });
-    }
-    for (const tile of tiles) {
-      const make = SCENES[tile.game];
-      if (make) setup(tile, make());
-    }
+    scan();
   }
 
   /* =====================================================
@@ -823,7 +852,7 @@
   const SCENES = { monopoly: monopolyScene, poker: pokerScene };
 
   // Für Prüfungen im Browser (Bildzeit, Qualitätsstufe)
-  window.stHintergrund = { quality, tiles, get running() { return running; } };
+  window.stHintergrund = { quality, tiles, scan, prefer, get running() { return running; } };
 
   try { init(); } catch (_) { /* Hintergrund ist Zierde: Seite läuft auch ohne */ }
 }());

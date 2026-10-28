@@ -16,6 +16,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { browserSkip, startServer, launch } = require('./helpers');
+const { AV_IDS } = require('../public/shared/avatare');
 
 const SCREENS = [[1920, 1080], [1366, 768], [1024, 768]];
 const NAMES = ['Anna', 'Ben', 'Cem', 'Dana', 'Eli', 'Finn', 'Gina', 'Hugo', 'Ida', 'Jan', 'Kai', 'Lea'];
@@ -56,6 +57,17 @@ function measure() {
   for (const s of g.dealers.map((r, i) => ({ id: `Dealer-Platz ${i + 1}`, r: abs(r) }))) {
     for (const it of seatsAndBets) if (hit(s.r, it.r)) out.push(`${s.id} × ${it.id}`);
   }
+  // Namensschilder mit Avatar: Avatar, Name und Guthaben im Schild und nicht übereinander
+  for (const plate of document.querySelectorAll('.pkt-plate')) {
+    const pr = R(plate.getBoundingClientRect());
+    const inside = (r) => r.x >= pr.x - tol && r.y >= pr.y - tol && r.x + r.w <= pr.x + pr.w + tol && r.y + r.h <= pr.y + pr.h + tol;
+    const parts = ['.av', '.pkt-nm', '.pkt-stack', '.pk-seat'].map((sel) => ({ sel, el: plate.querySelector(sel) })).filter((x) => x.el);
+    if (!plate.querySelector('.av')) out.push('Namensschild ohne Avatar');
+    for (const { sel, el } of parts) if (!inside(R(el.getBoundingClientRect()))) out.push(`Namensschild: ${sel} ragt heraus`);
+    for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) {
+      if (hit(R(parts[i].el.getBoundingClientRect()), R(parts[j].el.getBoundingClientRect()))) out.push(`Namensschild: ${parts[i].sel} × ${parts[j].sel}`);
+    }
+  }
   // Fliegende Chips: nie über Gemeinschaftskarten oder Blinds-Feld (der Pot ist ihr Ziel)
   for (const chip of document.querySelectorAll('.pkt-chip.flying')) {
     const r = R(chip.getBoundingClientRect());
@@ -85,7 +97,8 @@ function layoutTest(n) {
       room.setGameType('poker');
       for (const { page } of pages.slice(1)) await page.goto(`${srv.url}/board?room=${code}`);
       for (let i = 0; i < n; i++) {
-        const p = room.join({ name: NAMES[i], color: room.colors[i] });
+        // Gemischte Avatare (Motive und Monogramm)
+        const p = room.join({ name: NAMES[i], color: room.colors[i], avatar: AV_IDS[(i * 5) % AV_IDS.length] });
         p.connected = true;
       }
       room.start();

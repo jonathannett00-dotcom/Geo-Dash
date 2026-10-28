@@ -57,6 +57,8 @@ function renderLobby() {
   $('#poker').classList.add('hidden');
   const lobby = $('#lobby');
   lobby.dataset.game = S.gameType;
+  lbSplitMark($('#lb-mark'));
+  lbEnter(lobby);
   lbBackground($('#lb-bg'), S.gameType);
   $('#room-code').textContent = S.code;
   if (qrFor !== S.code) {
@@ -68,17 +70,9 @@ function renderLobby() {
   const info = LB_GAMES[S.gameType] || { name: S.gameType };
   $('#lb-game-name').textContent = info.name;
   const list = S.lobby;
-  $('#lobby-count').innerHTML = `<b>${list.length}</b> von ${S.maxPlayers}${list.length ? '' : ' · noch niemand da'}`;
+  $('#lobby-count').innerHTML = `<b>${list.length}</b> von ${S.maxPlayers}`;
   renderLobbyPlayers(list, S.maxPlayers);
-  patch($('#game-choice'), (S.games || []).map((g) => {
-    const gi = LB_GAMES[g.id] || { name: g.name, desc: '', time: '' };
-    const sel = g.id === S.gameType;
-    return `<button type="button" id="game-${g.id}" data-game="${g.id}" class="lb-game ${sel ? 'sel' : ''}" aria-pressed="${sel}">
-      ${sel ? '<span class="lb-game-state">Gewählt</span>' : ''}
-      <span class="lb-game-name">${escapeHtml(gi.name)}</span>
-      <span class="lb-game-desc">${escapeHtml(gi.desc)}</span>
-      <span class="lb-game-meta">${g.minPlayers} bis ${g.maxPlayers} Spieler${gi.time ? ` · ${gi.time}` : ''}</span></button>`;
-  }).join(''));
+  renderGameChoice();
   const risiko = S.gameType === 'risiko';
   const poker = S.gameType === 'poker';
   $('#lb-settings-title').textContent = `Einstellungen für ${info.name}`;
@@ -113,32 +107,88 @@ function renderLobby() {
           : `Alle starten mit ${fmtM(S.settings.startMoney)}.`}`;
 }
 
-/** Spielerkarten: neue werden sanft eingeblendet, freie Plätze bleiben als ruhige Umrisse sichtbar. */
+/**
+ * Spielauswahl: Die Karten mit ihren animierten Hintergründen werden nur einmal gebaut
+ * (sonst würden die Canvas-Flächen bei jedem Zustand neu starten); danach wechseln nur
+ * Markierung und Texte.
+ */
+function renderGameChoice() {
+  const box = $('#game-choice');
+  const games = S.games || [];
+  const ids = games.map((g) => g.id).join(',');
+  if (box.dataset.ids !== ids) {
+    box.dataset.ids = ids;
+    box.innerHTML = games.map((g, i) => {
+      const gi = LB_GAMES[g.id] || { name: g.name };
+      return `<button type="button" id="game-${g.id}" data-game="${g.id}" class="lb-game lb-in" style="--i: ${3 + i}" aria-pressed="false">
+        <span class="lb-scene" aria-hidden="true"><canvas class="lb-canvas"></canvas></span>
+        <span class="lb-game-state" aria-hidden="true">Gewählt</span>
+        <span class="lb-game-card lb-glass">
+          <span class="lb-game-name">${escapeHtml(gi.name)}</span>
+          <span class="lb-game-meta"></span>
+        </span></button>`;
+    }).join('');
+    try { if (window.stHintergrund) window.stHintergrund.scan(); } catch (_) { /* Hintergrund ist Zierde */ }
+  }
+  games.forEach((g) => {
+    const b = $(`#game-${g.id}`);
+    const gi = LB_GAMES[g.id] || {};
+    const sel = g.id === S.gameType;
+    b.classList.toggle('sel', sel);
+    b.setAttribute('aria-pressed', String(sel));
+    const meta = `${g.minPlayers} bis ${g.maxPlayers} Spieler${gi.time ? ` · ${gi.time}` : ''}`;
+    const m = b.querySelector('.lb-game-meta');
+    if (m.textContent !== meta) m.textContent = meta;
+    if (sel) { try { if (window.stHintergrund) window.stHintergrund.prefer(b); } catch (_) { /* Zierde */ } }
+  });
+}
+
+/**
+ * Spielerkarten in ihrer Farbe: neue gleiten sanft herein, freie Plätze bleiben als
+ * dezente Umrisse mit Nummer sichtbar. Das Raster richtet sich nach der Platzzahl.
+ */
 function renderLobbyPlayers(list, max) {
   const ul = $('#lobby-players');
+  const slots = Math.max(list.length, max);
+  ul.dataset.slots = String(slots);
+  ul.style.setProperty('--cols', slots <= 4 ? 2 : 3);
+  ul.style.setProperty('--rows', Math.ceil(slots / (slots <= 4 ? 2 : 3)));
   const want = list.map((p) => p.id);
   [...ul.querySelectorAll('li[data-id]')].forEach((li) => { if (!want.includes(li.dataset.id)) li.remove(); });
-  ul.querySelectorAll('li.empty').forEach((li) => li.remove());
   list.forEach((p, i) => {
     let li = ul.querySelector(`li[data-id="${p.id}"]`);
     if (!li) {
       li = document.createElement('li');
       li.dataset.id = p.id;
-      li.className = 'enter';
+      li.className = 'lb-player enter';
+      li.addEventListener('animationend', () => li.classList.remove('enter'), { once: true });
     }
     li.style.setProperty('--c', p.color);
     li.style.setProperty('--ink-on', lbInkOn(p.color));
     li.classList.toggle('off', !p.connected);
-    const html = `<span class="lb-pname">${escapeHtml(p.name)}</span>${p.connected ? '' : '<small>getrennt</small>'}`;
+    const sub = p.connected ? escapeHtml(lbFarbname(p.color)) : 'getrennt';
+    // Host kann Fotos ausblenden (Rückfall auf Avatar bzw. Monogramm) und wieder zeigen
+    const fotoBtn = p.hasPhoto ? `<button type="button" class="lb-pact" data-foto="${p.id}" data-hidden="${p.photoHidden ? '1' : ''}">${p.photoHidden ? 'Foto zeigen' : 'Foto ausblenden'}</button>` : '';
+    const html = `${avatarHtml(p, 'M')}<span class="lb-ptext"><span class="lb-pname">${escapeHtml(p.name)}</span><small>${sub}</small>${fotoBtn}</span>`;
     if (li._html !== html) { li.innerHTML = html; li._html = html; }
     if (ul.children[i] !== li) ul.insertBefore(li, ul.children[i] || null);
   });
-  for (let i = list.length; i < max; i++) {
-    const li = document.createElement('li');
-    li.className = 'empty';
+  // Freie Plätze nach den Spielern, mit Nummer
+  const empties = [...ul.querySelectorAll('li.empty')];
+  for (let i = list.length; i < slots; i++) {
+    let li = empties.shift();
+    if (!li) { li = document.createElement('li'); li.className = 'empty'; }
+    li.innerHTML = `<span class="lb-pnum">${i + 1}</span><span class="lb-ptext"><small>frei</small></span>`;
     ul.appendChild(li);
   }
+  empties.forEach((li) => li.remove());
 }
+
+$('#lobby-players').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-foto]');
+  if (!b) return;
+  socket.emit('board:foto', { playerId: b.dataset.foto, hidden: !b.dataset.hidden }, (res) => { if (!res.ok) toast(res.error, 'error'); });
+});
 
 $('#game-choice').addEventListener('click', (e) => {
   const b = e.target.closest('[data-game]');
@@ -294,9 +344,10 @@ function layoutTokens() {
       el.className = 'token';
       el.id = `tok-${p.id}`;
       el.style.setProperty('--c', p.color);
-      el.innerHTML = `<span class="tok-in">${p.figure}</span>`;
       layer.appendChild(el);
     }
+    // Spielmarke mit Avatar (bzw. Foto) des Spielers
+    patch(el, `<span class="tok-in">${avatarHtml(p, 'M', S.lobby)}</span>`);
     el.classList.toggle('hidden', p.bankrupt);
     el.classList.toggle('jailed', p.inJail && shown[p.id] === 10);
     el.classList.toggle('current', p.id === S.game.currentId);
@@ -415,10 +466,11 @@ function renderSidebar(g) {
       card.className = 'ps';
       card.id = `ps-${p.id}`;
       card.style.setProperty('--c', p.color);
-      card.innerHTML = `<div class="ps-top"><span class="ps-fig">${p.figure}</span><span class="ps-name">${escapeHtml(p.name)}</span><span class="ps-status"></span></div>
+      card.innerHTML = `<div class="ps-top"><span class="ps-fig"></span><span class="ps-name">${escapeHtml(p.name)}</span><span class="ps-status"></span></div>
         <div class="ps-money-wrap"><span class="ps-money money"></span></div><div class="ps-props"></div>`;
       wrap.appendChild(card);
     }
+    patch(card.querySelector('.ps-fig'), avatarHtml(p, 'M', S.lobby));
     const lobby = S.lobby.find((l) => l.id === p.id);
     const offline = lobby && !lobby.connected && !p.bankrupt;
     card.classList.toggle('current', p.id === g.currentId && g.phase !== 'gameover');
@@ -505,7 +557,7 @@ const TICKER_ICONS = { buy: '🏠', rent: '💸', card: '🃏', trade: '🤝', j
 
 function renderCenter(g) {
   const cur = g.players.find((p) => p.id === g.currentId);
-  patch($('#cm-turn'), g.phase === 'gameover' ? '' : `<span class="tf" style="--c:${cur.color}">${cur.figure}</span> <b>${escapeHtml(cur.name)}</b> ist am Zug`);
+  patch($('#cm-turn'), g.phase === 'gameover' ? '' : `${avatarHtml(cur, 'S', S.lobby)} <b>${escapeHtml(cur.name)}</b> ist am Zug`);
   patch($('#cm-status'), statusHtml(g));
   patch($('#ticker'), g.log.slice(-7).reverse().map((e) =>
     `<li class="k-${e.kind}">${/^\p{Extended_Pictographic}/u.test(e.text) ? '' : `<span>${TICKER_ICONS[e.kind] || '•'}</span>`}${escapeHtml(e.text)}</li>`).join(''));
@@ -967,7 +1019,7 @@ function renderHost() {
   // Monopoly hat kein eigenes Abschlussbild: allgemeiner Endstand (Risiko und Poker zeigen ihren eigenen)
   const generic = ready && S.gameType === 'monopoly';
   $('#host-final').classList.toggle('hidden', !generic);
-  if (generic) patch($('#host-final'), endstandHtml(S.final, { heading: 'Endstand' }));
+  if (generic) patch($('#host-final'), endstandHtml(S.final, { heading: 'Endstand', lobby: S.lobby }));
   if (!over && hostPending === 'close') closeHostDialog();
 }
 

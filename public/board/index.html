@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/shared/poker-karten.css" />
   <link rel="stylesheet" href="/board/poker.css" />
   <link rel="stylesheet" href="/shared/lobby.css" />
+  <link rel="stylesheet" href="/shared/endstand.css" />
 </head>
 <body class="board-page">
   <!-- ============ LOBBY ============ -->
@@ -126,6 +127,7 @@
       <div class="side-head">
         <span class="brand">🎲 Monopoly-Abend</span>
         <span>Raum <b id="side-code"></b></span>
+        <button type="button" class="host-end" data-host="end">Spiel beenden</button>
       </div>
       <div id="side-players" class="side-players"></div>
     </aside>
@@ -138,7 +140,7 @@
     <svg id="rk-map" class="rk-map" role="img" aria-label="Risiko-Weltkarte"></svg>
     <header class="rk-panel rk-top">
       <div id="rk-banner" class="rk-banner"></div>
-      <div class="rk-room">Raum <b id="rk-code"></b></div>
+      <div class="rk-room">Raum <b id="rk-code"></b> <button type="button" class="host-end" data-host="end">Spiel beenden</button></div>
     </header>
     <div id="rk-announce" class="rk-announce hidden" aria-live="polite"></div>
     <div id="rk-final" class="rk-final hidden"></div>
@@ -159,23 +161,42 @@
     </header>
     <div id="pkt-table" class="pkt-table" role="img" aria-label="Pokertisch"></div>
     <aside class="pkt-side">
-      <div class="pkt-side-head">Poker · Raum <b id="pkt-code"></b></div>
+      <div class="pkt-side-head"><span class="pkt-side-game">Poker ·&nbsp;</span>Raum <b id="pkt-code"></b><button type="button" class="host-end" data-host="end">Spiel beenden</button></div>
       <ol id="pkt-list" class="pkt-list"></ol>
       <ol id="pkt-log" class="pkt-log"></ol>
     </aside>
     <div id="pkt-final" class="pkt-final hidden"></div>
   </section>
 
+  <!-- ============ HOST: SPIEL BEENDEN ============ -->
+  <div id="host-final" class="host-final hidden"></div>
+  <div id="host-after" class="host-after hidden">
+    <button type="button" class="host-btn main" data-host="lobby">Zurück zur Lobby</button>
+    <button type="button" class="host-btn" data-host="close">Raum schließen</button>
+  </div>
+  <div id="host-dialog" class="host-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="host-dialog-title">
+    <div class="host-dialog-box">
+      <h2 id="host-dialog-title"></h2>
+      <p id="host-dialog-text"></p>
+      <div class="host-row">
+        <button type="button" class="host-btn" data-host="cancel">Abbrechen</button>
+        <button type="button" class="host-btn danger" data-host="confirm" id="host-dialog-ok"></button>
+      </div>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/common.js"></script>
   <script src="/shared/racetrack.js"></script>
   <script src="/shared/lobby.js"></script>
+  <script src="/shared/endstand.js"></script>
   <script src="/board/board.js"></script>
   <script src="/risiko/map-paths.js"></script>
   <script src="/shared/risiko-farben.js"></script>
   <script src="/board/risiko-audio.js"></script>
   <script src="/board/risiko.js"></script>
   <script src="/shared/poker-karten.js"></script>
+  <script src="/board/poker-layout.js"></script>
   <script src="/board/poker-audio.js"></script>
   <script src="/board/poker.js"></script>
 </body>

@@ -92,6 +92,11 @@ class PokerSession extends PokerGame {
     this.flush();
   }
 
+  endByHost() {
+    super.endByHost();
+    this.flush();
+  }
+
   /**
    * Zeitgesteuerte Schritte: nächste Runde nach den Animationen, abgelaufene Zugzeit
    * (Check, sonst Fold), Showdown-Entscheidung (verdeckt wegwerfen), Nachkauf-Entscheidung
@@ -172,6 +177,7 @@ class PokerSession extends PokerGame {
       return { ...base, title: 'Pause', text: 'Gleich beginnt die nächste Runde', detail: '' };
     }
     if (this.phase === 'gameover') {
+      if (this.endedBy === 'host') return { ...base, title: 'Spielende', text: 'Spiel vom Host beendet', detail: '' };
       return { ...base, playerId: this.winner, title: 'Spielende', text: this.winner ? `${name(this.winner)} gewinnt` : 'Das Spiel ist vorbei', detail: '' };
     }
     return { ...base, title: '', text: '', detail: '' };

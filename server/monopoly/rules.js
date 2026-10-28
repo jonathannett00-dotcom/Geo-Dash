@@ -145,6 +145,54 @@ class MonopolyGame {
     }, 0);
   }
 
+  /**
+   * Vermögen für den Endstand: Bargeld plus Kaufpreis der Grundstücke (mit Hypothek nur
+   * Kaufpreis minus Hypothekenwert) plus Baukosten der Häuser (ein Hotel zählt fünf Häuser).
+   */
+  netWorth(p) {
+    if (p.bankrupt) return { money: 0, property: 0, total: 0 };
+    const property = this.ownedBy(p.id).reduce((sum, i) => {
+      const s = SQUARES[i];
+      const st = this.props[i];
+      return sum + (st.mortgaged ? s.price - mortgageValue(i) : s.price) + (st.houses || 0) * (s.house || 0);
+    }, 0);
+    return { money: p.money, property, total: p.money + property };
+  }
+
+  /** Der Host beendet das Spiel: kein Sieger, offene Versteigerung und Schulden verfallen. */
+  endByHost() {
+    if (this.phase === 'gameover') fail('Das Spiel ist schon vorbei.');
+    this.phase = 'gameover';
+    this.winner = null;
+    this.endedBy = 'host';
+    this.minigame = null;
+    this.auction = null;
+    this.auctionQueue = [];
+    this.debts = [];
+    this.event('Der Host hat das Spiel beendet.', 'info');
+  }
+
+  /** Endstand: Vermögen je Spieler als Rangliste. */
+  summary() {
+    const rows = this.players.map((p) => {
+      const w = this.netWorth(p);
+      return {
+        id: p.id, name: p.name, color: p.color, values: w,
+        cells: [money(w.money), money(w.property), money(w.total)], tone: p.id === this.winner ? 'plus' : p.bankrupt ? 'minus' : '',
+        note: p.bankrupt ? 'pleite' : '',
+      };
+    }).sort((a, b) => b.values.total - a.values.total);
+    const w = this.winner ? this.player(this.winner) : null;
+    return {
+      game: 'monopoly',
+      reason: this.endedBy === 'host' ? 'host' : 'normal',
+      title: this.endedBy === 'host' ? 'Spiel vom Host beendet' : w ? `${w.name} gewinnt` : 'Spielende',
+      subtitle: 'Vermögen: Bargeld plus Grundstücke und Häuser',
+      columns: ['Bargeld', 'Grundstücke & Häuser', 'Vermögen'],
+      rows,
+    };
+  }
+
   /* ---------------- Würfel & Bewegung ---------------- */
 
   rollDice() {
@@ -953,6 +1001,7 @@ class MonopolyGame {
       lastCard: this.lastCard,
       minigame: this.minigame,
       winner: this.winner,
+      endedBy: this.endedBy || null,
     };
   }
 }

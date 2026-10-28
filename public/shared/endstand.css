@@ -1,0 +1,46 @@
+/* Endstand (Fernseher und Handy): ruhige Karte mit Tabelle, Zahlen rechtsbündig */
+.es-card { background: #f8f6f0; color: #1d1d1b; border-radius: 14px; padding: 1.2em 1.4em 1.3em; max-width: 100%; }
+.es-kicker { margin: 0 0 .2em; font-size: .8em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b6b63; }
+.es-card h2 { margin: 0; font-size: 1.6em; line-height: 1.15; }
+.es-sub { margin: .25em 0 .9em; color: #6b6b63; font-size: .9em; }
+.es-scroll { overflow-x: auto; }
+.es-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.es-table th, .es-table td { padding: .42em .55em; text-align: right; white-space: nowrap; border-bottom: 1px solid #e2ddd0; }
+.es-table thead th { font-size: .74em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b6b63; border-bottom-color: #cfc8b6; }
+.es-table tbody th { text-align: left; font-weight: 700; }
+.es-table tbody th small { margin-left: .5em; font-weight: 600; color: #8a8478; font-size: .8em; }
+.es-table tbody tr:last-child th, .es-table tbody tr:last-child td { border-bottom: 0; }
+.es-rank { color: #8a8478; width: 1%; text-align: left !important; padding-right: 0 !important; }
+.es-sw { display: inline-block; width: .7em; height: .7em; border-radius: 2px; background: var(--c); margin-right: .55em; vertical-align: .02em; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
+.es-table tr.plus td:last-child { color: #23793a; font-weight: 700; }
+/* Schmal (Handy): jede Zeile als Block, Werte mit ihrer Beschriftung */
+@media (max-width: 560px) {
+  .es-table thead { display: none; }
+  .es-table tr { display: grid; grid-template-columns: auto 1fr; column-gap: .5em; padding: .55em 0; border-bottom: 1px solid #e2ddd0; }
+  .es-table tbody tr:last-child { border-bottom: 0; }
+  .es-table th, .es-table td { border: 0; padding: .12em 0; }
+  .es-table tbody th { grid-column: 2; grid-row: 1; }
+  .es-rank { grid-column: 1; grid-row: 1; }
+  .es-table td[data-label] { grid-column: 2; display: flex; justify-content: space-between; gap: 1em; text-align: right; }
+  .es-table td[data-label]::before { content: attr(data-label); color: #6b6b63; font-weight: 600; text-align: left; }
+}
+.es-table tr.minus td:last-child { color: #b23b2e; font-weight: 700; }
+
+/* Host: Spiel beenden (unauffällig), Bestätigung, Knöpfe nach dem Ende */
+.host-end {
+  font: inherit; font-size: .78em; font-weight: 600; color: inherit; opacity: .72; background: transparent; cursor: pointer;
+  border: 1px solid currentColor; border-radius: 999px; padding: .2em .8em; white-space: nowrap;
+}
+.host-end:hover, .host-end:focus-visible { opacity: 1; }
+.host-dialog { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(8, 14, 12, .62); font-size: clamp(14px, 1.3vw, 24px); }
+.host-dialog-box { background: #f8f6f0; color: #1d1d1b; border-radius: 14px; padding: 1.4em 1.6em; width: min(26em, 92vw); }
+.host-dialog-box h2 { margin: 0 0 .35em; font-size: 1.35em; }
+.host-dialog-box p { margin: 0 0 1.1em; color: #57574f; line-height: 1.4; }
+.host-row { display: flex; justify-content: flex-end; gap: .6em; flex-wrap: wrap; }
+.host-btn { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: .6em 1.1em; min-height: 2.6em; cursor: pointer; background: #e6e1d4; color: #1d1d1b; }
+.host-btn.danger { background: #a8392e; color: #fff; }
+.host-btn.main { background: #e8c46a; color: #231b05; }
+.host-btn:focus-visible { outline: 3px solid #e8c46a; outline-offset: 2px; }
+.host-final { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(8, 14, 12, .78); padding: 3vmin; font-size: clamp(14px, min(1.25vw, 2.2vh), 26px); }
+.host-final .es-card { width: min(46em, 100%); max-height: 78vh; overflow: auto; }
+.host-after { position: fixed; left: 50%; bottom: 2.5vmin; transform: translateX(-50%); z-index: 70; display: flex; gap: .7em; font-size: clamp(14px, min(1.2vw, 2.1vh), 24px); }

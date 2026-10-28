@@ -165,6 +165,8 @@ class MonopolySession {
     if (g.phase !== 'minigame' || this.mini) return;
     const { type, seq } = g.minigame;
     const Game = MINIGAMES[type];
+    const stake = {};
+    this.miniStake = stake;
     if (!Game) {
       g.finishMinigame();
       return;
@@ -174,8 +176,9 @@ class MonopolySession {
       players: g.activePlayers().map(({ id, name, color, figure }) => ({ id, name, color, figure })),
       wallet: {
         balance: (id) => g.player(id).money,
-        debit: (id, amount) => g.debitBet(id, amount),
-        credit: (id, amount) => g.creditWin(id, amount),
+        // Netto-Einsatz je Spieler mitzählen: beim vorzeitigen Ende geht er zurück
+        debit: (id, amount) => { g.debitBet(id, amount); stake[id] = (stake[id] || 0) + amount; },
+        credit: (id, amount) => { g.creditWin(id, amount); stake[id] = (stake[id] || 0) - amount; },
       },
       rng: this.rng,
       timeScale: this.timeScale,
@@ -215,6 +218,21 @@ class MonopolySession {
     this.engine.removePlayer(pid);
     this.afterChange();
   }
+
+  /** Der Host beendet das Spiel. Ein laufendes Minispiel bricht ab, offene Einsätze gehen zurück. */
+  endByHost() {
+    const g = this.engine;
+    if (g.phase === 'gameover') fail('Das Spiel ist schon vorbei.');
+    if (this.mini) {
+      for (const [id, amount] of Object.entries(this.miniStake || {})) if (amount > 0) g.creditWin(id, amount);
+      this.stopMini();
+      g.event('Das laufende Minispiel wird abgebrochen, offene Einsätze gehen zurück.', 'minigame');
+    }
+    g.endByHost();
+    this.afterChange();
+  }
+
+  summary() { return this.engine.summary(); }
 
   /** Während eines Minispiels wird nicht gespeichert – der letzte Stand ist dann dessen Beginn. */
   canSave() { return !this.mini; }

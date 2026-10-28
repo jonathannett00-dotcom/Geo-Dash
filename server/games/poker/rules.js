@@ -655,6 +655,58 @@ class PokerGame {
     // Am Showdown bleibt ein Spieler, der schon gezeigt hat, in der Wertung (seine Karten liegen offen)
   }
 
+  /* ---------------- Vorzeitiges Ende durch den Host ---------------- */
+
+  /**
+   * Der Host beendet das Spiel. Eine laufende Runde wird abgebrochen: Einsätze gehen an ihre
+   * Spieler zurück, damit der Endstand genau aufgeht (die App bewegt kein echtes Geld).
+   */
+  endByHost() {
+    if (this.phase === 'gameover') fail('Das Spiel ist schon vorbei.');
+    if (this.phase === 'betting' || this.phase === 'showdown') {
+      for (const p of this.players) { p.stack += p.committed; p.committed = 0; p.bet = 0; }
+      this.event('Die laufende Runde wird abgebrochen, alle Einsätze gehen zurück.', 'info');
+    }
+    for (const p of this.players) p.pendingRebuy = false;
+    this.actorIndex = -1;
+    this.showdown = null;
+    this.pots = null;
+    this.currentBet = 0;
+    this.phase = 'gameover';
+    this.street = null;
+    this.winner = null;
+    this.endedBy = 'host';
+    this.event('Der Host hat das Spiel beendet.', 'gameover');
+    this.emit('gameover', { winner: null, byHost: true });
+  }
+
+  /**
+   * Endstand: je Spieler Startguthaben, Nachkäufe, Endguthaben und Gewinn oder Verlust
+   * (Endguthaben − Startguthaben − Nachkäufe, in Cent), sortiert vom größten Gewinn.
+   */
+  summary() {
+    const start = this.settings.startMoney;
+    const rows = this.players.map((p) => {
+      const rebuyAmount = start * p.rebuys;
+      const net = p.stack - start - rebuyAmount;
+      return {
+        id: p.id, name: p.name, color: p.color, seat: p.seat,
+        values: { start, rebuys: p.rebuys, rebuyAmount, final: p.stack, net },
+        cells: [formatEuro(start), p.rebuys ? `${p.rebuys}× · ${formatEuro(rebuyAmount)}` : '–', formatEuro(p.stack), `${net > 0 ? '+' : ''}${formatEuro(net)}`],
+        tone: net > 0 ? 'plus' : net < 0 ? 'minus' : '',
+      };
+    }).sort((a, b) => b.values.net - a.values.net || b.values.final - a.values.final);
+    const top = this.endedBy !== 'host' && this.winner ? this.player(this.winner) : null;
+    return {
+      game: 'poker',
+      reason: this.endedBy === 'host' ? 'host' : 'normal',
+      title: this.endedBy === 'host' ? 'Spiel vom Host beendet' : top ? `${top.name} gewinnt` : 'Spielende',
+      subtitle: `Nach ${this.handNo} ${this.handNo === 1 ? 'Runde' : 'Runden'} · Spielgeld, die App bewegt kein Geld`,
+      columns: ['Start', 'Nachkäufe', 'Endguthaben', 'Gewinn/Verlust'],
+      rows,
+    };
+  }
+
   /* ---------------- Aktionen der Clients ---------------- */
 
   handleAction(pid, action = {}) {

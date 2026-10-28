@@ -11,7 +11,6 @@ const socket = io();
 let S = null;
 let roomCode = null;
 let hostToken = null;   // nur gesetzt, wenn dieses Gerät der Host ist
-let hostCode = null;    // sechsstelliger Code zum Übernehmen auf einem anderen Gerät (nur für den Host)
 
 /* ---------------- Verbindung ---------------- */
 
@@ -28,15 +27,14 @@ function storedToken(code) {
 }
 
 /** Host-Rolle setzen (mit Token) oder abgeben (ohne Token: Zuschauer). */
-function setHost(code, token, codeDigits) {
+function setHost(code, token) {
   hostToken = token || null;
-  hostCode = token ? codeDigits || null : null;
   try {
     if (token) localStorage.setItem(HOST_KEY + code, token);
     else localStorage.removeItem(HOST_KEY + code);
   } catch (_) { /* privat-Modus: Host bleibt bis zum Neuladen */ }
   document.body.classList.toggle('zuschauer', !hostToken);
-  if (!hostToken) { closeHostDialog(); closeCodeDialog(); }
+  if (!hostToken) closeHostDialog();
   render();
 }
 
@@ -47,7 +45,7 @@ function hostEmit(event, payload, cb) {
 
 function createRoom() {
   socket.emit('board:create', {}, (res) => {
-    if (res.ok) { remember(res.code); setHost(res.code, res.hostToken, res.hostCode); }
+    if (res.ok) { remember(res.code); setHost(res.code, res.hostToken); }
     // Grenze erreicht: zurück zur Startseite, dort steht die Meldung
     else location.replace(`/?fehler=${encodeURIComponent(res.error)}`);
   });
@@ -63,7 +61,7 @@ socket.on('connect', () => {
   socket.emit('board:watch', { code, hostToken: token || undefined }, (res) => {
     if (!res.ok) { createRoom(); return; }
     remember(res.code);
-    if (res.host) setHost(res.code, res.hostToken || token, res.hostCode);
+    if (res.host) setHost(res.code, res.hostToken || token);
     else {
       setHost(res.code, null);
       if (res.tokenInvalid) toast('Ein anderes Gerät ist jetzt Host. Dieses Gerät sieht nur zu.', 'error');
@@ -85,70 +83,26 @@ socket.on('state', (state) => {
 /** Nur für automatische Tests: Würfel vorgeben (der Server ignoriert das außerhalb des Testmodus). */
 window.__debugDice = (dice) => new Promise((resolve) => socket.emit('debug:dice', { dice, hostToken }, resolve));
 
-/* ---------------- Host-Code: anzeigen (Host) und eingeben (Zuschauer) ---------------- */
+/* ---------------- Host übernehmen (Zuschauer) ---------------- */
 
-const fmtHostCode = (c) => (c ? `${c.slice(0, 3)} ${c.slice(3)}` : '');
-
-/** Kopf der Lobby: Host sieht seinen Host-Code, Zuschauer können ihn eingeben. */
+/** Kopf der Lobby: Host oder Zuschauer mit „Host übernehmen“. */
 function renderHostBox() {
   const box = $('#lb-host');
   const html = hostToken
-    ? `<span class="lb-host-label">Host-Code</span><b id="lb-hostcode" class="lb-hostcode">${escapeHtml(fmtHostCode(hostCode))}</b>`
-    : '<span class="lb-host-label">Zuschauer · nur ansehen</span><button type="button" class="lb-host-claim" data-viewer="claim">Host-Code eingeben</button>';
+    ? '<span class="lb-host-label">Dieses Gerät ist Host</span>'
+    : '<span class="lb-host-label">Zuschauer · nur ansehen</span><button type="button" class="lb-host-takeover" data-viewer="takeover">Host übernehmen</button>';
   if (box._html !== html) { box.innerHTML = html; box._html = html; }
 }
 
-let codeFocus = null;
-
-function openCodeDialog(kind) {
-  codeFocus = document.activeElement;
-  $('#code-dialog').dataset.kind = kind;
-  $('#code-dialog').classList.remove('hidden');
-  if (kind === 'show') {
-    $('#code-dialog-title').textContent = 'Host-Menü';
-    $('#code-dialog-text').textContent = 'Mit diesem Code übernimmst du die Host-Rolle auf einem anderen Gerät (z. B. wenn dieses ausfällt). Gib ihn dort in der Host-Ansicht unter „Host-Code eingeben“ ein. Nicht an Handys weitergeben.';
-    $('#code-dialog-show').textContent = fmtHostCode(hostCode);
-    $('#code-dialog [data-code="close"]').textContent = 'Schließen';
-    $('#code-dialog [data-code="close"]').focus();
-  } else {
-    $('#code-dialog-title').textContent = 'Host-Rolle übernehmen';
-    $('#code-dialog-text').textContent = 'Gib den sechsstelligen Host-Code ein. Er steht auf dem bisherigen Host-Gerät in der Lobby oder im Host-Menü. Danach ist dieses Gerät der Host, das alte sieht nur noch zu.';
-    $('#code-input').value = '';
-    $('#code-msg').textContent = '';
-    $('#code-dialog [data-code="close"]').textContent = 'Abbrechen';
-    $('#code-input').focus();
-  }
-}
-
-function closeCodeDialog() {
-  const box = $('#code-dialog');
-  if (box.classList.contains('hidden')) return;
-  box.classList.add('hidden');
-  if (codeFocus && codeFocus.focus) codeFocus.focus();
-}
-
+// Klappt nur, wenn kein Host-Gerät verbunden ist (sonst „Der Host ist verbunden.“)
 document.addEventListener('click', (e) => {
-  if (e.target.closest('[data-viewer="claim"]') && !hostToken) { openCodeDialog('claim'); return; }
-  if (e.target.closest('[data-code="close"]')) closeCodeDialog();
-});
-
-$('#code-input').addEventListener('input', (e) => {
-  const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-  if (e.target.value !== digits) e.target.value = digits;
-  $('#code-msg').textContent = '';
-});
-
-$('#code-form').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const code = $('#code-input').value.replace(/\D/g, '');
-  if (code.length !== 6) { $('#code-msg').textContent = 'Der Host-Code hat sechs Ziffern.'; return; }
-  const btn = $('#code-ok');
-  btn.disabled = true;
-  socket.emit('host:claim', { code }, (res) => {
-    btn.disabled = false;
-    if (!res.ok) { $('#code-msg').textContent = res.error; $('#code-input').select(); return; }
-    closeCodeDialog();
-    setHost(roomCode, res.hostToken, res.hostCode);
+  const b = e.target.closest('[data-viewer="takeover"]');
+  if (!b || hostToken || b.disabled) return;
+  b.disabled = true;
+  socket.emit('host:takeover', {}, (res) => {
+    b.disabled = false;
+    if (!res.ok) { toast(res.error, 'error'); return; }
+    setHost(roomCode, res.hostToken);
     toast('Dieses Gerät ist jetzt der Host.');
   });
 });
@@ -1123,10 +1077,9 @@ let hostFocus = null;
 function renderHost() {
   const over = Boolean(S.started && S.game && S.final);
   const playing = Boolean(S.started && S.game);
-  // Zuschauer (ohne gültiges Token) sehen keine Host-Knöpfe, nur „Host-Code eingeben“
+  // Zuschauer (ohne gültiges Token) sehen keine Host-Knöpfe, nur „Host übernehmen“
   $$('.host-end').forEach((b) => { b.hidden = !hostToken || !playing || over; });
-  $$('.host-mini[data-host="code"]').forEach((b) => { b.hidden = !hostToken || !playing; });
-  $$('.host-mini[data-viewer="claim"]').forEach((b) => { b.hidden = Boolean(hostToken) || !playing; });
+  $$('.host-mini[data-viewer="takeover"]').forEach((b) => { b.hidden = Boolean(hostToken) || !playing; });
   clearTimeout(renderHost.t);
   // Erst nach der letzten Animation (z. B. dem Gewinn im Poker)
   const wait = (S.animUntil || 0) - clock.now();
@@ -1163,7 +1116,6 @@ document.addEventListener('click', (e) => {
   const kind = b.dataset.host;
   if (kind === 'cancel') { closeHostDialog(); return; }
   if (!hostToken) return;
-  if (kind === 'code') { openCodeDialog('show'); return; }
   if (kind === 'end' || kind === 'close') { openHostDialog(kind); return; }
   if (kind === 'lobby') { hostEmit('board:lobby', {}); return; }
   if (kind === 'confirm' && hostPending) {
@@ -1175,7 +1127,6 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && hostPending) closeHostDialog();
-  if (e.key === 'Escape') closeCodeDialog();
 });
 
 // Raum geschlossen: zurück zur Startseite (der gemerkte Raum wird vergessen)

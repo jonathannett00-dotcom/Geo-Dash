@@ -34,19 +34,12 @@
 .host-end:hover, .host-end:focus-visible { opacity: 1; }
 /* Host-Knöpfe im Kopf jedes Spiels: bleiben zusammen und rücken bei Platzmangel gemeinsam in die nächste Zeile */
 .host-tools { margin-left: auto; display: inline-flex; align-items: center; gap: .3em; white-space: nowrap; }
-/* Host-Menü mit Host-Code bzw. „Host-Code eingeben“ für Zuschauer – so unauffällig wie „Spiel beenden“ */
+/* „Host übernehmen“ für Zuschauer – so unauffällig wie „Spiel beenden“ */
 .host-mini {
   font: inherit; font-size: .78em; font-weight: 600; color: inherit; opacity: .6; background: transparent; cursor: pointer;
   border: 0; border-radius: 999px; padding: .2em .6em; white-space: nowrap; text-decoration: underline; text-underline-offset: .2em;
 }
 .host-mini:hover, .host-mini:focus-visible { opacity: 1; }
-.code-show { font-size: 2.4em; font-weight: 800; letter-spacing: .14em; font-variant-numeric: tabular-nums; text-align: center; margin: 0 0 .5em; }
-.code-field { display: grid; gap: .3em; font-weight: 600; margin-bottom: .4em; }
-.code-field input { font: inherit; font-size: 1.6em; font-weight: 700; letter-spacing: .3em; font-variant-numeric: tabular-nums; text-align: center; padding: .35em .5em; border: 2px solid #cfc8b6; border-radius: 10px; background: #fff; color: #1d1d1b; width: 100%; box-sizing: border-box; }
-.code-field input:focus-visible { outline: 3px solid #e8c46a; outline-offset: 1px; }
-.host-dialog-box p.code-msg { min-height: 1.4em; margin: 0 0 .8em; color: #a8392e; font-weight: 600; }
-.host-dialog[data-kind="show"] :is(.code-field, .code-msg, #code-ok) { display: none; }
-.host-dialog[data-kind="claim"] .code-show { display: none; }
 .host-dialog { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(8, 14, 12, .62); font-size: clamp(14px, 1.3vw, 24px); }
 .host-dialog-box { background: #f8f6f0; color: #1d1d1b; border-radius: 14px; padding: 1.4em 1.6em; width: min(26em, 92vw); }
 .host-dialog-box h2 { margin: 0 0 .35em; font-size: 1.35em; }

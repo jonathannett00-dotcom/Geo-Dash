@@ -41,6 +41,7 @@ function createServer(options = {}) {
     seed: options.seed ?? process.env.MONOPOLY_SEED,
     timeScale: options.timeScale ?? (testMode ? 0.25 : 1),
     store: options.store || null,
+    hostGraceMs: options.hostGraceMs,   // nur Tests: kürzere Toleranz für „Host übernehmen“
   };
   const { store } = config;
   // Origin der Weckseite (Netlify), die /healthz abfragen darf – nur genau diese, kein Stern

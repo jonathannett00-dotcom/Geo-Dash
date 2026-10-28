@@ -29,15 +29,13 @@ const DEFAULT_AVATAR = 'monogramm';
 /** Fotos: höchstens 3 Wechsel pro Spieler und Minute, höchstens 12 je Raum. */
 const FOTO_CHANGES_PER_MINUTE = 3;
 const MAX_FOTOS_PER_ROOM = 12;
-/** Host-Code (Notausgang auf einem neuen Gerät): höchstens 5 Fehlversuche pro Minute und IP, 10 pro Raum und Stunde. */
-const HOST_FAILS_PER_MINUTE_PER_IP = 5;
-const HOST_FAILS_PER_HOUR_PER_ROOM = 10;
-const HOUR_MS = 60 * 60 * 1000;
+/** „Host übernehmen“: höchstens 5 Versuche pro Minute und IP. */
+const TAKEOVERS_PER_MINUTE_PER_IP = 5;
+/** So lange gilt ein getrennter Host noch als verbunden (kurzes Neuladen verdrängt ihn nicht). */
+const HOST_GRACE_MS = 15 * 1000;
 
 /** Neues Host-Token (24 Zufallsbytes, Base64url) – verlässt den Server nur in der Antwort an den Host. */
 const newHostToken = () => crypto.randomBytes(24).toString('base64url');
-/** Sechsstelliger Host-Code aus Ziffern. */
-const newHostCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 const digest = (value) => crypto.createHash('sha256').update(String(value)).digest();
 /** Zeitkonstanter Vergleich; gleiche Länge über den Hash, falsche Typen zählen als falsch. */
 function sameSecret(given, expected) {
@@ -73,12 +71,13 @@ class Room {
     this.game = null;
     this.timers = {};
     this.pendingDice = [];
-    // Host: Token (im Raumzustand, nie im Snapshot) und sechsstelliger Code zum Übernehmen
+    // Host: Token im Raumzustand, nie im Snapshot
     this.hostToken = newHostToken();
-    this.hostCode = newHostCode();
     this.hostClaimable = false;   // Übergangsregel für alte Räume ohne Token
-    this.hostFails = [];          // Fehlversuche mit dem Host-Code (Zeitpunkte, letzte Stunde)
     this.hostSockets = new Set(); // Sockets, die gerade als Host verbunden sind
+    // Wann die letzte Host-Verbindung abbrach (für die Toleranz); ab dem Anlegen, damit das
+    // anlegende Gerät (Startseite → /board) Zeit hat, sich zu verbinden
+    this.hostLeftAt = Date.now();
   }
 
   get timeScale() { return this.config.timeScale ?? 1; }
@@ -110,34 +109,34 @@ class Room {
   /** Ist das das gültige Host-Token dieses Raums? (zeitkonstant verglichen) */
   isHostToken(token) { return sameSecret(token, this.hostToken); }
 
-  /**
-   * Host-Rolle per Host-Code übernehmen: neues Token (das alte wird ungültig) und neuer Code.
-   * Fehlversuche zählen pro Raum (10 pro Stunde); die Grenze pro IP prüft der RoomManager.
-   */
-  claimHost(code, now = Date.now()) {
-    this.hostFails = this.hostFails.filter((t) => now - t < HOUR_MS);
-    if (this.hostFails.length >= HOST_FAILS_PER_HOUR_PER_ROOM) {
-      fail('Für diesen Raum gab es zu viele falsche Host-Codes. Die Übernahme ist für eine Stunde gesperrt.');
-    }
-    const clean = String(code ?? '').replace(/\s+/g, '');
-    if (!/^\d{6}$/.test(clean) || !sameSecret(clean, this.hostCode)) {
-      this.hostFails.push(now);
-      return false;
-    }
-    this.renewHost();
-    return true;
+  get hostGraceMs() { return this.config.hostGraceMs ?? HOST_GRACE_MS; }
+
+  /** Ist ein Host-Gerät mit gültigem Token verbunden (oder erst vor weniger als 15 s getrennt)? */
+  hostConnected(now = Date.now()) {
+    return this.hostSockets.size > 0 || now - this.hostLeftAt < this.hostGraceMs;
   }
 
-  /** Neues Token und neuer Code; Geräte mit dem alten Token sind ab sofort nur noch Zuschauer. */
+  /** Eine Host-Verbindung endet; ab der letzten läuft die Toleranz. */
+  leaveHost(socketId, now = Date.now()) {
+    if (!this.hostSockets.delete(socketId)) return;
+    if (!this.hostSockets.size) this.hostLeftAt = now;
+  }
+
+  /** „Host übernehmen“: nur ohne verbundenen Host; neues Token, das alte wird ungültig. */
+  takeOverHost(now = Date.now()) {
+    if (this.hostConnected(now)) fail('Der Host ist verbunden.');
+    this.renewHost();
+  }
+
+  /** Neues Token; Geräte mit dem alten Token sind ab sofort nur noch Zuschauer. */
   renewHost() {
     this.hostToken = newHostToken();
-    this.hostCode = newHostCode();
     this.hostClaimable = false;
-    this.hostFails = [];
     if (this.io && this.hostSockets.size) {
       this.io.to([...this.hostSockets]).emit('host:revoked', { message: 'Ein anderes Gerät hat die Host-Rolle übernommen. Dieses Gerät sieht jetzt nur noch zu.' });
     }
     this.hostSockets.clear();
+    this.hostLeftAt = 0;
   }
 
   /* ---------- Lobby ---------- */
@@ -379,7 +378,7 @@ class Room {
   /* ---------- Verbindungen ---------- */
 
   attach(socket, player) {
-    this.hostSockets.delete(socket.id);
+    this.leaveHost(socket.id);
     socket.join(`${this.code}:players`);
     socket.data.code = this.code;
     socket.data.role = 'player';
@@ -493,7 +492,6 @@ class Room {
       started: this.started,
       lastActivity: this.lastActivity,
       hostToken: this.hostToken,
-      hostCode: this.hostCode,
       ...(this.hostClaimable ? { hostClaimable: true } : {}),
       players: this.players.map(({ id, token, name, color, figure, avatar, photo, photoHidden }) => ({
         id, token, name, color, avatar, ...(figure ? { figure } : {}),
@@ -513,9 +511,10 @@ class Room {
     room.settings = { ...room.settings, ...data.settings };
     room.started = Boolean(data.started);
     room.lastActivity = data.lastActivity || Date.now();
-    if (typeof data.hostToken === 'string' && data.hostToken && /^\d{6}$/.test(String(data.hostCode))) {
+    // Nach dem Neustart hat der Host 15 s Zeit, sich mit seinem Token wieder zu melden
+    room.hostLeftAt = Date.now();
+    if (typeof data.hostToken === 'string' && data.hostToken) {
       room.hostToken = data.hostToken;
-      room.hostCode = String(data.hostCode);
       room.hostClaimable = Boolean(data.hostClaimable);
     } else {
       // Alter Raum ohne Token: frisches Token (im Konstruktor erzeugt); die erste Host-Ansicht übernimmt es
@@ -571,7 +570,7 @@ class RoomManager {
     this.io = null;
     this.rooms = new Map();
     this.recentCreates = new Map();      // IP → Zeitpunkte der letzten Raum-Erstellungen
-    this.hostFailsByIp = new Map();      // IP → Zeitpunkte falscher Host-Codes (letzte Minute)
+    this.takeoversByIp = new Map();      // IP → Zeitpunkte der Versuche „Host übernehmen“ (letzte Minute)
     this.maxRooms = config.maxRooms ?? MAX_ACTIVE_ROOMS;
     this.sweeper = setInterval(() => this.sweep(), SWEEP_INTERVAL_MS);
     this.sweeper.unref?.();
@@ -642,27 +641,21 @@ class RoomManager {
       const idle = now - room.lastActivity;
       if (idle > ROOM_IDLE_MS || (idle > EMPTY_ROOM_MS && room.isEmpty())) this.remove(code);
     }
-    for (const map of [this.recentCreates, this.hostFailsByIp]) {
+    for (const map of [this.recentCreates, this.takeoversByIp]) {
       for (const [ip, list] of map) {
         if (!list.some((t) => now - t < RATE_WINDOW_MS)) map.delete(ip);
       }
     }
   }
 
-  /**
-   * Host-Code auf einem neuen Gerät eingeben. Liefert bei Erfolg das neue Token und den neuen
-   * Code (nur für dieses Gerät). Sperre nach 5 Fehlversuchen pro Minute und IP bzw. 10 pro Raum und Stunde.
-   */
-  claimHost(room, code, { ip = 'unbekannt', now = Date.now() } = {}) {
-    const recent = (this.hostFailsByIp.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
-    this.hostFailsByIp.set(ip, recent);
-    if (recent.length >= HOST_FAILS_PER_MINUTE_PER_IP) fail('Zu viele falsche Host-Codes. Bitte warte eine Minute und versuche es dann noch einmal.');
-    if (!room.claimHost(code, now)) {
-      recent.push(now);
-      const left = Math.min(HOST_FAILS_PER_MINUTE_PER_IP - recent.length, HOST_FAILS_PER_HOUR_PER_ROOM - room.hostFails.length);
-      fail(left > 0 ? 'Der Host-Code stimmt nicht. Bitte prüfe die sechs Ziffern.' : 'Der Host-Code stimmt nicht. Weitere Versuche sind vorerst gesperrt.');
-    }
-    return { hostToken: room.hostToken, hostCode: room.hostCode };
+  /** „Host übernehmen“ mit Rate-Limit: höchstens 5 Versuche pro Minute und IP (jeder Versuch zählt). */
+  takeOverHost(room, { ip = 'unbekannt', now = Date.now() } = {}) {
+    const recent = (this.takeoversByIp.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+    this.takeoversByIp.set(ip, recent);
+    if (recent.length >= TAKEOVERS_PER_MINUTE_PER_IP) fail('Zu viele Versuche, die Host-Rolle zu übernehmen. Bitte warte eine Minute.');
+    recent.push(now);
+    room.takeOverHost(now);
+    return { hostToken: room.hostToken };
   }
 
   /* ---------- Speichern in der Datenbank ---------- */
@@ -777,20 +770,20 @@ class RoomManager {
 
     /** Host-Ansicht des Raums betreten; `host` sagt, ob dieses Gerät steuern darf. */
     const joinBoard = (room, host) => {
-      if (socket.data.code && socket.data.code !== room.code) this.get(socket.data.code)?.hostSockets.delete(socket.id);
+      if (socket.data.code && socket.data.code !== room.code) this.get(socket.data.code)?.leaveHost(socket.id);
       socket.join(`${room.code}:board`);
       socket.data.code = room.code;
       socket.data.role = 'board';
       if (host) room.hostSockets.add(socket.id);
-      else room.hostSockets.delete(socket.id);
+      else room.leaveHost(socket.id);
     };
 
-    // Neuer Raum aus der Host-Ansicht: Token und Host-Code gehen nur in dieser Antwort an das anlegende Gerät
+    // Neuer Raum aus der Host-Ansicht: das Token geht nur in dieser Antwort an das anlegende Gerät
     handle('board:create', (_, use) => {
       const room = this.open({ ip: socketIp(socket) });
       joinBoard(room, true);
       use(room);
-      return { code: room.code, host: true, hostToken: room.hostToken, hostCode: room.hostCode };
+      return { code: room.code, host: true, hostToken: room.hostToken };
     });
 
     // Host-Ansicht öffnen: mit gültigem Token als Host, sonst als Zuschauer (nur ansehen)
@@ -799,25 +792,26 @@ class RoomManager {
       if (room.isHostToken(hostToken) && !room.hostClaimable) {
         joinBoard(room, true);
         use(room);
-        return { code: room.code, host: true, hostCode: room.hostCode };
+        return { code: room.code, host: true };
       }
       if (room.hostClaimable) {
         // Übergangsregel: alter Raum ohne Token – die erste Host-Ansicht nach dem Neustart übernimmt
         room.hostClaimable = false;
         joinBoard(room, true);
         use(room);
-        return { code: room.code, host: true, hostToken: room.hostToken, hostCode: room.hostCode };
+        return { code: room.code, host: true, hostToken: room.hostToken };
       }
       joinBoard(room, false);
       use(room);
       return { code: room.code, host: false, ...(hostToken ? { tokenInvalid: true } : {}) };
     });
 
-    // Host-Rolle auf einem neuen Gerät per Host-Code übernehmen (nur aus der Host-Ansicht des Raums)
-    handle('host:claim', ({ code }, use) => {
+    // „Host übernehmen“: nur aus einer Host-Ansicht mit Zuschauer-Rolle und nur, wenn kein Host verbunden ist
+    handle('host:takeover', (_, use) => {
       const room = ownRoom();
-      if (socket.data.role !== 'board') fail('Den Host-Code kann man nur in der Host-Ansicht eingeben.');
-      const res = this.claimHost(room, code, { ip: socketIp(socket) });
+      if (socket.data.role !== 'board') fail('Nur eine Host-Ansicht kann die Host-Rolle übernehmen.');
+      if (room.hostSockets.has(socket.id)) fail('Dieses Gerät ist schon der Host.');
+      const res = this.takeOverHost(room, { ip: socketIp(socket) });
       joinBoard(room, true);
       use(room);
       return { host: true, ...res };
@@ -831,7 +825,7 @@ class RoomManager {
       const room = ownRoom();
       if (socket.data.role !== 'board') fail(`Nur die Host-Ansicht kann ${what}.`);
       if (!room.isHostToken(payload && payload.hostToken)) {
-        fail(`Nur der Host kann ${what}. Dieses Gerät sieht nur zu – mit dem Host-Code lässt sich die Host-Rolle übernehmen.`);
+        fail(`Nur der Host kann ${what}. Dieses Gerät sieht nur zu.`);
       }
       return room;
     };
@@ -939,7 +933,7 @@ class RoomManager {
       const room = this.get(socket.data.code);
       if (!room) return;
       // Ab jetzt zählt die Zeit, nach der ein leerer Raum verschwindet
-      if (socket.data.role === 'board') { room.hostSockets.delete(socket.id); room.touch(); return; }
+      if (socket.data.role === 'board') { room.leaveHost(socket.id); room.touch(); return; }
       if (socket.data.role !== 'player') return;
       room.detach(socket);
       room.broadcast();
@@ -949,5 +943,5 @@ class RoomManager {
 
 module.exports = {
   RoomManager, Room, UserError, MINIGAMES, TIMING, COLORS, FIGURES, DEFAULT_AVATAR, FOTO_CHANGES_PER_MINUTE, MAX_FOTOS_PER_ROOM, MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS, ROOM_IDLE_MS,
-  MAX_ACTIVE_ROOMS, ROOMS_PER_MINUTE_PER_IP, EMPTY_ROOM_MS,
+  MAX_ACTIVE_ROOMS, ROOMS_PER_MINUTE_PER_IP, EMPTY_ROOM_MS, HOST_GRACE_MS, TAKEOVERS_PER_MINUTE_PER_IP,
 };

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Spieleabend – Host</title>
+  <meta name="referrer" content="no-referrer" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/shared/base.css" />
   <link rel="stylesheet" href="/shared/racetrack.css" />
@@ -22,6 +23,7 @@
     <header class="lb-head">
       <h1 class="lb-mark" id="lb-mark">Spieleabend</h1>
       <p class="lb-eyebrow lb-in" style="--i: 0">Lobby<span id="lb-game-name" class="lb-head-game"></span></p>
+      <div id="lb-host" class="lb-host lb-glass lb-in" style="--i: 1" aria-live="polite"></div>
     </header>
     <div class="lb-grid">
       <section class="lb-join" aria-label="Beitreten">
@@ -158,7 +160,7 @@
       <div class="side-head">
         <span class="brand">🎲 Monopoly-Abend</span>
         <span>Raum <b id="side-code"></b></span>
-        <button type="button" class="host-end" data-host="end">Spiel beenden</button>
+        <span class="host-tools"><button type="button" class="host-mini" data-host="code" hidden>Host-Code</button><button type="button" class="host-mini" data-viewer="claim" hidden>Host-Code eingeben</button><button type="button" class="host-end" data-host="end">Spiel beenden</button></span>
       </div>
       <div id="side-players" class="side-players"></div>
     </aside>
@@ -171,7 +173,7 @@
     <svg id="rk-map" class="rk-map" role="img" aria-label="Risiko-Weltkarte"></svg>
     <header class="rk-panel rk-top">
       <div id="rk-banner" class="rk-banner"></div>
-      <div class="rk-room">Raum <b id="rk-code"></b> <button type="button" class="host-end" data-host="end">Spiel beenden</button></div>
+      <div class="rk-room">Raum <b id="rk-code"></b> <span class="host-tools"><button type="button" class="host-mini" data-host="code" hidden>Host-Code</button><button type="button" class="host-mini" data-viewer="claim" hidden>Host-Code eingeben</button><button type="button" class="host-end" data-host="end">Spiel beenden</button></span></div>
     </header>
     <div id="rk-announce" class="rk-announce hidden" aria-live="polite"></div>
     <div id="rk-final" class="rk-final hidden"></div>
@@ -192,7 +194,7 @@
     </header>
     <div id="pkt-table" class="pkt-table" role="img" aria-label="Pokertisch"></div>
     <aside class="pkt-side">
-      <div class="pkt-side-head"><span class="pkt-side-game">Poker ·&nbsp;</span>Raum <b id="pkt-code"></b><button type="button" class="host-end" data-host="end">Spiel beenden</button></div>
+      <div class="pkt-side-head"><span class="pkt-side-game">Poker ·&nbsp;</span>Raum <b id="pkt-code"></b><span class="host-tools"><button type="button" class="host-mini" data-host="code" hidden>Host-Code</button><button type="button" class="host-mini" data-viewer="claim" hidden>Host-Code eingeben</button><button type="button" class="host-end" data-host="end">Spiel beenden</button></span></div>
       <ol id="pkt-list" class="pkt-list"></ol>
       <ol id="pkt-log" class="pkt-log"></ol>
     </aside>
@@ -214,6 +216,23 @@
         <button type="button" class="host-btn danger" data-host="confirm" id="host-dialog-ok"></button>
       </div>
     </div>
+  </div>
+
+  <!-- ============ HOST-CODE: anzeigen (Host) oder eingeben (Zuschauer) ============ -->
+  <div id="code-dialog" class="host-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="code-dialog-title">
+    <form id="code-form" class="host-dialog-box" novalidate>
+      <h2 id="code-dialog-title"></h2>
+      <p id="code-dialog-text"></p>
+      <div id="code-dialog-show" class="code-show" aria-label="Host-Code"></div>
+      <label class="code-field"><span>Host-Code</span>
+        <input id="code-input" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="000000" aria-describedby="code-msg" />
+      </label>
+      <p id="code-msg" class="code-msg" role="alert"></p>
+      <div class="host-row">
+        <button type="button" class="host-btn" data-code="close">Schließen</button>
+        <button type="submit" class="host-btn main" id="code-ok">Host werden</button>
+      </div>
+    </form>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

@@ -116,9 +116,9 @@
 
 /* ---------- Spielerliste und Ticker ---------- */
 .pkt-side { grid-area: side; display: flex; flex-direction: column; gap: var(--pad); min-height: 0; }
-.pkt-side-head { background: var(--pk-panel); border-radius: 10px; padding: .55em .9em; color: var(--pk-muted); min-height: 3.2em; display: flex; align-items: center; }
+.pkt-side-head { background: var(--pk-panel); border-radius: 10px; padding: .55em .9em; color: var(--pk-muted); min-height: 3.2em; display: flex; flex-wrap: wrap; row-gap: .3em; align-items: center; }
 .pkt-side-head b { color: var(--pk-text); margin-left: .3em; letter-spacing: .08em; }
-.pkt-side-head .host-end { margin-left: auto; }
+.pkt-side-game { white-space: nowrap; }
 .pkt-list { list-style: none; margin: 0; padding: .4em; background: var(--pk-panel); border-radius: 10px; display: grid; gap: .2em; overflow: hidden; flex: 1; align-content: start; }
 .pkt-list li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "seat av name stack" "seat av sub sub"; column-gap: .5em; align-items: center; padding: .25em .4em; border-radius: 8px; }
 .pkt-list li .pk-seat { grid-area: seat; }

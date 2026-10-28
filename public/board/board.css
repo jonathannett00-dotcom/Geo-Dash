@@ -140,7 +140,7 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 
 /* ---------- Spielerleiste ---------- */
 .sidebar { flex: none; width: var(--side); min-width: 0; display: flex; flex-direction: column; gap: .4em; font-size: clamp(12px, 1.55vh, 22px); }
-.side-head { display: flex; justify-content: space-between; align-items: center; gap: .4em; color: #fff; font-size: .8em; padding: .15em .3em; }
+.side-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .4em; color: #fff; font-size: .8em; padding: .15em .3em; }
 .side-head .brand { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-head b { letter-spacing: .12em; color: var(--gold); }
 .side-players { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .35em; }

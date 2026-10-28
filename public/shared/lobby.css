@@ -84,7 +84,17 @@ body.st-lite .lb-glass { -webkit-backdrop-filter: none; backdrop-filter: none; b
 .lobby > :not(.lb-bg) { position: relative; z-index: 1; }
 .lobby .lb-head { display: flex; align-items: baseline; justify-content: space-between; gap: 2em; }
 .lobby .lb-mark { font-size: 2.6em; line-height: 1.1; }
-.lobby .lb-eyebrow { font-size: .8125em; }
+.lobby .lb-eyebrow { font-size: .8125em; margin-left: auto; }
+/* Host-Code (nur der Host sieht ihn) bzw. „Zuschauer“ mit Eingabe des Host-Codes */
+.lb-host { display: flex; align-items: center; gap: .7em; padding: .35em .5em .35em 1em; border-radius: 999px; font-size: .875em; white-space: nowrap; align-self: center; }
+.lb-host:empty { display: none; }
+.lb-host-label { color: var(--lb-muted); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .85em; }
+.lb-hostcode { font-variant-numeric: tabular-nums; letter-spacing: .12em; color: var(--lb-gold); font-size: 1.15em; padding-right: .5em; }
+.lb-host-claim { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: .35em .95em; cursor: pointer; background: var(--lb-gold); color: #231b05; }
+.lb-host-claim:focus-visible { outline: 3px solid var(--lb-gold); outline-offset: 2px; }
+/* Zuschauer: Spielwahl und Einstellungen nur ansehen */
+.zuschauer .lb-game:disabled { cursor: default; }
+.zuschauer .lb-settings :is(input, select):disabled { opacity: .7; cursor: default; }
 .lb-grid { display: grid; grid-template-columns: minmax(0, 41fr) minmax(0, 55fr); gap: 2em; min-height: 0; }
 
 /* ---------- Links: Raumcode, QR-Code, Spieler ---------- */

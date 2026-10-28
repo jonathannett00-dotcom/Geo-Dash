@@ -9,6 +9,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { browserSkip, startServer, launch, openPage, joinRoom, noHorizontalScroll } = require('./helpers');
 
+/** Raumcode in die vier Felder tippen (ersetzt den alten Inhalt). */
+async function typeCode(page, code) {
+  await page.click('#st-code-1');
+  await page.keyboard.type(code);
+}
+const codeValue = (page) => page.evaluate(() => [...document.querySelectorAll('#st-code .st-cell')].map((c) => c.value).join(''));
+
 test('Startseite: Raum anlegen, Beitritt per Code, Meldung bei unbekanntem Code', { skip: browserSkip(), timeout: 60000 }, async () => {
   const srv = await startServer();
   const browser = await launch();
@@ -24,11 +31,11 @@ test('Startseite: Raum anlegen, Beitritt per Code, Meldung bei unbekanntem Code'
     assert.equal(srv.rooms.size, 1, 'genau ein Raum angelegt');
 
     const phone = await openPage(browser, `${srv.url}/`, { viewport: { width: 390, height: 844 }, label: 'handy', errors, isMobile: true });
-    await phone.fill('#st-code', 'ZZZZ');
+    await typeCode(phone, 'ZZZZ');
     await phone.click('#st-join');
-    await phone.waitForFunction(() => /gibt es nicht/.test(document.querySelector('#st-msg').textContent));
-    await phone.fill('#st-code', code.toLowerCase());
-    assert.equal(await phone.inputValue('#st-code'), code, 'Code wird groß geschrieben');
+    await phone.waitForFunction(() => /gibt es nicht/.test(document.querySelector('#st-code-msg').textContent));
+    await typeCode(phone, code.toLowerCase());
+    assert.equal(await codeValue(phone), code, 'Code wird groß geschrieben');
     assert.equal(await noHorizontalScroll(phone), true, 'Startseite am Handy ohne horizontales Scrollen');
     await phone.click('#st-join');
     await phone.waitForURL(new RegExp(`/play\\?room=${code}$`));

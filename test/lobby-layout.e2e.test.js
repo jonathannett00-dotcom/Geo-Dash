@@ -91,18 +91,30 @@ test('Lobby-Raster: 0, 4, 8 und 12 Spieler, alle Spiele, drei Auflösungen ohne 
     // Spieler treten über eigene Verbindungen bei (schneller als zwölf Handy-Seiten)
     const helper = await openPage(browser, `${srv.url}/play?room=${code}`, { viewport: { width: 390, height: 844 }, label: 'helfer', errors });
     await helper.waitForFunction(() => typeof io === 'function');
+    // Gemischt: Motive, Monogramm und bei jedem dritten Spieler ein eigenes Foto (wie am Handy erzeugt)
     const addPlayers = (names) => helper.evaluate(async ({ names, code }) => {
       window.extra = window.extra || [];
       for (const name of names) {
         const s = io({ forceNew: true });
+        const n = window.extra.length;
         window.extra.push(s);
         const info = await new Promise((res) => s.emit('room:info', { code }, res));
         const takenC = new Set(info.lobby.map((p) => p.color));
-        const takenF = new Set(info.lobby.map((p) => p.figure));
         const color = info.colors.find((c) => !takenC.has(c));
-        const figure = info.figures.find((f) => !takenF.has(f));
-        const res = await new Promise((r) => s.emit('player:join', { code, name, color, figure: info.gameType === 'monopoly' ? figure : undefined }, r));
+        const avatar = AV_IDS[(n * 7) % AV_IDS.length];
+        const res = await new Promise((r) => s.emit('player:join', { code, name, color, avatar }, r));
         if (!res.ok) throw new Error(res.error);
+        if (n % 3 === 1) {
+          const c = document.createElement('canvas');
+          c.width = 128; c.height = 128;
+          const g = c.getContext('2d');
+          g.fillStyle = `hsl(${n * 47}, 45%, 62%)`; g.fillRect(0, 0, 128, 128);
+          g.fillStyle = `hsl(${n * 47 + 180}, 35%, 30%)`; g.beginPath(); g.arc(64, 54, 26, 0, Math.PI * 2); g.fill();
+          g.fillRect(28, 88, 72, 50);
+          const blob = await fotoKodieren(c);
+          const up = await new Promise((r) => s.emit('avatar:foto', { foto: blob }, r));
+          if (!up.ok) throw new Error(up.error);
+        }
       }
     }, { names, code });
 
@@ -138,7 +150,10 @@ test('Lobby-Raster: 0, 4, 8 und 12 Spieler, alle Spiele, drei Auflösungen ohne 
 
     await addPlayers(NAMES.slice(4, 8));
     await board.waitForFunction(() => document.querySelectorAll('#lobby-players li:not(.empty)').length === 8);
-    await check('8 Spieler, Monopoly', 'lobby-monopoly');
+    // Fotos sind geladen (nie ein kaputtes Bild)
+    await board.waitForFunction(() => [...document.querySelectorAll('#lobby-players .av-foto')].length === 3
+      && [...document.querySelectorAll('#lobby-players .av-foto')].every((i) => i.complete && i.naturalWidth === 128));
+    await check('8 Spieler, Monopoly, gemischte Avatare und Fotos', 'lobby-8-spieler-avatare');
     await choose('poker'); await check('8 Spieler, Poker');
 
     await addPlayers(NAMES.slice(8, 12));
@@ -170,7 +185,7 @@ test('Lobby-Raster: 0, 4, 8 und 12 Spieler, alle Spiele, drei Auflösungen ohne 
   }
 });
 
-test('Beitritt am Handy: Monopoly mit Spielfigur, Design ohne Scrollen', { skip: browserSkip(), timeout: 60000 }, async () => {
+test('Beitritt am Handy: Avatar wählen, Design ohne Scrollen', { skip: browserSkip(), timeout: 60000 }, async () => {
   const srv = await startServer();
   const browser = await launch();
   const errors = [];
@@ -188,13 +203,14 @@ test('Beitritt am Handy: Monopoly mit Spielfigur, Design ohne Scrollen', { skip:
     if (SHOTS) await phone.screenshot({ path: path.join(SHOTS, 'handy-beitritt-390x844.png') });
     await phone.click('#btn-join');
     await phone.waitForSelector('#app:not(.hidden)');
-    await board.waitForFunction(() => document.querySelector('#lobby-players li .lb-pfig'));
+    await board.waitForFunction(() => document.querySelector('#lobby-players li.lb-player .av svg'));
 
-    // Risiko: anderes Design-Thema, keine Spielfigur
+    // Risiko: anderes Design-Thema, Avatar-Wahl wie bei jedem Spiel
     await board.click('#game-risiko');
     const phone2 = await openPage(browser, `${srv.url}/play?room=${code}`, { viewport: { width: 390, height: 844 }, label: 'handy2', errors, isMobile: true });
     await phone2.waitForSelector('#join-form[data-game="risiko"]', { state: 'attached' });
-    assert.equal(await phone2.isVisible('#join-figure-set'), false);
+    assert.equal(await phone2.isVisible('#join-figure-set'), true);
+    assert.equal(await phone2.locator('#join-figures button').count(), 25, '24 Motive und Monogramm');
     await phone2.waitForTimeout(900);
     assert.equal(await noHorizontalScroll(phone2), true);
     if (SHOTS) await phone2.screenshot({ path: path.join(SHOTS, 'handy-beitritt-risiko-390x844.png') });

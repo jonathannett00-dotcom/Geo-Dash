@@ -9,8 +9,8 @@ const params = new URLSearchParams(location.search);
 let S = null;
 let me = null;          // eigene Spieler-ID
 let code = (params.get('room') || '').toUpperCase();
-let joinInfo = null;    // belegte Farben/Figuren in der Lobby
-let pick = { color: null, figure: null };
+let joinInfo = null;    // belegte Farben in der Lobby
+let pick = { color: null, avatar: null, foto: null, fotoUrl: null };
 
 const tokenKey = (c) => `monopoly-token-${c}`;
 const loadToken = (c) => { try { return localStorage.getItem(tokenKey(c)); } catch (_) { return null; } };
@@ -84,12 +84,9 @@ function renderRejoin(info) {
   const away = info.lobby.filter((p) => !p.connected);
   patch(box, away.length
     ? `<p><b>Das Spiel läuft bereits.</b> Bist du rausgeflogen? Tippe auf deinen Namen, um wieder einzusteigen:</p>
-       ${away.map((p) => `<button type="button" class="btn rejoin-btn" data-reclaim="${p.id}" style="--c:${p.color}">${info.gameType === 'monopoly' ? `${p.figure} ` : ''}${escapeHtml(p.name)}</button>`).join('')}`
+       ${away.map((p) => `<button type="button" class="btn rejoin-btn" data-reclaim="${p.id}" style="--c:${p.color}">${avatarHtml(p, 'S')} ${escapeHtml(p.name)}</button>`).join('')}`
     : '<p><b>Das Spiel läuft bereits</b> und alle Spieler sind verbunden – neue Spieler können nicht mehr beitreten.</p>');
 }
-
-/** Spielfigur gibt es nur bei Monopoly; Farbe und Name immer. */
-const needsFigure = () => joinInfo?.gameType === 'monopoly';
 
 function renderPickers() {
   const game = joinInfo?.gameType || '';
@@ -99,14 +96,20 @@ function renderPickers() {
   lbBackground($('#join-bg'), game);
   const gi = LB_GAMES[game];
   $('#join-game').textContent = gi && joinInfo ? `${gi.name} · ${joinInfo.lobby.length} von ${joinInfo.max} Spielern` : '';
-  $('#join-figure-set').classList.toggle('hidden', !needsFigure());
-  const figures = joinInfo?.figures || ['🎩', '🚗', '🐕', '🚢', '👢', '🐈', '🦆', '🦖', '✈️', '🎸'];
   const colors = joinInfo?.colors || [];
-  const takenF = new Set((joinInfo?.lobby || []).map((p) => p.figure));
   const takenC = new Set((joinInfo?.lobby || []).map((p) => p.color));
-  if (takenF.has(pick.figure)) pick.figure = null;
   if (takenC.has(pick.color)) pick.color = null;
-  patch($('#join-figures'), figures.map((f) => `<button type="button" data-figure="${f}" class="${pick.figure === f ? 'sel' : ''}" ${takenF.has(f) ? 'disabled' : ''} aria-label="Figur ${f}">${f}</button>`).join(''));
+  // Avatare in der gewählten Farbe (sonst neutral); gleiche Avatare sind erlaubt, nur nicht in gleicher Farbe –
+  // da jede Farbe nur einmal vergeben wird, ist kein Avatar gesperrt
+  const tone = pick.color || '#5b6470';
+  const name = $('#join-name').value.trim() || '?';
+  patch($('#join-figures'), AV_IDS.map((id) => {
+    const label = id === 'monogramm' ? 'Monogramm' : AV_MOTIVE.find((m) => m.id === id).name;
+    return `<button type="button" data-avatar="${id}" class="${pick.avatar === id && !pick.foto ? 'sel' : ''}" aria-label="Avatar ${label}" aria-pressed="${pick.avatar === id && !pick.foto}">${avatarHtml({ name, color: tone, avatar: id }, 'M')}</button>`;
+  }).join(''));
+  const chosen = $('#foto-chosen');
+  chosen.classList.toggle('hidden', !pick.foto);
+  if (pick.foto) patch(chosen, `${avatarHtml({ name, color: tone, avatar: pick.avatar || 'monogramm', photo: pick.fotoUrl }, 'M')}<span>Foto gewählt</span><button type="button" id="foto-remove" class="jn-foto-btn ghost">Entfernen</button>`);
   patch($('#join-colors'), colors.map((c) => `<button type="button" data-color="${c}" style="--c:${c}" class="${pick.color === c ? 'sel' : ''}" ${takenC.has(c) ? 'disabled' : ''} aria-label="Farbe ${lbFarbname(c)}"></button>`).join(''));
 }
 
@@ -142,9 +145,58 @@ $('#join-code').addEventListener('input', (e) => {
   refreshJoinInfo();
 });
 $('#join-figures').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-figure]');
-  if (b && !b.disabled) { pick.figure = b.dataset.figure; renderPickers(); }
+  const b = e.target.closest('[data-avatar]');
+  if (b && !b.disabled) { pick.avatar = b.dataset.avatar; clearFoto(); renderPickers(); }
 });
+$('#join-name').addEventListener('input', () => { if (pick.avatar === 'monogramm' || pick.foto) renderPickers(); });
+
+/* ---------------- Eigenes Foto ---------------- */
+
+const crop = fotoZuschnitt($('#foto-canvas'), $('#foto-zoom'));
+
+function clearFoto() {
+  if (pick.fotoUrl) URL.revokeObjectURL(pick.fotoUrl);
+  pick.foto = null;
+  pick.fotoUrl = null;
+}
+
+function showFotoPanel(open) {
+  $('#foto-panel').classList.toggle('hidden', !open);
+  $('#foto-open').setAttribute('aria-expanded', String(open));
+  if (!open) { $('#foto-crop').classList.add('hidden'); $('#foto-msg').textContent = ''; }
+}
+
+$('#foto-open').addEventListener('click', () => showFotoPanel($('#foto-panel').classList.contains('hidden')));
+['#foto-file', '#foto-camera'].forEach((sel) => $(sel).addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  $('#foto-msg').textContent = '';
+  try {
+    const img = await fotoLaden(file);
+    $('#foto-crop').classList.remove('hidden');
+    crop.setImage(img);
+  } catch (err) {
+    $('#foto-msg').textContent = err.message;
+  }
+}));
+$('#foto-cancel').addEventListener('click', () => showFotoPanel(false));
+$('#foto-ok').addEventListener('click', async () => {
+  try {
+    const blob = await crop.export();
+    clearFoto();
+    pick.foto = blob;
+    pick.fotoUrl = URL.createObjectURL(blob);
+    showFotoPanel(false);
+    renderPickers();
+  } catch (err) {
+    $('#foto-msg').textContent = err.message;
+  }
+});
+$('#foto-chosen').addEventListener('click', (e) => {
+  if (e.target.closest('#foto-remove')) { clearFoto(); renderPickers(); }
+});
+window.__fotoZuschnitt = crop;   // für Browser-Tests (Verschieben, Zoomen)
 $('#join-colors').addEventListener('click', (e) => {
   const b = e.target.closest('[data-color]');
   if (b && !b.disabled) { pick.color = b.dataset.color; renderPickers(); }
@@ -153,11 +205,17 @@ $('#join-colors').addEventListener('click', (e) => {
 $('#join-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const c = $('#join-code').value.trim().toUpperCase();
-  if (needsFigure() && !pick.figure) { $('#join-msg').textContent = 'Bitte wähle eine Spielfigur.'; return; }
   if (!pick.color) { $('#join-msg').textContent = 'Bitte wähle eine Farbe.'; return; }
-  socket.emit('player:join', { code: c, name: $('#join-name').value, color: pick.color, figure: needsFigure() ? pick.figure : undefined }, (res) => {
+  // Mit Foto: Avatar bzw. Monogramm bleibt der Rückfall
+  socket.emit('player:join', { code: c, name: $('#join-name').value, color: pick.color, avatar: pick.avatar || 'monogramm' }, async (res) => {
     if (!res.ok) { $('#join-msg').textContent = res.error; refreshJoinInfo(); return; }
     enterRoom(res);
+    if (pick.foto) {
+      // Nur das kleine, neu gezeichnete Bild geht an den Server, nie das Original
+      const data = await pick.foto.arrayBuffer();
+      socket.emit('avatar:foto', { foto: data }, (r) => { if (!r.ok) toast(`${r.error} Du spielst mit deinem Avatar.`, 'error'); });
+      clearFoto();
+    }
   });
 });
 
@@ -220,11 +278,14 @@ function animHold() {
   return true;
 }
 
+/** Eigener Avatar (bzw. Foto) oben im Kopf. */
+function setMeAvatar(p) { patch($('#me-fig'), avatarHtml(p, 'M')); }
+
 function renderHeader(hold = false) {
   const p = lobbyMe();
   if (!p) return;
   document.documentElement.style.setProperty('--me', p.color);
-  $('#me-fig').textContent = p.figure || '';
+  setMeAvatar(p);
   $('#me-name').textContent = p.name;
   const g = S.game;
   if (!g) {
@@ -258,7 +319,7 @@ function renderWaiting() {
       <h2>Warte auf den Spielstart…</h2>
       <p>Raum <b>${escapeHtml(S.code)}</b> · ${gameLine()}</p>
     </div>
-    <ul class="lobby-list">${S.lobby.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}">${S.gameType === 'monopoly' ? `${p.figure} ` : ''}${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</li>`).join('')}</ul>`);
+    <ul class="lobby-list">${S.lobby.map((p) => `<li style="--c:${p.color}" class="${p.connected ? '' : 'off'}">${avatarHtml(p, 'S')} ${escapeHtml(p.name)}${p.id === me ? ' (du)' : ''}</li>`).join('')}</ul>`);
 }
 
 /* ---------------- Tab: Zug ---------------- */
@@ -459,7 +520,7 @@ function tradeHtml() {
 
   out.push(`<div class="box"><h2>Neues Angebot</h2>
     ${locked ? '<p class="note">Während eines Minispiels ist kein Handel möglich.</p>' : ''}
-    <label>Mit<select id="tr-partner">${partners.map((p) => `<option value="${p.id}" ${p.id === partner.id ? 'selected' : ''}>${p.figure} ${escapeHtml(p.name)}</option>`).join('')}</select></label>
+    <label>Mit<select id="tr-partner">${partners.map((p) => `<option value="${p.id}" ${p.id === partner.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}</select></label>
     <h3>Du gibst</h3>
     <div class="checks">${tradable(me, 'tg')}</div>
     <div class="two"><label>Geld<input id="tg-money" type="number" min="0" step="10" inputmode="numeric" placeholder="0" /></label>
@@ -817,7 +878,7 @@ function renderFinal() {
   document.body.classList.remove('poker-mode', 'risiko-mode');
   $('#panel-final').classList.remove('hidden');
   if (p) {
-    $('#me-fig').textContent = S.gameType === 'monopoly' ? (p.figure || '') : '';
+    setMeAvatar(p);
     $('#me-name').textContent = p.name;
   }
   const rank = S.final.rows.findIndex((r) => r.id === me);
@@ -826,7 +887,7 @@ function renderFinal() {
   $('#turn-name').classList.remove('mine');
   patch($('#panel-final'), left > 0
     ? '<div class="box center"><h2>Schau auf den Fernseher</h2><p class="hint">Gleich kommt der Endstand.</p></div>'
-    : endstandHtml(S.final, { heading: S.final.reason === 'host' ? 'Das Spiel wurde beendet' : 'Spielende' }));
+    : endstandHtml(S.final, { heading: S.final.reason === 'host' ? 'Das Spiel wurde beendet' : 'Spielende', lobby: S.lobby }));
 }
 
 function render() {

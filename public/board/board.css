@@ -63,7 +63,11 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .tok-in {
   width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
   background: #fff; border: 3px solid var(--c); box-shadow: 0 2px 5px rgba(0,0,0,.45); transition: box-shadow .3s;
+  container-type: size; overflow: hidden;
 }
+/* Marke mit Avatar: füllt die Marke, der Rand in der Spielerfarbe bleibt */
+.tok-in .av { width: 100%; height: 100%; box-shadow: none; }
+.tok-in .av-mono { font-size: 58cqmin; }
 .token.moving { z-index: 3; }
 .token.moving .tok-in { box-shadow: 0 8px 14px rgba(0,0,0,.4); }
 .token.hop .tok-in { animation: hop var(--tstep, 380ms) ease-in-out; }
@@ -149,7 +153,8 @@ body.board-page { background: var(--bg) radial-gradient(ellipse at top, var(--bg
 .ps.bankrupt { opacity: .45; filter: grayscale(.8); }
 .ps.offline { opacity: .7; }
 .ps-top { display: flex; align-items: center; gap: .35em; min-width: 0; }
-.ps-fig { font-size: 1.15em; }
+.ps-fig { display: inline-flex; flex: none; }
+.ps-fig .av { width: 1.6em; height: 1.6em; }
 .ps-name { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; font-size: 1em; }
 .ps-status { display: flex; gap: .2em; flex: none; }
 .ps-status b { font-size: .68em; background: #eee3c9; border-radius: .5em; padding: .1em .35em; white-space: nowrap; }

@@ -155,7 +155,6 @@ function renderLobbyPlayers(list, max) {
   ul.style.setProperty('--rows', Math.ceil(slots / (slots <= 4 ? 2 : 3)));
   const want = list.map((p) => p.id);
   [...ul.querySelectorAll('li[data-id]')].forEach((li) => { if (!want.includes(li.dataset.id)) li.remove(); });
-  const monopoly = S.gameType === 'monopoly';
   list.forEach((p, i) => {
     let li = ul.querySelector(`li[data-id="${p.id}"]`);
     if (!li) {
@@ -167,9 +166,10 @@ function renderLobbyPlayers(list, max) {
     li.style.setProperty('--c', p.color);
     li.style.setProperty('--ink-on', lbInkOn(p.color));
     li.classList.toggle('off', !p.connected);
-    const badge = monopoly && p.figure ? `<span class="lb-pfig">${escapeHtml(p.figure)}</span>` : `<span class="lb-pnum">${i + 1}</span>`;
     const sub = p.connected ? escapeHtml(lbFarbname(p.color)) : 'getrennt';
-    const html = `${badge}<span class="lb-ptext"><span class="lb-pname">${escapeHtml(p.name)}</span><small>${sub}</small></span>`;
+    // Host kann Fotos ausblenden (Rückfall auf Avatar bzw. Monogramm) und wieder zeigen
+    const fotoBtn = p.hasPhoto ? `<button type="button" class="lb-pact" data-foto="${p.id}" data-hidden="${p.photoHidden ? '1' : ''}">${p.photoHidden ? 'Foto zeigen' : 'Foto ausblenden'}</button>` : '';
+    const html = `${avatarHtml(p, 'M')}<span class="lb-ptext"><span class="lb-pname">${escapeHtml(p.name)}</span><small>${sub}</small>${fotoBtn}</span>`;
     if (li._html !== html) { li.innerHTML = html; li._html = html; }
     if (ul.children[i] !== li) ul.insertBefore(li, ul.children[i] || null);
   });
@@ -183,6 +183,12 @@ function renderLobbyPlayers(list, max) {
   }
   empties.forEach((li) => li.remove());
 }
+
+$('#lobby-players').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-foto]');
+  if (!b) return;
+  socket.emit('board:foto', { playerId: b.dataset.foto, hidden: !b.dataset.hidden }, (res) => { if (!res.ok) toast(res.error, 'error'); });
+});
 
 $('#game-choice').addEventListener('click', (e) => {
   const b = e.target.closest('[data-game]');
@@ -338,9 +344,10 @@ function layoutTokens() {
       el.className = 'token';
       el.id = `tok-${p.id}`;
       el.style.setProperty('--c', p.color);
-      el.innerHTML = `<span class="tok-in">${p.figure}</span>`;
       layer.appendChild(el);
     }
+    // Spielmarke mit Avatar (bzw. Foto) des Spielers
+    patch(el, `<span class="tok-in">${avatarHtml(p, 'M', S.lobby)}</span>`);
     el.classList.toggle('hidden', p.bankrupt);
     el.classList.toggle('jailed', p.inJail && shown[p.id] === 10);
     el.classList.toggle('current', p.id === S.game.currentId);
@@ -459,10 +466,11 @@ function renderSidebar(g) {
       card.className = 'ps';
       card.id = `ps-${p.id}`;
       card.style.setProperty('--c', p.color);
-      card.innerHTML = `<div class="ps-top"><span class="ps-fig">${p.figure}</span><span class="ps-name">${escapeHtml(p.name)}</span><span class="ps-status"></span></div>
+      card.innerHTML = `<div class="ps-top"><span class="ps-fig"></span><span class="ps-name">${escapeHtml(p.name)}</span><span class="ps-status"></span></div>
         <div class="ps-money-wrap"><span class="ps-money money"></span></div><div class="ps-props"></div>`;
       wrap.appendChild(card);
     }
+    patch(card.querySelector('.ps-fig'), avatarHtml(p, 'M', S.lobby));
     const lobby = S.lobby.find((l) => l.id === p.id);
     const offline = lobby && !lobby.connected && !p.bankrupt;
     card.classList.toggle('current', p.id === g.currentId && g.phase !== 'gameover');
@@ -549,7 +557,7 @@ const TICKER_ICONS = { buy: '🏠', rent: '💸', card: '🃏', trade: '🤝', j
 
 function renderCenter(g) {
   const cur = g.players.find((p) => p.id === g.currentId);
-  patch($('#cm-turn'), g.phase === 'gameover' ? '' : `<span class="tf" style="--c:${cur.color}">${cur.figure}</span> <b>${escapeHtml(cur.name)}</b> ist am Zug`);
+  patch($('#cm-turn'), g.phase === 'gameover' ? '' : `${avatarHtml(cur, 'S', S.lobby)} <b>${escapeHtml(cur.name)}</b> ist am Zug`);
   patch($('#cm-status'), statusHtml(g));
   patch($('#ticker'), g.log.slice(-7).reverse().map((e) =>
     `<li class="k-${e.kind}">${/^\p{Extended_Pictographic}/u.test(e.text) ? '' : `<span>${TICKER_ICONS[e.kind] || '•'}</span>`}${escapeHtml(e.text)}</li>`).join(''));
@@ -1011,7 +1019,7 @@ function renderHost() {
   // Monopoly hat kein eigenes Abschlussbild: allgemeiner Endstand (Risiko und Poker zeigen ihren eigenen)
   const generic = ready && S.gameType === 'monopoly';
   $('#host-final').classList.toggle('hidden', !generic);
-  if (generic) patch($('#host-final'), endstandHtml(S.final, { heading: 'Endstand' }));
+  if (generic) patch($('#host-final'), endstandHtml(S.final, { heading: 'Endstand', lobby: S.lobby }));
   if (!over && hostPending === 'close') closeHostDialog();
 }
 

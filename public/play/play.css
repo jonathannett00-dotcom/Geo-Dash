@@ -22,7 +22,8 @@ legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0; m
 }
 .me { display: flex; align-items: center; gap: .5rem; min-width: 0; }
 .me-fig:empty { display: none; }
-.me-fig { font-size: 1.8rem; width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; background: var(--me, #333); flex: none; }
+.me-fig { font-size: 1rem; display: grid; place-items: center; flex: none; }
+.me-fig .av { width: 2.4rem; height: 2.4rem; }
 .me-name { font-weight: 700; font-size: .85rem; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
 .me-money-wrap { position: relative; }
 .me-money { font-size: 1.45rem; font-weight: 800; font-variant-numeric: tabular-nums; transition: color .3s; }

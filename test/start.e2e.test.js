@@ -61,3 +61,69 @@ test('Startseite: Raum anlegen, Beitritt per Code, Meldung bei unbekanntem Code'
     await srv.close();
   }
 });
+
+test('Startseite: Raumcode-Felder, Größen, Rückfall ohne Punktdatei', { skip: browserSkip(), timeout: 60000 }, async () => {
+  const srv = await startServer();
+  const browser = await launch();
+  const errors = [];
+  try {
+    const phone = await openPage(browser, `${srv.url}/`, { viewport: { width: 390, height: 844 }, label: 'felder', errors, isMobile: true });
+    // Tippen springt weiter, Kleinbuchstaben werden groß, Ziffern ignoriert
+    await phone.click('#st-code-1');
+    await phone.keyboard.type('a1b');
+    assert.equal(await codeValue(phone), 'AB');
+    assert.equal(await phone.evaluate(() => document.activeElement.id), 'st-code-3');
+    // Rücktaste im leeren Feld springt zurück und löscht dort
+    await phone.keyboard.press('Backspace');
+    assert.equal(await phone.evaluate(() => document.activeElement.id), 'st-code-2');
+    assert.equal(await codeValue(phone), 'A');
+    // Einfügen aus der Zwischenablage verteilt auf alle Felder
+    const paste = (text) => phone.evaluate((t) => {
+      const dt = new DataTransfer(); dt.setData('text', t);
+      document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }, text);
+    await paste(' wx-yz ');
+    assert.equal(await codeValue(phone), 'WXYZ');
+    assert.equal(await phone.evaluate(() => document.activeElement.id), 'st-code-4');
+    await paste('123');
+    assert.match(await phone.textContent('#st-code-msg'), /nur aus Buchstaben/);
+    // Unvollständig: Fehler am Feld
+    await phone.click('#st-code-4');
+    await phone.keyboard.press('Delete');
+    await phone.click('#st-join');
+    assert.match(await phone.textContent('#st-code-msg'), /4 Buchstaben/);
+    assert.equal(await phone.getAttribute('#st-code', 'aria-invalid'), 'true');
+    assert.equal(await phone.evaluate(() => document.activeElement.id), 'st-code-4');
+    assert.equal(await phone.getAttribute('#st-code-1', 'inputmode'), 'text');
+    assert.equal(await phone.getAttribute('#st-code-1', 'autocapitalize'), 'characters');
+
+    // Alle Größen: kein horizontales Scrollen, Szenen gezeichnet, Ziele am Handy groß genug
+    for (const [width, height] of [[390, 844], [1024, 768], [1366, 768], [1920, 1080]]) {
+      const page = await openPage(browser, `${srv.url}/`, { viewport: { width, height }, label: `${width}`, errors, isMobile: width < 500 });
+      await page.waitForFunction(() => document.querySelectorAll('.st-game.st-has-canvas').length === 3);
+      assert.equal(await noHorizontalScroll(page), true, `${width}x${height} ohne horizontales Scrollen`);
+      if (width < 500) {
+        const small = await page.evaluate(() => [...document.querySelectorAll('button, a, input')].filter((e) => { const r = e.getBoundingClientRect(); return r.height < 44 || r.width < 44; }).map((e) => e.id));
+        assert.deepEqual(small, [], 'Zielgröße mindestens 44 px');
+      }
+      await page.context().close();
+    }
+
+    // Punktdatei fehlt, reduzierte Bewegung: Seite lädt ohne Fehler mit Standbildern
+    const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, reducedMotion: 'reduce' });
+    const still = await ctx.newPage();
+    const own = [];
+    still.on('pageerror', (err) => own.push(err.message));
+    await still.route('**/globe-points.json', (route) => route.fulfill({ status: 404, body: '' }));
+    await still.goto(`${srv.url}/`);
+    await still.waitForFunction(() => document.querySelectorAll('.st-game.st-has-canvas').length === 2);
+    assert.equal(await still.evaluate(() => window.stHintergrund.running), false, 'keine Bewegung bei reduzierter Bewegung');
+    assert.equal(await still.evaluate(() => document.querySelector('.st-game[data-game="risiko"]').classList.contains('st-has-canvas')), false);
+    assert.deepEqual(own, []);
+    await ctx.close();
+    assert.deepEqual(errors, [], 'keine Konsolenfehler');
+  } finally {
+    await browser.close();
+    await srv.close();
+  }
+});

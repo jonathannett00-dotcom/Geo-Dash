@@ -140,10 +140,6 @@ function pkTableHtml(g) {
 /** Showdown-Entscheidung, Nachkaufen, Ergebnis der Runde oder Endstand. */
 function pkExtraHtml(g) {
   const m = g.me;
-  if (g.phase === 'gameover') {
-    const ranking = g.players.slice().sort((a, b) => b.stack - a.stack);
-    return `<div class="pk-box"><h2>Endstand</h2><ol class="pk-final">${ranking.map((p) => `<li>${pkSeatHtml(p)}<span>${escapeHtml(p.name)}</span><b>${pkEuro(p.stack)}</b><small>${p.net >= 0 ? '+' : ''}${pkEuro(p.net)}</small></li>`).join('')}</ol></div>`;
-  }
   if (m?.showdownChoice) {
     const timer = S.deadline && S.deadlineFor === me ? ` (<span data-ends="${S.deadline}"></span>)` : '';
     return `<div class="pk-box warn"><h2>Du kannst nicht gewinnen</h2><p>Zeigen oder verdeckt wegwerfen?${timer}</p>

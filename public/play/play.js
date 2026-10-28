@@ -30,6 +30,18 @@ socket.on('connect', () => {
   });
 });
 
+// Der Host hat den Raum geschlossen: Sitzung vergessen, zurück zum Beitritt
+socket.on('room:closed', ({ message } = {}) => {
+  if (code) dropToken(code);
+  me = null;
+  S = null;
+  code = '';
+  const url = new URL(location.href);
+  url.searchParams.delete('room');
+  history.replaceState(null, '', url);
+  showJoin(message || 'Der Raum wurde geschlossen.');
+});
+
 socket.on('state', (state) => {
   clock.sync(state.now);
   S = state;
@@ -792,13 +804,38 @@ function attention() {
   lastAttention = key;
 }
 
+/** Nach Spielende (auch vom Host beendet): Endstand für alle Spiele – erst nach der letzten Animation. */
+function renderFinal() {
+  const p = lobbyMe();
+  const left = (S.animUntil || 0) - clock.now();
+  clearTimeout(renderFinal.t);
+  if (left > 0) { renderFinal.t = setTimeout(render, left + 60); }
+  ['wait', 'turn', 'props', 'trade', 'mini', 'risiko', 'poker'].forEach((k) => $(`#panel-${k}`).classList.add('hidden'));
+  $('#tabs').classList.add('hidden');
+  document.body.classList.remove('poker-mode', 'risiko-mode');
+  $('#panel-final').classList.remove('hidden');
+  if (p) {
+    $('#me-fig').textContent = S.gameType === 'monopoly' ? (p.figure || '') : '';
+    $('#me-name').textContent = p.name;
+  }
+  const rank = S.final.rows.findIndex((r) => r.id === me);
+  $('#me-money').textContent = rank >= 0 ? `Platz ${rank + 1} von ${S.final.rows.length}` : '';
+  $('#turn-name').textContent = 'Spielende';
+  $('#turn-name').classList.remove('mine');
+  patch($('#panel-final'), left > 0
+    ? '<div class="box center"><h2>Schau auf den Fernseher</h2><p class="hint">Gleich kommt der Endstand.</p></div>'
+    : endstandHtml(S.final, { heading: S.final.reason === 'host' ? 'Das Spiel wurde beendet' : 'Spielende' }));
+}
+
 function render() {
   if (!S || !me) return;
+  if (S.game && S.final) { renderFinal(); return; }
+  $('#panel-final').classList.add('hidden');
   if (S.game && S.gameType === 'risiko') { renderRisiko(); return; }
   if (S.game && S.gameType === 'poker') { renderPoker(); return; }
   $('#panel-risiko').classList.add('hidden');
   $('#panel-poker').classList.add('hidden');
-  document.body.classList.remove('poker-mode');
+  document.body.classList.remove('poker-mode', 'risiko-mode');
   const hold = animHold();
   renderHeader(hold);
   if (!S.game) {

@@ -295,15 +295,6 @@ function pkBannerHtml(g, d) {
   return `${street}<span class="pkt-phase">${text}</span>${detail}${timer}${paused}`;
 }
 
-function pkFinalHtml(g) {
-  const ranking = g.players.slice().sort((a, b) => b.stack - a.stack);
-  const w = g.winner ? pkPlayer(g.winner) : null;
-  return `<div class="pkt-final-box"><h2>${w ? `${escapeHtml(w.name)} gewinnt` : 'Spielende'}</h2>
-    <p>Nach ${g.handNo} Runden</p>
-    <ol>${ranking.map((p) => `<li>${pkSeatHtml(p)}<span>${escapeHtml(p.name)}</span><b>${pkEuro(p.stack)}</b>
-      <small>${p.net >= 0 ? '+' : ''}${pkEuro(p.net)} · ${p.rebuys ? `${p.rebuys}× nachgekauft` : 'kein Nachkauf'}</small></li>`).join('')}</ol></div>`;
-}
-
 function renderPoker() {
   $('#lobby').classList.add('hidden');
   $('#game').classList.add('hidden');
@@ -325,7 +316,7 @@ function renderPoker() {
   const finalBox = $('#pkt-final');
   const showFinal = g.phase === 'gameover' && !d.busy;
   finalBox.classList.toggle('hidden', !showFinal);
-  if (showFinal) patch(finalBox, pkFinalHtml(g));
+  if (showFinal) patch(finalBox, endstandHtml(S.final, { heading: 'Endstand' }));
   pkRunEffects(now);
   clearTimeout(pkTimer);
   if (d.nextAt !== null) pkTimer = setTimeout(renderPoker, Math.max(0, d.nextAt - clock.now()) + 15);
@@ -401,8 +392,8 @@ function pkEffect(e) {
       if (e.amount > 0) PkAudio.play('chips');
       if (!motion || !e.amount) return;
       const b = document.getElementById(`pkt-b-${e.playerId}`);
-      const at = geo && geo.pos[e.playerId];
-      if (b && at) b.animate([{ translate: `${at.seat.x - at.bet.x}px ${at.seat.y - at.bet.y}px`, opacity: 0 }, { translate: '0px 0px', opacity: 1 }], { duration: Math.min(500, e.dur * 0.8), easing: 'cubic-bezier(.2,.7,.3,1)' });
+      // An der Ablage einblenden (leicht wachsend) – berührt so auch in der Bewegung nie den Platz
+      if (b) b.animate([{ scale: '.82', opacity: 0 }, { scale: '1', opacity: 1 }], { duration: Math.min(450, e.dur * 0.8), easing: 'cubic-bezier(.2,.7,.3,1)' });
       return;
     }
     case 'collect':

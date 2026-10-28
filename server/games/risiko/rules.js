@@ -552,6 +552,37 @@ class RisikoGame {
     }
   }
 
+  /* ---------------- Vorzeitiges Ende durch den Host ---------------- */
+
+  /** Der Host beendet das Spiel: kein Sieger, Gebiete und Armeen bleiben für das Abschlussbild stehen. */
+  endByHost() {
+    if (this.phase === 'gameover') fail('Das Spiel ist schon vorbei.');
+    this.phase = 'gameover';
+    this.turn = null;
+    this.winner = null;
+    this.endedBy = 'host';
+    this.event('Der Host hat das Spiel beendet.', 'gameover');
+  }
+
+  /** Endstand: Gebiete und Armeen je Spieler (dazu im Abschlussbild die Statistik). */
+  summary() {
+    const rows = this.players.map((p) => {
+      const territories = this.territoriesOf(p.id).length;
+      const armies = this.armiesOf(p.id);
+      const state = p.id === this.winner ? 'Sieger' : p.quit ? 'aufgegeben' : p.eliminated ? 'ausgeschieden' : '';
+      return { id: p.id, name: p.name, color: p.color, values: { territories, armies }, cells: [String(territories), String(armies), state || '–'], tone: p.id === this.winner ? 'plus' : '' };
+    }).sort((a, b) => (b.id === this.winner) - (a.id === this.winner) || b.values.territories - a.values.territories || b.values.armies - a.values.armies);
+    const w = this.winner ? this.players.find((p) => p.id === this.winner) : null;
+    return {
+      game: 'risiko',
+      reason: this.endedBy === 'host' ? 'host' : 'normal',
+      title: this.endedBy === 'host' ? 'Spiel vom Host beendet' : w ? `${w.name} erobert die Welt` : 'Spielende',
+      subtitle: `Nach ${this.round} ${this.round === 1 ? 'Runde' : 'Runden'}`,
+      columns: ['Gebiete', 'Armeen', 'Stand'],
+      rows,
+    };
+  }
+
   /* ---------------- Aktionen der Clients ---------------- */
 
   handleAction(pid, action = {}) {
@@ -687,6 +718,7 @@ class RisikoGame {
       nextTradeValue: this.nextTradeValue(),
       log: this.log.slice(-40),
       winner: this.winner,
+      endedBy: this.endedBy || null,
       myCards: viewer ? viewer.cards.map((id) => ({ ...CARD[id] })) : null,
     };
   }

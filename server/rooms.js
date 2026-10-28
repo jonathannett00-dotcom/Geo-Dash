@@ -170,6 +170,35 @@ class Room {
     this.schedule();
   }
 
+  /* ---------- Spiel beenden (nur Host) ---------- */
+
+  /** Der Host beendet das laufende Spiel; der Spielstand bleibt mit Endstand erhalten. */
+  endGame() {
+    if (!this.started || !this.game) fail('Es läuft gerade kein Spiel.');
+    if (this.game.isOver()) fail('Das Spiel ist schon vorbei.');
+    this.game.endByHost();
+    this.schedule();
+  }
+
+  /** Nach dem Spielende zurück in die Lobby: gleicher Raum, gleiche Spieler, neues Spiel wählbar. */
+  backToLobby() {
+    if (!this.game || !this.game.isOver()) fail('Zurück zur Lobby geht erst, wenn das Spiel beendet ist.');
+    this.game.dispose();
+    Object.keys(this.timers).forEach((k) => this.clearTimer(k));
+    this.game = null;
+    this.started = false;
+    this.settings = this.module.defaultSettings();
+    // In der Lobby wird ein getrennter Platz wie üblich nach 5 Minuten frei
+    for (const p of this.players) {
+      clearTimeout(p.leaveTimer);
+      p.leaveTimer = null;
+      if (!p.connected) {
+        p.leaveTimer = setTimeout(() => this.dropPlayer(p.id), RECONNECT_GRACE_MS);
+        p.leaveTimer.unref?.();
+      }
+    }
+  }
+
   /* ---------- Spielzüge ---------- */
 
   /** Absicht eines Spielers ausführen – das Spielmodul prüft alles selbst. */
@@ -313,6 +342,8 @@ class Room {
       game: null,
       mini: null,
       ...(this.game ? this.game.view(role, playerId) : {}),
+      // Endstand nach Spielende (vom Host beendet oder regulär) – nur Anzeige
+      final: this.game && this.game.isOver() && this.game.summary ? this.game.summary() : null,
     };
   }
 
@@ -427,6 +458,18 @@ class RoomManager {
     recent.push(now);
     this.recentCreates.set(ip, recent);
     return this.create();
+  }
+
+  /** Host schließt den Raum: alle Geräte bekommen Bescheid, der Raum wird gelöscht (auch aus der Datenbank). */
+  close(code) {
+    const room = this.rooms.get(code);
+    if (!room) return;
+    if (this.io) {
+      const msg = { message: 'Der Raum wurde geschlossen.' };
+      this.io.to(`${code}:board`).emit('room:closed', msg);
+      this.io.to(`${code}:players`).emit('room:closed', msg);
+    }
+    this.remove(code);
   }
 
   /** Raum entfernen (auch aus der Datenbank). */
@@ -591,6 +634,30 @@ class RoomManager {
       if (socket.data.role !== 'board') fail('Nur das Tablet kann das Spiel auswählen.');
       room.setGameType(String(gameType || ''));
       use(room);
+    });
+
+    const hostRoom = (what) => {
+      const room = ownRoom();
+      if (socket.data.role !== 'board') fail(`Nur die Host-Ansicht kann ${what}.`);
+      return room;
+    };
+
+    handle('board:end', (_, use) => {
+      const room = hostRoom('das Spiel beenden');
+      room.endGame();
+      use(room);
+    });
+
+    handle('board:lobby', (_, use) => {
+      const room = hostRoom('zur Lobby zurückkehren');
+      room.backToLobby();
+      use(room);
+    });
+
+    handle('board:close', () => {
+      const room = hostRoom('den Raum schließen');
+      this.close(room.code);
+      return { closed: true };
     });
 
     handle('board:start', (_, use) => {

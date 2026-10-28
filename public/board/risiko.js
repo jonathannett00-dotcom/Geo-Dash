@@ -212,8 +212,10 @@ function rkRenderFinal(g) {
 function rkFinalHtml(g) {
   const w = g.winner ? rkPlayer(g.winner) : null;
   const status = (p) => (p.id === g.winner ? 'Sieger' : p.quit ? 'aufgegeben' : p.eliminated ? 'ausgeschieden' : '');
-  const players = [...g.players].sort((a, b) => (b.id === g.winner) - (a.id === g.winner));
+  const players = [...g.players].sort((a, b) => (b.id === g.winner) - (a.id === g.winner) || b.territories - a.territories || b.armies - a.armies);
   const cols = [
+    ['territories', 'Gebiete'],
+    ['armies', 'Armeen'],
     ['conquests', 'Eroberungen'],
     ['armiesDefeated', 'Armeen besiegt'],
     ['armiesLost', 'Armeen verloren'],
@@ -221,7 +223,7 @@ function rkFinalHtml(g) {
     ['maxTerritories', 'Meiste Gebiete'],
   ];
   const rows = players.map((p) => {
-    const st = p.stats || {};
+    const st = { ...(p.stats || {}), territories: p.territories, armies: p.armies };
     return `<tr class="${p.id === g.winner ? 'winner' : ''}" style="--c:${rkTone(p.id)}">
       <th scope="row"><span class="rk-swatch"></span>${escapeHtml(p.name)}<small>${status(p)}</small></th>
       ${cols.map(([k]) => `<td>${st[k] ?? 0}</td>`).join('')}</tr>`;
@@ -230,7 +232,7 @@ function rkFinalHtml(g) {
   const since = g.statsSinceRound > 0
     ? `<p class="rk-final-note">Gezählt ab Runde ${g.statsSinceRound}: Der Spielstand stammt aus einer älteren Version.</p>` : '';
   return `<div class="rk-final-card">
-    <h2>${w ? `<b class="rk-who" style="--c:${rkTone(w.id)}">${escapeHtml(w.name)}</b> erobert die Welt` : 'Das Spiel ist vorbei'}</h2>
+    <h2>${w ? `<b class="rk-who" style="--c:${rkTone(w.id)}">${escapeHtml(w.name)}</b> erobert die Welt` : g.endedBy === 'host' ? 'Spiel vom Host beendet' : 'Das Spiel ist vorbei'}</h2>
     <p class="rk-final-sub">${rounds}</p>
     <table class="rk-final-table">
       <thead><tr><th></th>${cols.map(([, label]) => `<th scope="col">${label}</th>`).join('')}</tr></thead>

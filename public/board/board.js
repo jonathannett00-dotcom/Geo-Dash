@@ -942,4 +942,72 @@ function render() {
   else if (S.gameType === 'risiko') renderRisiko();
   else if (S.gameType === 'poker') renderPoker();
   else renderGame();
+  renderHost();
 }
+
+/* ---------------- Host: Spiel beenden, zurück zur Lobby, Raum schließen ---------------- */
+
+const HOST_DIALOGS = {
+  end: ['Spiel wirklich beenden?', 'Danach zeigen Fernseher und Handys den Endstand. Das lässt sich nicht rückgängig machen.', 'Ja, beenden'],
+  close: ['Raum wirklich schließen?', 'Der Raum wird gelöscht und alle Handys werden getrennt.', 'Ja, schließen'],
+};
+let hostPending = null;   // welche Aktion der Dialog bestätigt
+let hostFocus = null;
+
+/** „Spiel beenden“ nur während des Spiels; nach dem Ende Endstand und die Knöpfe für den Host. */
+function renderHost() {
+  const over = Boolean(S.started && S.game && S.final);
+  $$('.host-end').forEach((b) => { b.hidden = !S.started || !S.game || over; });
+  clearTimeout(renderHost.t);
+  // Erst nach der letzten Animation (z. B. dem Gewinn im Poker)
+  const wait = (S.animUntil || 0) - clock.now();
+  const ready = over && wait <= 0;
+  if (over && wait > 0) renderHost.t = setTimeout(renderHost, wait + 60);
+  $('#host-after').classList.toggle('hidden', !ready);
+  // Monopoly hat kein eigenes Abschlussbild: allgemeiner Endstand (Risiko und Poker zeigen ihren eigenen)
+  const generic = ready && S.gameType === 'monopoly';
+  $('#host-final').classList.toggle('hidden', !generic);
+  if (generic) patch($('#host-final'), endstandHtml(S.final, { heading: 'Endstand' }));
+  if (!over && hostPending === 'close') closeHostDialog();
+}
+
+function openHostDialog(kind) {
+  const [title, text, ok] = HOST_DIALOGS[kind];
+  hostPending = kind;
+  hostFocus = document.activeElement;
+  $('#host-dialog-title').textContent = title;
+  $('#host-dialog-text').textContent = text;
+  $('#host-dialog-ok').textContent = ok;
+  $('#host-dialog').classList.remove('hidden');
+  $('#host-dialog [data-host="cancel"]').focus();
+}
+
+function closeHostDialog() {
+  hostPending = null;
+  $('#host-dialog').classList.add('hidden');
+  if (hostFocus && hostFocus.focus) hostFocus.focus();
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-host]');
+  if (!b) return;
+  const kind = b.dataset.host;
+  if (kind === 'end' || kind === 'close') { openHostDialog(kind); return; }
+  if (kind === 'cancel') { closeHostDialog(); return; }
+  if (kind === 'lobby') { socket.emit('board:lobby', {}, (res) => { if (!res.ok) toast(res.error, 'error'); }); return; }
+  if (kind === 'confirm' && hostPending) {
+    const event = hostPending === 'end' ? 'board:end' : 'board:close';
+    closeHostDialog();
+    socket.emit(event, {}, (res) => { if (!res.ok) toast(res.error, 'error'); });
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && hostPending) closeHostDialog();
+});
+
+// Raum geschlossen: zurück zur Startseite (der gemerkte Raum wird vergessen)
+socket.on('room:closed', ({ message } = {}) => {
+  try { localStorage.removeItem(BOARD_KEY); } catch (_) { /* privat-Modus */ }
+  location.replace(`/?fehler=${encodeURIComponent(message || 'Der Raum wurde geschlossen.')}`);
+});

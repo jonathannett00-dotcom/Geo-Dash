@@ -68,6 +68,11 @@ class RisikoSession extends RisikoGame {
     return this.track(action.type, () => super.handleAction(pid, action));
   }
 
+  endByHost() {
+    this._preview = null;
+    return this.track('end', () => super.endByHost());
+  }
+
   removePlayer(pid, reason) {
     this.onDisconnect(pid);
     return this.track('remove', () => super.removePlayer(pid, reason));
@@ -146,6 +151,7 @@ class RisikoSession extends RisikoGame {
       case 'occupy': return { ...base, title: 'Nachrücken', text: `${name} rückt nach`, detail: '' };
       case 'fortify': return { ...base, title: 'Verschieben', text: `${name} verschiebt`, detail: 'einmal, danach endet der Zug' };
       case 'gameover': {
+        if (this.endedBy === 'host') return { ...base, title: 'Spielende', text: 'Spiel vom Host beendet', detail: '' };
         const w = this.winner ? this.players.find((p) => p.id === this.winner) : null;
         return { ...base, title: 'Spielende', text: w ? `${w.name} erobert die Welt` : 'Das Spiel ist vorbei', detail: '' };
       }

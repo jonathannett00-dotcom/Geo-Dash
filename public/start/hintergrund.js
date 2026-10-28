@@ -275,14 +275,17 @@
   }
 
   /* Bildzeit messen: Fenster von 3 s, Mittelwert über 26 ms (unter ~38 fps) heißt schlechter */
-  let sampleSum = 0; let sampleN = 0; let sampleStart = 0;
+  let sampleSum = 0; let sampleN = 0; let sampleStart = 0; let bad = 0;
   function measure(now, dt) {
     if (dt > 200) { sampleSum = 0; sampleN = 0; sampleStart = now; return; } // Tab-Wechsel o. Ä.
     sampleSum += dt; sampleN++;
     if (now - sampleStart < 3000) return;
     const avg = sampleSum / sampleN;
     sampleSum = 0; sampleN = 0; sampleStart = now;
-    if (avg > 26 && quality.level < 2) {
+    bad = avg > 26 ? bad + 1 : 0;
+    // Zwei schlechte Fenster in Folge (6 s), dann eine Stufe herunter
+    if (bad >= 2 && quality.level < 2) {
+      bad = 0;
       quality.level++;
       applyQuality();
       tiles.forEach(resize);

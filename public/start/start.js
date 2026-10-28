@@ -182,3 +182,23 @@ if (fehler) {
 }
 // Server früh wecken: Schläft er, steht der Hinweis schon da, bevor jemand klickt
 request('/healthz');
+
+/* ---------------- Parallax (nur Desktop mit Maus, nicht bei reduzierter Bewegung) ---------------- */
+(function parallax() {
+  const fine = window.matchMedia('(hover: hover) and (pointer: fine)');
+  const ambient = $s('.st-ambient');
+  const scenes = [...document.querySelectorAll('.st-canvas')];
+  let mx = 0; let my = 0; let x = 0; let y = 0; let raf = 0;
+  function step() {
+    x += (mx - x) * 0.08; y += (my - y) * 0.08;
+    ambient.style.transform = `translate3d(${(x * -14).toFixed(2)}px, ${(y * -10).toFixed(2)}px, 0)`;
+    for (const c of scenes) { c.style.setProperty('--px', `${(x * 8).toFixed(2)}px`); c.style.setProperty('--py', `${(y * 6).toFixed(2)}px`); }
+    raf = Math.abs(mx - x) + Math.abs(my - y) > 0.002 ? requestAnimationFrame(step) : 0;
+  }
+  window.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' || !fine.matches || reduceMotion.matches) return;
+    mx = e.clientX / window.innerWidth * 2 - 1;
+    my = e.clientY / window.innerHeight * 2 - 1;
+    if (!raf) raf = requestAnimationFrame(step);
+  }, { passive: true });
+}());

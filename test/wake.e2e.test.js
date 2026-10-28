@@ -45,6 +45,7 @@ async function startGame(port, wakeOrigin) {
   return game;
 }
 
+const codeValue = (page) => page.evaluate(() => [...document.querySelectorAll('#join-code .cell')].map((c) => c.value).join(''));
 const shot = (page, name) => (SHOTS ? page.screenshot({ path: path.join(SHOTS, `wake-${name}.png`) }) : null);
 
 test('Weckseite: wartet auf den gestoppten Server und leitet erst danach weiter', { skip: browserSkip(), timeout: 90000 }, async () => {
@@ -71,14 +72,22 @@ test('Weckseite: wartet auf den gestoppten Server und leitet erst danach weiter'
     const page = await openPage(browser, wake.url, { viewport: { width: 390, height: 844 }, label: 'handy', errors, isMobile: true });
     await page.click('#btn-join');
     assert.equal(await page.textContent('#join-msg'), 'Bitte gib den Raumcode ein.');
-    await page.fill('#join-code', 'ab');
-    await page.press('#join-code', 'Enter');
+    await page.click('#join-code .cell >> nth=0');
+    await page.keyboard.type('ab');
+    await page.keyboard.press('Enter');
     assert.equal(await page.textContent('#join-msg'), 'Der Raumcode hat 4 Buchstaben.');
 
-    await page.fill('#join-code', '');
+    // Einfügen mit Leerzeichen in das erste Feld: verteilt auf alle vier Felder
+    await page.click('#join-code .cell >> nth=0');
     await page.keyboard.insertText(` ${code.toLowerCase()} `);
-    assert.equal(await page.inputValue('#join-code'), code, 'Leerzeichen entfernt, Großbuchstaben');
-    await page.press('#join-code', 'Enter');
+    assert.equal(await codeValue(page), code, 'Leerzeichen entfernt, Großbuchstaben');
+    // Rücktaste: löscht das letzte Feld, im leeren Feld springt sie zurück und löscht dort
+    await page.keyboard.press('Backspace');
+    assert.equal(await codeValue(page), code.slice(0, 3));
+    await page.keyboard.press('Backspace');
+    assert.equal(await codeValue(page), code.slice(0, 2), 'Rücktaste springt zurück');
+    await page.keyboard.type(code.slice(2));
+    await page.keyboard.press('Enter');
     await page.waitForSelector('#pending:not(.hidden)');
     assert.match(await page.textContent('#pending'), new RegExp(`Raum ${code}`));
     await page.waitForTimeout(4000);

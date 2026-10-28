@@ -150,4 +150,5 @@
 @media (max-aspect-ratio: 4/3) {
   .poker { --side: clamp(190px, 22vw, 300px); font-size: clamp(11px, 1.35vw, 20px); }
   .pkt-meta span { display: none; }
+  .pkt-side-game { display: none; }
 }
